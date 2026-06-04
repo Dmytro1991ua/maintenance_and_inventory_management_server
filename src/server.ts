@@ -1,8 +1,9 @@
 import app from "./app";
 import { env } from "./config/env";
 import { logger } from "./config/logger";
+import { prisma } from "./config/prisma";
 
-app.listen(env.PORT, () => {
+const server = app.listen(env.PORT, () => {
   logger.info({
     message: "Server started",
     port: env.PORT,
@@ -11,3 +12,14 @@ app.listen(env.PORT, () => {
     pid: process.pid,
   });
 });
+
+const shutdown = async (signal: string) => {
+  logger.info({ signal }, "Shutting down");
+  server.close(async () => {
+    await prisma.$disconnect();
+    process.exit(0);
+  });
+};
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
