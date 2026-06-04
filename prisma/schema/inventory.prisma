@@ -1,0 +1,9 @@
+model InventoryItem {
+  id           String @id @default(uuid())
+  name         String
+  serialNumber String @unique
+  quantity     Int
+  minStockLevel Int
+
+  @@map("inventory_items")
+}
