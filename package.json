@@ -12,11 +12,15 @@
     "lint:fix": "eslint src --fix",
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "echo \"No tests yet\" && exit 0",
-    "prepare": "is-ci || husky"
+    "prepare": "is-ci || husky",
+    "docker-up": "docker compose up -d",
+    "docker-down": "docker compose down",
+    "docker-status": "docker compose ps"
   },
   "dependencies": {
     "dotenv": "^17.4.2",
-    "express": "^5.2.1"
+    "express": "^5.2.1",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
