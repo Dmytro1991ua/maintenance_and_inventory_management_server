@@ -1,0 +1,1 @@
+export const SERVER_SHUTDOWN_TIMEOUT_MS = 10000;
