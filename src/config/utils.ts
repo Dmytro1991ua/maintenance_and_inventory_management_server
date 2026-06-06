@@ -2,7 +2,7 @@ import {
   REDIS_INITIAL_RETRY_DELAY_MS,
   REDIS_MAX_RECONNECT_ATTEMPTS,
   REDIS_MAX_RETRY_DELAY_MS,
-} from "../constants";
+} from "./constants";
 
 // Calculates reconnection delay using exponential backoff.
 // Returns delay in ms, or null when max attempts exceeded (signals ioredis to stop retrying).
