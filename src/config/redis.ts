@@ -1,7 +1,8 @@
 import Redis, { type RedisOptions } from "ioredis";
-import { getRedisRetryStrategy } from "../utils/redis.utils";
+
 import { env } from "./env";
 import { logger } from "./logger";
+import { getRedisRetryStrategy } from "./utils";
 
 const createRedisClient = (): Redis => {
   const options: RedisOptions = {

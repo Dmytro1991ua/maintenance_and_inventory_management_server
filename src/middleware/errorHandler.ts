@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from "express";
+import { NextFunction, Request, Response } from "express";
 import { z, ZodError } from "zod";
 
 import { env, logger } from "../config";
