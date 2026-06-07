@@ -104,7 +104,6 @@ export const authService = {
     // Never return the password hash — even hashed
     return { id: user.id, userName: user.userName, email: user.email };
   },
-
   login: async (input: LoginInput) => {
     const user = await authRepository.findByEmail(input.email);
 
@@ -128,7 +127,6 @@ export const authService = {
 
     return { accessToken, refreshToken, roles };
   },
-
   refresh: async (incomingToken: string) => {
     // Decode without verifying — need userId + tokenId for Redis lookup
     // before verification. jwt.decode never throws.
@@ -183,7 +181,6 @@ export const authService = {
 
     return { accessToken: newAccessToken, refreshToken: newRefreshToken, roles };
   },
-
   logout: async (incomingToken: string): Promise<void> => {
     const decodedToken = jwt.decode(incomingToken) as jwt.JwtPayload | null;
 
