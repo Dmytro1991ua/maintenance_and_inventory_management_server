@@ -36,13 +36,11 @@ export const usersRepository = {
       },
     };
   },
-
   findById: (id: string) =>
     prisma.user.findUnique({
       where: { id },
       select: USER_SELECT,
     }),
-
   // Single DB call instead of two sequential findUnique calls.
   // excludeId prevents false positives when the user updates their own fields.
   //
@@ -79,20 +77,17 @@ export const usersRepository = {
       userName: !!userNameConflict,
     };
   },
-
   update: (id: string, data: UpdateUser) =>
     prisma.user.update({
       where: { id },
       data,
       select: USER_SELECT,
     }),
-
   updateRoles: (id: string, data: UpdateRoles) =>
     prisma.user.update({
       where: { id },
       data: { roles: data.roles },
       select: USER_SELECT,
     }),
-
   delete: (id: string) => prisma.user.delete({ where: { id } }),
 };

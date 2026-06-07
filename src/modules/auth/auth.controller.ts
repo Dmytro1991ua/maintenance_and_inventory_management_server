@@ -47,7 +47,6 @@ export const authController = {
       },
     });
   },
-
   refresh: async (req: Request, res: Response): Promise<void> => {
     const incomingToken = req.cookies?.jwt;
 
@@ -68,7 +67,6 @@ export const authController = {
       },
     });
   },
-
   logout: async (req: Request, res: Response): Promise<void> => {
     const incomingToken = req.cookies?.jwt;
 

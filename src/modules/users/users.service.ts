@@ -47,7 +47,6 @@ export const usersService = {
 
     return usersRepository.update(targetId, data);
   },
-
   // ADMIN only
   // but we also guard here as defense in depth
   updateRoles: async (targetId: string, data: UpdateRoles) => {
@@ -57,7 +56,6 @@ export const usersService = {
 
     return usersRepository.updateRoles(targetId, data);
   },
-
   // ADMIN only
   delete: async (targetId: string, requestingUserId: string) => {
     // Prevent self-deletion — an admin accidentally deleting themselves

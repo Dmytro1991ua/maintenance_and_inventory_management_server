@@ -36,7 +36,7 @@ export const validateQuery =
   (req: Request, _res: Response, next: NextFunction): void => {
     // Zod may coerce query strings to numbers/booleans — cast required since
     // Express types req.query as ParsedQs (string values only).
-    req.query = schema.parse(req.query) as unknown as ParsedQs;
+    req.query = schema.parse(req.query) as ParsedQs;
 
     next();
   };
