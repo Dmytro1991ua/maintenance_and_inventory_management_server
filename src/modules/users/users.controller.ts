@@ -6,7 +6,6 @@ import { usersService } from "./users.service";
 
 /**
  * Users controller — HTTP layer only.
- * Reads from req, calls service, sends response.
  */
 export const usersController = {
   findAll: async (req: Request, res: Response): Promise<void> => {

@@ -1,5 +1,4 @@
 import { NextFunction, Request, Response } from "express";
-import type { ParsedQs } from "qs";
 import { z } from "zod";
 
 /**
@@ -34,9 +33,20 @@ export const validateParams =
 export const validateQuery =
   <T>(schema: z.ZodType<T>) =>
   (req: Request, _res: Response, next: NextFunction): void => {
-    // Zod may coerce query strings to numbers/booleans — cast required since
-    // Express types req.query as ParsedQs (string values only).
-    req.query = schema.parse(req.query) as ParsedQs;
+    const parsedQuery = schema.parse(req.query);
+
+    // Express 5 defines req.query as a getter-only accessor on its prototype
+    // (see express/lib/request.js — `defineGetter`, no setter), so a direct
+    // assignment throws "Cannot set property query of ... which has only a
+    // getter". Redefining it as an own, writable data property on this
+    // request shadows the prototype getter — the standard workaround for
+    // validation/parsing middleware under Express 5.
+    Object.defineProperty(req, "query", {
+      value: parsedQuery,
+      writable: true,
+      enumerable: true,
+      configurable: true,
+    });
 
     next();
   };

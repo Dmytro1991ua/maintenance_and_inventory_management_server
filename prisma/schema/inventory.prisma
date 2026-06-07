@@ -1,9 +1,11 @@
 model InventoryItem {
-  id           String @id @default(uuid())
-  name         String
-  serialNumber String @unique
-  quantity     Int
+  id            String   @id @default(uuid())
+  name          String
+  serialNumber  String   @unique
+  quantity      Int
   minStockLevel Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@map("inventory_items")
 }
