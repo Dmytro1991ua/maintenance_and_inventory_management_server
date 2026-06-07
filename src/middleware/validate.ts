@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import type { ParsedQs } from "qs";
 import { z } from "zod";
 
 /**
@@ -6,7 +7,7 @@ import { z } from "zod";
  * Used on POST / PATCH / PUT routes where client sends data in the body.
  */
 export const validateBody =
-  (schema: z.ZodType) =>
+  <T>(schema: z.ZodType<T>) =>
   (req: Request, _res: Response, next: NextFunction): void => {
     req.body = schema.parse(req.body);
 
@@ -17,10 +18,11 @@ export const validateBody =
  * Validates req.params against a Zod schema.
  * Used on routes with URL path parameters like GET /users/:id
  */
+// Route segment params are always strings — constrain T accordingly.
 export const validateParams =
-  (schema: z.ZodType) =>
+  <T extends Record<string, string>>(schema: z.ZodType<T>) =>
   (req: Request, _res: Response, next: NextFunction): void => {
-    req.params = schema.parse(req.params) as Record<string, string>;
+    req.params = schema.parse(req.params);
 
     next();
   };
@@ -30,9 +32,11 @@ export const validateParams =
  * Used on GET routes that accept filters, pagination, or sorting.
  */
 export const validateQuery =
-  (schema: z.ZodType) =>
+  <T>(schema: z.ZodType<T>) =>
   (req: Request, _res: Response, next: NextFunction): void => {
-    req.query = schema.parse(req.query) as Record<string, string>;
+    // Zod may coerce query strings to numbers/booleans — cast required since
+    // Express types req.query as ParsedQs (string values only).
+    req.query = schema.parse(req.query) as unknown as ParsedQs;
 
     next();
   };
