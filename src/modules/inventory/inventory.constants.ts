@@ -1,0 +1,29 @@
+import { Prisma } from "../../generated/prisma/client";
+
+export const INVENTORY_SELECT = {
+  id: true,
+  name: true,
+  serialNumber: true,
+  quantity: true,
+  minStockLevel: true,
+  createdAt: true,
+  updatedAt: true,
+} satisfies Prisma.InventoryItemSelect;
+
+// Centralized column list for the raw low-stock queries — one place to update
+// if the schema changes. Columns must be double-quoted: the schema has no
+// @map directives, so Postgres stores them as case-sensitive camelCase
+// identifiers (e.g. "serialNumber"), not snake_case.
+export const INVENTORY_SQL_SELECT = Prisma.sql`
+  id,
+  name,
+  "serialNumber",
+  quantity,
+  "minStockLevel",
+  "createdAt",
+  "updatedAt"
+`;
+
+export const INVENTORY_ENTITY_ALLOWED_SORT_FIELDS = ["name", "quantity", "createdAt"] as const;
+
+export const INVENTORY_ENTITY_DEFAULT_SORT_FIELD = "createdAt" as const;

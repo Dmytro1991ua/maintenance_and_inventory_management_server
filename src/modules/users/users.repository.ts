@@ -1,9 +1,12 @@
 import { prisma } from "../../config";
 import { Prisma } from "../../generated/prisma/client";
-import { getTotalPages } from "../../utils";
-import { USER_SELECT } from "./users.constants";
+import { getSkipValue, getTotalPages, resolveSortField } from "../../utils";
+import {
+  ALLOWED_USERS_ENTITY_SORT_FIELDS,
+  USER_ENTITY_DEFAULT_SORT_FIELD,
+  USER_SELECT,
+} from "./users.constants";
 import type { UpdateRoles, UpdateUser, UsersQuery } from "./users.schemas";
-import { resolveSortField } from "./users.utils";
 
 export const usersRepository = {
   findAll: async (query: UsersQuery) => {
@@ -13,7 +16,11 @@ export const usersRepository = {
       ...(role ? { roles: { has: role } } : {}),
     };
 
-    const field = resolveSortField(sortBy);
+    const field = resolveSortField(
+      sortBy,
+      ALLOWED_USERS_ENTITY_SORT_FIELDS,
+      USER_ENTITY_DEFAULT_SORT_FIELD,
+    );
 
     const [total, users] = await Promise.all([
       prisma.user.count({ where }),
@@ -21,7 +28,7 @@ export const usersRepository = {
         where,
         select: USER_SELECT,
         orderBy: { [field]: sortOrder },
-        skip: (page - 1) * limit,
+        skip: getSkipValue(page, limit),
         take: limit,
       }),
     ]);
