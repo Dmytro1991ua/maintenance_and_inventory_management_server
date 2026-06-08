@@ -24,6 +24,13 @@ export const INVENTORY_SQL_SELECT = Prisma.sql`
   "updatedAt"
 `;
 
+// Single source of truth for "what counts as low stock" — shared by the
+// paginated lowStock=true query and the unpaginated job lookup, so the
+// definition can't drift between the two.
+export const LOW_STOCK_CONDITION = Prisma.sql`quantity < "minStockLevel"`;
+
 export const INVENTORY_ENTITY_ALLOWED_SORT_FIELDS = ["name", "quantity", "createdAt"] as const;
 
 export const INVENTORY_ENTITY_DEFAULT_SORT_FIELD = "createdAt" as const;
+
+export const INVENTORY_ITEM_NOT_FOUND_MESSAGE = "Inventory item not found";

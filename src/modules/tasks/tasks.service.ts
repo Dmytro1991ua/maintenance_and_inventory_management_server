@@ -1,7 +1,8 @@
 import { ForbiddenError } from "../../errors";
 import { Role } from "../../generated/prisma/client";
-import { findOrThrow } from "../../utils";
+import { ensureOwner, findOrThrow } from "../../utils";
 import { usersRepository } from "../users/users.repository";
+import { ASSIGNEE_NOT_FOUND_MESSAGE } from "./tasks.constants";
 import { tasksRepository } from "./tasks.repository";
 import type { CreateTask, TasksQuery, UpdateTask } from "./tasks.schemas";
 
@@ -20,7 +21,7 @@ export const tasksService = {
     const { assignedTo } = data;
 
     if (assignedTo) {
-      await findOrThrow(() => usersRepository.findById(assignedTo), "Assignee not found");
+      await findOrThrow(() => usersRepository.findById(assignedTo), ASSIGNEE_NOT_FOUND_MESSAGE);
     }
 
     return tasksRepository.create(data);
@@ -39,16 +40,18 @@ export const tasksService = {
       const { assignedTo } = data;
 
       if (assignedTo) {
-        await findOrThrow(() => usersRepository.findById(assignedTo), "Assignee not found");
+        await findOrThrow(() => usersRepository.findById(assignedTo), ASSIGNEE_NOT_FOUND_MESSAGE);
       }
 
       return tasksRepository.update(id, data);
     }
 
     // Technician must own the task
-    if (task.assignedTo !== requestingUser.id) {
-      throw new ForbiddenError("You can only update tasks assigned to you");
-    }
+    ensureOwner(
+      task.assignedTo ?? "",
+      requestingUser.id,
+      "You can only update tasks assigned to you",
+    );
 
     // Technician must only send status — nothing else
     const keys = Object.keys(data);

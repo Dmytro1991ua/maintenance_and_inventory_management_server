@@ -1,6 +1,7 @@
 import { ConflictError, ForbiddenError } from "../../errors";
 import { Role } from "../../generated/prisma/client";
 import { findOrThrow } from "../../utils";
+import { USER_NOT_FOUND_MESSAGE } from "./users.constants";
 import { usersRepository } from "./users.repository";
 import type { UpdateRoles, UpdateUser, UsersQuery } from "./users.schemas";
 
@@ -9,7 +10,7 @@ export const usersService = {
     return usersRepository.findAll(query);
   },
   findById: async (id: string) => {
-    return findOrThrow(() => usersRepository.findById(id), "User not found");
+    return findOrThrow(() => usersRepository.findById(id), USER_NOT_FOUND_MESSAGE);
   },
   // A user can update their own profile.
   // An ADMIN can update any profile.
@@ -26,7 +27,10 @@ export const usersService = {
       throw new ForbiddenError("You can only update your own profile");
     }
 
-    const existing = await findOrThrow(() => usersRepository.findById(targetId), "User not found");
+    const existing = await findOrThrow(
+      () => usersRepository.findById(targetId),
+      USER_NOT_FOUND_MESSAGE,
+    );
 
     // Only check fields that are actually being changed —
     // avoids false conflicts when user submits their own current values.
@@ -45,7 +49,7 @@ export const usersService = {
   // ADMIN only
   // but we also guard here as defense in depth
   updateRoles: async (targetId: string, data: UpdateRoles) => {
-    await findOrThrow(() => usersRepository.findById(targetId), "User not found");
+    await findOrThrow(() => usersRepository.findById(targetId), USER_NOT_FOUND_MESSAGE);
 
     return usersRepository.updateRoles(targetId, data);
   },
@@ -57,7 +61,7 @@ export const usersService = {
       throw new ForbiddenError("You cannot delete your own account");
     }
 
-    await findOrThrow(() => usersRepository.findById(targetId), "User not found");
+    await findOrThrow(() => usersRepository.findById(targetId), USER_NOT_FOUND_MESSAGE);
 
     await usersRepository.delete(targetId);
   },

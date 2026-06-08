@@ -1,0 +1,23 @@
+enum NotificationType {
+  LOW_STOCK
+  TASK_OVERDUE
+}
+
+model Notification {
+  id              String           @id @default(uuid())
+  type            NotificationType
+  message         String
+  isRead          Boolean          @default(false)
+  userId          String
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Po// References the entity that triggered the notification.
+// Used to prevent duplicate notifications for the same active condition
+// (e.g. LOW_STOCK for the same inventory item).
+  relatedEntityId String?
+  createdAt       DateTime         @default(now())
+
+  // Speeds up the de-dup lookup jobs run before creating system notifications
+  @@index([type, relatedEntityId, isRead])
+  @@map("notifications")
+}
+

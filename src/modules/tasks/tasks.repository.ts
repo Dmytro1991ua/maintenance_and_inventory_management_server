@@ -1,4 +1,5 @@
 import { prisma } from "../../config";
+import { TaskStatus } from "../../generated/prisma/client";
 import { getSkipValue, getTotalPages, resolveSortField } from "../../utils";
 import {
   TASK_ENTITY_ALLOWED_SORT_FIELDS,
@@ -39,6 +40,17 @@ export const tasksRepository = {
   findById: async (id: string) =>
     prisma.task.findUnique({
       where: { id },
+      select: TASK_SELECT,
+    }),
+  // Unpaginated — used by the overdue-task notification job, which needs
+  // every matching task in one pass rather than a UI page at a time.
+  // "Overdue" = past its due date and not yet completed.
+  findOverdue: async () =>
+    prisma.task.findMany({
+      where: {
+        dueDate: { lt: new Date() },
+        status: { not: TaskStatus.DONE },
+      },
       select: TASK_SELECT,
     }),
   create: async (data: CreateTask) =>

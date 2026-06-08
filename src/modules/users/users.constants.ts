@@ -15,3 +15,5 @@ export const USER_SELECT = {
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.UserSelect;
+
+export const USER_NOT_FOUND_MESSAGE = "User not found";

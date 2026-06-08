@@ -6,6 +6,7 @@ import {
   INVENTORY_ENTITY_DEFAULT_SORT_FIELD,
   INVENTORY_SELECT,
   INVENTORY_SQL_SELECT,
+  LOW_STOCK_CONDITION,
 } from "./inventory.constants";
 import { CreateInventoryItem, InventoryQuery, UpdateInventoryItem } from "./inventory.schemas";
 import type { InventoryItemDTO } from "./inventory.types";
@@ -80,6 +81,14 @@ export const inventoryRepository = {
       where: { serialNumber },
       select: { id: true },
     }),
+  // Unpaginated — used by the low-stock notification job, which needs every
+  // matching item in one pass rather than a UI page at a time.
+  findLowStock: async (): Promise<InventoryItemDTO[]> =>
+    prisma.$queryRaw<InventoryItemDTO[]>`
+      SELECT ${INVENTORY_SQL_SELECT}
+      FROM inventory_items
+      WHERE ${LOW_STOCK_CONDITION}
+    `,
   create: async (data: CreateInventoryItem) =>
     prisma.inventoryItem.create({
       data,
