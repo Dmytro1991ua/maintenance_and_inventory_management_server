@@ -12,6 +12,7 @@ model Task {
   status      TaskStatus @default(OPEN)
   assignedTo  String?
   assignee    User?      @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  dueDate     DateTime?
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 

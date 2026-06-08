@@ -19,3 +19,5 @@ export const TASK_SELECT = {
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.TaskSelect;
+
+export const ASSIGNEE_NOT_FOUND_MESSAGE = "Assignee not found";

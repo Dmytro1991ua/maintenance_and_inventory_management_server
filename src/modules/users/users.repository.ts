@@ -1,5 +1,5 @@
 import { prisma } from "../../config";
-import { Prisma } from "../../generated/prisma/client";
+import { Prisma, Role } from "../../generated/prisma/client";
 import { getSkipValue, getTotalPages, resolveSortField } from "../../utils";
 import {
   ALLOWED_USERS_ENTITY_SORT_FIELDS,
@@ -47,6 +47,13 @@ export const usersRepository = {
     prisma.user.findUnique({
       where: { id },
       select: USER_SELECT,
+    }),
+  // Used by system jobs to find recipients for broadcast-style notifications
+  // (e.g. notify every MANAGER/ADMIN about a low-stock item).
+  findByRoles: (roles: Role[]) =>
+    prisma.user.findMany({
+      where: { roles: { hasSome: roles } },
+      select: { id: true },
     }),
   // Single DB call instead of two sequential findUnique calls.
   // excludeId prevents false positives when the user updates their own fields.

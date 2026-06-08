@@ -5,6 +5,7 @@ import { API_PREFIX } from "./constants";
 import { errorHandler, generalLimiter, notFoundHandler } from "./middleware";
 import authRouter from "./modules/auth/auth.routes";
 import inventoryRouter from "./modules/inventory/inventory.routes";
+import notificationsRouter from "./modules/notifications/notifications.routes";
 import tasksRouter from "./modules/tasks/tasks.routes";
 import usersRouter from "./modules/users/users.routes";
 
@@ -24,6 +25,7 @@ app.use(`${API_PREFIX}/auth`, authRouter);
 app.use(`${API_PREFIX}/users`, usersRouter);
 app.use(`${API_PREFIX}/inventory`, inventoryRouter);
 app.use(`${API_PREFIX}/tasks`, tasksRouter);
+app.use(`${API_PREFIX}/notifications`, notificationsRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

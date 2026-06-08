@@ -1,35 +1,44 @@
 import { Prisma } from "../../generated/prisma/client";
+import { LOW_STOCK_CONDITION } from "./inventory.constants";
+
+const normalizeSearch = (search?: string): string | undefined => {
+  const normalizedSearch = search?.trim();
+
+  return normalizedSearch || undefined;
+};
 
 /**
  * Builds the raw SQL WHERE clause for low-stock queries.
  * Extracted to avoid duplicating SQL between data fetch and count queries.
  */
 export const buildLowStockWhere = (search?: string): Prisma.Sql => {
-  const searchClause = search
+  const normalizedSearch = normalizeSearch(search);
+
+  const searchClause = normalizedSearch
     ? Prisma.sql`
         AND (
-          name ILIKE ${"%" + search + "%"}
-          OR "serialNumber" ILIKE ${"%" + search + "%"}
+          name ILIKE ${`%${normalizedSearch}%`}
+          OR "serialNumber" ILIKE ${`%${normalizedSearch}%`}
         )
       `
     : Prisma.sql``;
 
-  // Quoted identifiers — see INVENTORY_SQL_SELECT for why (no @map → camelCase columns).
   return Prisma.sql`
-    quantity < "minStockLevel"
+    ${LOW_STOCK_CONDITION}
     ${searchClause}
   `;
 };
 
 /**
  * Builds the Prisma WHERE input for normal (non-lowStock) queries.
- * Returns undefined when no filters are active — Prisma treats
- * undefined as "no filter", which is more efficient than an empty object.
+ * Returns undefined when no filters are active so Prisma applies no WHERE filter.
  */
 export const buildInventoryWhere = (
   search?: string,
 ): Prisma.InventoryItemWhereInput | undefined => {
-  if (!search) return undefined;
+  const normalizedSearch = normalizeSearch(search);
+
+  if (!normalizedSearch) return undefined;
 
   return {
     OR: [
