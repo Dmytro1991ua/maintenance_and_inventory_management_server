@@ -1,4 +1,5 @@
-import { ConflictError, NotFoundError } from "../../errors";
+import { ConflictError } from "../../errors";
+import { findOrThrow } from "../../utils";
 import { inventoryRepository } from "./inventory.repository";
 import type { CreateInventoryItem, InventoryQuery, UpdateInventoryItem } from "./inventory.schemas";
 
@@ -9,11 +10,7 @@ export const inventoryService = {
     return inventoryRepository.findAll(query);
   },
   findById: async (id: string) => {
-    const item = await inventoryRepository.findById(id);
-
-    if (!item) throw new NotFoundError("Inventory item not found");
-
-    return item;
+    return findOrThrow(() => inventoryRepository.findById(id), "Inventory item not found");
   },
   // Serial numbers must be globally unique — enforced at service level (UX)
   // and by DB UNIQUE constraint (race condition safety).
@@ -27,16 +24,12 @@ export const inventoryService = {
   // serialNumber is intentionally not updatable —
   // it's a physical identifier that should never change after creation.
   update: async (id: string, data: UpdateInventoryItem) => {
-    const existingInventoryItem = await inventoryRepository.findById(id);
-
-    if (!existingInventoryItem) throw new NotFoundError("Inventory item not found");
+    await findOrThrow(() => inventoryRepository.findById(id), "Inventory item not found");
 
     return inventoryRepository.update(id, data);
   },
   delete: async (id: string): Promise<void> => {
-    const existingInventoryItem = await inventoryRepository.findById(id);
-
-    if (!existingInventoryItem) throw new NotFoundError("Inventory item not found");
+    await findOrThrow(() => inventoryRepository.findById(id), "Inventory item not found");
 
     await inventoryRepository.delete(id);
   },

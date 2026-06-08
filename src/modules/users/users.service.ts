@@ -1,5 +1,6 @@
-import { ConflictError, ForbiddenError, NotFoundError } from "../../errors";
+import { ConflictError, ForbiddenError } from "../../errors";
 import { Role } from "../../generated/prisma/client";
+import { findOrThrow } from "../../utils";
 import { usersRepository } from "./users.repository";
 import type { UpdateRoles, UpdateUser, UsersQuery } from "./users.schemas";
 
@@ -8,11 +9,7 @@ export const usersService = {
     return usersRepository.findAll(query);
   },
   findById: async (id: string) => {
-    const user = await usersRepository.findById(id);
-
-    if (!user) throw new NotFoundError("User not found");
-
-    return user;
+    return findOrThrow(() => usersRepository.findById(id), "User not found");
   },
   // A user can update their own profile.
   // An ADMIN can update any profile.
@@ -29,9 +26,7 @@ export const usersService = {
       throw new ForbiddenError("You can only update your own profile");
     }
 
-    const existing = await usersRepository.findById(targetId);
-
-    if (!existing) throw new NotFoundError("User not found");
+    const existing = await findOrThrow(() => usersRepository.findById(targetId), "User not found");
 
     // Only check fields that are actually being changed —
     // avoids false conflicts when user submits their own current values.
@@ -50,9 +45,7 @@ export const usersService = {
   // ADMIN only
   // but we also guard here as defense in depth
   updateRoles: async (targetId: string, data: UpdateRoles) => {
-    const existingUser = await usersRepository.findById(targetId);
-
-    if (!existingUser) throw new NotFoundError("User not found");
+    await findOrThrow(() => usersRepository.findById(targetId), "User not found");
 
     return usersRepository.updateRoles(targetId, data);
   },
@@ -64,9 +57,7 @@ export const usersService = {
       throw new ForbiddenError("You cannot delete your own account");
     }
 
-    const existingUser = await usersRepository.findById(targetId);
-
-    if (!existingUser) throw new NotFoundError("User not found");
+    await findOrThrow(() => usersRepository.findById(targetId), "User not found");
 
     await usersRepository.delete(targetId);
   },
