@@ -8,6 +8,7 @@ declare global {
         userName: string;
         roles: Role[];
       };
+      requestId: string;
     }
   }
 }

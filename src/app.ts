@@ -2,7 +2,7 @@ import cookieParser from "cookie-parser";
 import express, { Application } from "express";
 
 import { API_PREFIX } from "./constants";
-import { errorHandler, generalLimiter, notFoundHandler } from "./middleware";
+import { errorHandler, generalLimiter, notFoundHandler, requestLogger } from "./middleware";
 import authRouter from "./modules/auth/auth.routes";
 import inventoryRouter from "./modules/inventory/inventory.routes";
 import notificationsRouter from "./modules/notifications/notifications.routes";
@@ -13,6 +13,7 @@ const app: Application = express();
 
 app.disable("x-powered-by");
 
+app.use(requestLogger);
 app.use(generalLimiter);
 app.use(express.json());
 app.use(cookieParser());
