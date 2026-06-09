@@ -10,13 +10,13 @@ model Notification {
   isRead          Boolean          @default(false)
   userId          String
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  // Po// References the entity that triggered the notification.
-// Used to prevent duplicate notifications for the same active condition
-// (e.g. LOW_STOCK for the same inventory item).
+  // References the entity that triggered the notification.
+  // Used to prevent duplicate notifications for the same active condition
+  // (e.g. LOW_STOCK for the same inventory item).
   relatedEntityId String?
   createdAt       DateTime         @default(now())
 
-  // Speeds up the de-dup lookup jobs run before creating system notifications
+  // Optimizes duplicate-notification checks for system jobs.
   @@index([type, relatedEntityId, isRead])
   @@map("notifications")
 }

@@ -9,6 +9,7 @@ export const TASK_SELECT = {
   description: true,
   status: true,
   assignedTo: true,
+  dueDate: true,
   assignee: {
     select: {
       id: true,
