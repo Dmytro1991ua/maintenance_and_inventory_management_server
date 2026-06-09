@@ -1,6 +1,9 @@
+import type { ScheduledTask } from "node-cron";
+
 import app from "./app";
 import { env, logger, prisma, redis } from "./config";
 import { SERVER_SHUTDOWN_TIMEOUT_MS } from "./constants";
+import { registerJobs } from "./jobs/cron";
 
 process.on("uncaughtException", (err) => {
   logger.fatal({ err }, "Uncaught exception — shutting down");
@@ -31,8 +34,12 @@ redis.ping().catch((err) => {
   process.exit(1);
 });
 
+let scheduledJobs: ScheduledTask[] = [];
+
 const server = app.listen(env.PORT, () => {
   logger.info({ port: env.PORT, nodeVersion: process.version, pid: process.pid }, "Server started");
+
+  scheduledJobs = registerJobs();
 });
 
 const shutdown = async (signal: string): Promise<void> => {
@@ -46,16 +53,23 @@ const shutdown = async (signal: string): Promise<void> => {
 
   forceExit.unref(); // don't keep the process alive if everything else closes first
 
-  // Close the server first to stop accepting new requests, then disconnect dependencies.
+  // Close the server first to stop accepting new requests, then stop
+  // scheduled jobs before disconnecting the dependencies they rely on.
   server.close(async () => {
     try {
+      scheduledJobs.forEach((job) => job.stop());
+
       await prisma.$disconnect();
+
       redis.disconnect();
+
       clearTimeout(forceExit);
+
       logger.info("Shutdown complete");
       process.exit(0);
     } catch (err) {
       logger.error({ err }, "Shutdown error");
+
       process.exit(1);
     }
   });
