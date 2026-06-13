@@ -11,6 +11,7 @@ const envSchema = z.object({
   REFRESH_TOKEN_SECRET: z.string().min(32, "REFRESH_TOKEN_SECRET must be at least 32 chars"),
   ACCESS_TOKEN_EXPIRES_IN: z.string().default("15m"),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default("1d"),
+  ALLOWED_ORIGINS: z.string().default("http://localhost:3000"),
 });
 
 const parsed = envSchema.safeParse(process.env);

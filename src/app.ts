@@ -2,7 +2,16 @@ import cookieParser from "cookie-parser";
 import express, { Application } from "express";
 
 import { API_PREFIX } from "./constants";
-import { errorHandler, generalLimiter, notFoundHandler, requestLogger } from "./middleware";
+import {
+  corsMiddleware,
+  errorHandler,
+  generalLimiter,
+  helmetMiddleware,
+  jsonSizeLimit,
+  notFoundHandler,
+  requestLogger,
+  urlencodedSizeLimit,
+} from "./middleware";
 import authRouter from "./modules/auth/auth.routes";
 import inventoryRouter from "./modules/inventory/inventory.routes";
 import notificationsRouter from "./modules/notifications/notifications.routes";
@@ -13,9 +22,13 @@ const app: Application = express();
 
 app.disable("x-powered-by");
 
+app.use(helmetMiddleware);
+app.use(corsMiddleware);
+
 app.use(requestLogger);
 app.use(generalLimiter);
-app.use(express.json());
+app.use(jsonSizeLimit);
+app.use(urlencodedSizeLimit);
 app.use(cookieParser());
 
 app.get("/health", (_req, res) => {
