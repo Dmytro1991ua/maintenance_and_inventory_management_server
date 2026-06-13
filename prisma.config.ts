@@ -1,14 +1,18 @@
 import "dotenv/config";
 
-import { defineConfig, env } from "prisma/config";
+import { defineConfig } from "prisma/config";
 
 export default defineConfig({
-  schema: "prisma/schema", // ← points to folder
+  schema: "prisma/schema",
   migrations: {
     path: "prisma/migrations",
-    seed: "tsx prisma/seed.ts", // ← we'll add seed later
+    seed: "ts-node prisma/seed.ts",
   },
   datasource: {
-    url: env("DATABASE_URL"), // ← url lives here now in Prisma 7
+    // process.env instead of Prisma's env() helper — env() throws at load time
+    // when the variable is missing, which breaks `prisma generate` inside Docker
+    // builds where DATABASE_URL is not available. process.env returns undefined
+    // silently; generate never connects to the DB so the value isn't needed there.
+    url: process.env.DATABASE_URL,
   },
 });
