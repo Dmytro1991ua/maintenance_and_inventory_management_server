@@ -1,6 +1,18 @@
+// openapi config MUST be imported first — extendZodWithOpenApi() must run
+// before any schema file (which calls .openapi()) is imported below.
+// Side-effect imports — register each module's paths with the OpenAPI registry.
+// Must run after openapi config (above) and before generateOpenApiDocument().
+import "./modules/auth/auth.openapi";
+import "./modules/inventory/inventory.openapi";
+import "./modules/notifications/notifications.openapi";
+import "./modules/tasks/tasks.openapi";
+import "./modules/users/users.openapi";
+
 import cookieParser from "cookie-parser";
 import express, { Application } from "express";
+import swaggerUi from "swagger-ui-express";
 
+import { generateOpenApiDocument } from "./config/openapi";
 import { API_PREFIX } from "./constants";
 import {
   corsMiddleware,
@@ -34,6 +46,11 @@ app.use(cookieParser());
 app.get("/health", (_req, res) => {
   res.json({ success: true, data: { status: "ok" } });
 });
+
+const openApiDocument = generateOpenApiDocument();
+
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
+app.get("/docs.json", (_req, res) => res.json(openApiDocument));
 
 app.use(`${API_PREFIX}/auth`, authRouter);
 app.use(`${API_PREFIX}/users`, usersRouter);
