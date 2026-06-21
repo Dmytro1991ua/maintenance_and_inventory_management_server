@@ -14,6 +14,12 @@ import { NextFunction, Request, RequestHandler, Response } from "express";
  */
 export const asyncHandler = (fn: RequestHandler): RequestHandler => {
   return (req: Request, res: Response, next: NextFunction): void => {
-    Promise.resolve(fn(req, res, next)).catch(next);
+    try {
+      // fn(...) is called inside the try so a synchronous throw is caught
+      // immediately; an async rejection still flows through .catch(next).
+      Promise.resolve(fn(req, res, next)).catch(next);
+    } catch (err) {
+      next(err);
+    }
   };
 };

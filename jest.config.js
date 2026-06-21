@@ -3,15 +3,13 @@ const tsJestTransform = {
 };
 
 module.exports = {
-  clearMocks: true,
+  collectCoverageFrom: ["src/**/*.ts"],
   coveragePathIgnorePatterns: ["/node_modules/", "/generated/"],
-  // No test files exist yet — this is the harness only. Remove once real
-  // tests land so an empty test run starts failing again as expected.
-  passWithNoTests: true,
   projects: [
     {
       displayName: "unit",
       testEnvironment: "node",
+      clearMocks: true,
       transform: tsJestTransform,
       testMatch: ["<rootDir>/tests/unit/**/*.test.ts"],
       setupFilesAfterEnv: ["<rootDir>/tests/unit/setup.ts"],
@@ -19,6 +17,7 @@ module.exports = {
     {
       displayName: "integration",
       testEnvironment: "node",
+      clearMocks: true,
       transform: tsJestTransform,
       testMatch: ["<rootDir>/tests/integration/**/*.test.ts"],
       setupFilesAfterEnv: ["<rootDir>/tests/integration/setup.ts"],
@@ -26,6 +25,7 @@ module.exports = {
     {
       displayName: "e2e",
       testEnvironment: "node",
+      clearMocks: true,
       transform: tsJestTransform,
       testMatch: ["<rootDir>/tests/e2e/**/*.test.ts"],
       setupFilesAfterEnv: ["<rootDir>/tests/e2e/setup.ts"],

@@ -6,3 +6,6 @@ dist/
 !.env.test
 /src/generated/prisma
 .vscode/
+coverage/
+.coverage
+*.lcov
