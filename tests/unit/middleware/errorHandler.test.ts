@@ -16,9 +16,6 @@ import { env } from "../../../src/config";
 describe("errorHandler", () => {
   const buildReq = (): Request => mock<Request>({ method: "GET", path: "/api/v1/test" });
 
-  // errorHandler chains res.status(code).json(body) — the auto-mocked
-  // status() returns undefined by default, so it must be wired to return
-  // the same mock for the chained .json() call to have something to land on.
   const buildRes = (): Response => {
     const res = mock<Response>();
 
