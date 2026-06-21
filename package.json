@@ -18,6 +18,7 @@
     "test:integration": "npm run test:db:migrate && dotenv -e .env.test -- jest --selectProjects integration --runInBand",
     "test:e2e": "npm run test:db:migrate && dotenv -e .env.test -- jest --selectProjects e2e --runInBand",
     "test:watch": "dotenv -e .env.test -- jest --selectProjects unit --watch",
+    "test:coverage": "dotenv -e .env.test -- jest --selectProjects unit --coverage",
     "prepare": "is-ci || husky",
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
