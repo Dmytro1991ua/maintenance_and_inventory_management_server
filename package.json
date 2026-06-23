@@ -13,7 +13,7 @@
     "format": "prettier --write \"src/**/*.ts\"",
     "test:db:migrate": "dotenv -e .env.test -- prisma migrate deploy --schema prisma/schema",
     "pretest": "npm run test:db:migrate",
-    "test": "dotenv -e .env.test -- jest",
+    "test": "dotenv -e .env.test -- jest --runInBand",
     "test:unit": "dotenv -e .env.test -- jest --selectProjects unit",
     "test:integration": "npm run test:db:migrate && dotenv -e .env.test -- jest --selectProjects integration --runInBand",
     "test:e2e": "npm run test:db:migrate && dotenv -e .env.test -- jest --selectProjects e2e --runInBand",

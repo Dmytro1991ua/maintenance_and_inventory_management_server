@@ -4,7 +4,10 @@ export const NotificationsQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1).openapi({ example: 1 }),
     limit: z.coerce.number().int().min(1).max(100).default(20).openapi({ example: 20 }),
-    isRead: z.coerce.boolean().optional().openapi({ example: false }),
+    // z.coerce.boolean() would parse the literal string "false" as true —
+    // any non-empty string is truthy in JS. z.stringbool() handles "true"/
+    // "false" query-string values correctly.
+    isRead: z.stringbool().optional().openapi({ example: false }),
   })
   .strict()
   .openapi("NotificationsQuery");

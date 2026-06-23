@@ -1,10 +1,17 @@
 import rateLimit from "express-rate-limit";
 
+import { env } from "../config";
 import {
   AUTH_RATE_LIMIT_MAX_REQUESTS,
   GENERAL_RATE_LIMIT_MAX_REQUESTS,
   RATE_LIMIT_WINDOW_MS,
 } from "../constants";
+
+// Integration tests run every request through the real Express app from a
+// single process/IP — the in-memory limiter store would otherwise throttle
+// the suite itself (5 auth requests per 15 min) rather than anything a real
+// client could trigger. Skipped only when NODE_ENV is exactly "test".
+const skipInTestEnv = (): boolean => env.NODE_ENV === "test";
 
 /**
  * Strict limiter for auth mutation endpoints.
@@ -22,6 +29,7 @@ export const authApiLimiter = rateLimit({
   max: AUTH_RATE_LIMIT_MAX_REQUESTS,
   standardHeaders: true, // sends RateLimit-* headers (RFC 6585)
   legacyHeaders: false, // disables X-RateLimit-* headers
+  skip: skipInTestEnv,
   message: {
     success: false,
     error: {
@@ -42,6 +50,7 @@ export const generalApiLimiter = rateLimit({
   max: GENERAL_RATE_LIMIT_MAX_REQUESTS,
   standardHeaders: true,
   legacyHeaders: false,
+  skip: skipInTestEnv,
   message: {
     success: false,
     error: {
