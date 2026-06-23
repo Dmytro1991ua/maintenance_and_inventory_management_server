@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { prisma } from "../../src/config";
+import { prisma, redis } from "../../src/config";
 
 process.env.NODE_ENV = "test";
 
@@ -17,4 +17,5 @@ beforeEach(async () => {
 
 afterAll(async () => {
   await prisma.$disconnect();
+  redis.disconnect();
 });

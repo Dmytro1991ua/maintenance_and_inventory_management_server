@@ -7,7 +7,10 @@ export const InventoryQuerySchema = z
     sortBy: z.enum(["name", "quantity", "createdAt"]).default("createdAt"),
     sortOrder: z.enum(["asc", "desc"]).default("desc"),
     search: z.string().optional().openapi({ example: "drill" }),
-    lowStock: z.coerce.boolean().optional().openapi({ example: true }),
+    // z.coerce.boolean() would parse the literal string "false" as true —
+    // any non-empty string is truthy in JS. z.stringbool() handles "true"/
+    // "false" query-string values correctly.
+    lowStock: z.stringbool().optional().openapi({ example: true }),
   })
   .openapi("InventoryQuery");
 
