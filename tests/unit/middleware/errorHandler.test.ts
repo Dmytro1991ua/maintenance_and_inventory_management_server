@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from "express";
+import createHttpError from "http-errors";
 import { mock } from "jest-mock-extended";
 import { ZodError, z } from "zod";
 
@@ -93,6 +94,55 @@ describe("errorHandler", () => {
         expect.objectContaining({
           success: false,
           error: expect.objectContaining({ code: "VALIDATION_ERROR" }),
+        }),
+      );
+    });
+  });
+
+  describe("when the error is an HttpError from Express/body-parser internals", () => {
+    it("should respond with the error's own status code", () => {
+      const mockRes = buildRes();
+      const mockErr = createHttpError(413, "request entity too large");
+
+      errorHandler(mockErr, buildReq(), mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(413);
+    });
+
+    it("should respond with REQUEST_ERROR code and the error's message", () => {
+      const mockRes = buildRes();
+      const mockErr = createHttpError(413, "request entity too large");
+
+      errorHandler(mockErr, buildReq(), mockRes, next);
+
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: false,
+        error: { code: "REQUEST_ERROR", message: "request entity too large" },
+      });
+    });
+
+    it("should log the error as a warning, not an error", () => {
+      const mockRes = buildRes();
+      const mockErr = createHttpError(413, "request entity too large");
+
+      errorHandler(mockErr, buildReq(), mockRes, next);
+
+      expect(loggerMock.warn).toHaveBeenCalled();
+      expect(loggerMock.error).not.toHaveBeenCalled();
+    });
+
+    it("should fall through to the unexpected-error branch when expose is false", () => {
+      const mockRes = buildRes();
+      // expose:false marks the message unsafe to return verbatim — http-errors
+      // sets this automatically for 5xx statuses, e.g. a raw 500 from a
+      // misbehaving upstream middleware that isn't one of our own AppErrors.
+      const mockErr = createHttpError(500, "internal body-parser failure", { expose: false });
+
+      errorHandler(mockErr, buildReq(), mockRes, next);
+
+      expect(mockRes.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({ code: "INTERNAL_SERVER_ERROR" }),
         }),
       );
     });

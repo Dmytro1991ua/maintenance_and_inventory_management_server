@@ -40,6 +40,20 @@ describe("GET /api/v1/inventory", () => {
     expect(response.body.data[0].name).toBe("Low item");
   });
 
+  it("should filter by search term across name and serial number", async () => {
+    const technician = await createTechnicianUser();
+    await createTestInventoryItem({ name: "Cordless Drill", serialNumber: "SN-AAA" });
+    await createTestInventoryItem({ name: "Angle Grinder", serialNumber: "SN-BBB" });
+
+    const response = await request(app)
+      .get("/api/v1/inventory?search=drill")
+      .set(authHeader(signTestAccessToken(technician)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].name).toBe("Cordless Drill");
+  });
+
   it("should return 401 when no token is provided", async () => {
     const response = await request(app).get("/api/v1/inventory");
 

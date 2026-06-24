@@ -256,6 +256,57 @@ describe("authService", () => {
 
         expect(loggerMock.warn).toHaveBeenCalled();
       });
+
+      it("should rethrow an unexpected (non-JsonWebTokenError) verify failure instead of swallowing it", async () => {
+        mockedJwt.decode.mockReturnValue({ sub: "user-1", jti: "old-token-id" });
+        mockRedis.get.mockResolvedValue(null);
+        mockedJwt.verify.mockImplementation(() => {
+          throw new Error("Unexpected jwt failure");
+        });
+
+        await expect(authService.refresh("garbage-token")).rejects.toThrow(
+          "Unexpected jwt failure",
+        );
+
+        expect(mockRedis.smembers).not.toHaveBeenCalled();
+      });
+
+      it("should still throw UnauthorizedError when wiping sessions fails during a reuse attack", async () => {
+        mockedJwt.decode.mockReturnValue({ sub: "user-1", jti: "old-token-id" });
+        mockRedis.get.mockResolvedValue(null);
+        mockedJwt.verify.mockReturnValue({ sub: "user-1", jti: "old-token-id" });
+        mockRedis.smembers.mockRejectedValueOnce(new Error("Redis connection lost"));
+
+        await expect(authService.refresh("stolen-token")).rejects.toThrow(UnauthorizedError);
+
+        expect(loggerMock.error).toHaveBeenCalled();
+      });
+    });
+
+    describe("when the token is found in Redis but signature verification fails", () => {
+      it("should delete the token and throw UnauthorizedError for a JsonWebTokenError", async () => {
+        mockedJwt.decode.mockReturnValue({ sub: "user-1", jti: "token-id" });
+        mockRedis.get.mockResolvedValue("stored-token-value");
+        mockedJwt.verify.mockImplementation(() => {
+          throw new jwt.JsonWebTokenError("invalid signature");
+        });
+
+        await expect(authService.refresh("tampered-token")).rejects.toThrow(UnauthorizedError);
+
+        expect(mockRedis.pipeline).toHaveBeenCalled();
+      });
+
+      it("should rethrow an unexpected (non-JsonWebTokenError) verify failure instead of swallowing it", async () => {
+        mockedJwt.decode.mockReturnValue({ sub: "user-1", jti: "token-id" });
+        mockRedis.get.mockResolvedValue("stored-token-value");
+        mockedJwt.verify.mockImplementation(() => {
+          throw new Error("Unexpected verify failure");
+        });
+
+        await expect(authService.refresh("some-token")).rejects.toThrow(
+          "Unexpected verify failure",
+        );
+      });
     });
 
     it("should throw UnauthorizedError when the user no longer exists", async () => {
