@@ -34,6 +34,20 @@ describe("GET /api/v1/users", () => {
     expect(response.status).toBe(200);
   });
 
+  it("should filter by role", async () => {
+    const admin = await createAdminUser();
+    await createManagerUser();
+    await createTechnicianUser();
+
+    const response = await request(app)
+      .get("/api/v1/users?role=MANAGER")
+      .set(authHeader(signTestAccessToken(admin)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].roles).toEqual(["MANAGER"]);
+  });
+
   it("should return 403 for TECHNICIAN", async () => {
     const technician = await createTechnicianUser();
 
@@ -152,6 +166,18 @@ describe("PATCH /api/v1/users/:id", () => {
       .patch(`/api/v1/users/${user.id}`)
       .set(authHeader(signTestAccessToken(user)))
       .send({ email: other.email });
+
+    expect(response.status).toBe(409);
+  });
+
+  it("should return 409 when the new username is already taken", async () => {
+    const user = await createTechnicianUser();
+    const other = await createTestUser({ userName: "other_taken_name" });
+
+    const response = await request(app)
+      .patch(`/api/v1/users/${user.id}`)
+      .set(authHeader(signTestAccessToken(user)))
+      .send({ userName: other.userName });
 
     expect(response.status).toBe(409);
   });

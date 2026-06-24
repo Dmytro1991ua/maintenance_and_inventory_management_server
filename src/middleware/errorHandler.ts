@@ -1,4 +1,5 @@
 import { NextFunction, Request, Response } from "express";
+import { isHttpError } from "http-errors";
 import { z, ZodError } from "zod";
 
 import { env, logger } from "../config";
@@ -7,10 +8,13 @@ import { AppError } from "../errors";
 /**
  * Global error handler
  *
- * Three categories:
- *   1. AppError  — our own operational errors (auth, 404, conflict)
- *   2. ZodError  — schema validation failures
- *   3. Unknown   — unexpected crashes, bugs, third-party failures
+ * Four categories:
+ *   1. AppError   — our own operational errors (auth, 404, conflict)
+ *   2. ZodError   — schema validation failures
+ *   3. HttpError  — operational errors from Express/body-parser internals
+ *                   (e.g. PayloadTooLargeError) — not ours, but still an
+ *                   expected 4xx condition, not a bug
+ *   4. Unknown    — unexpected crashes, bugs, third-party failures
  */
 export const errorHandler = (
   err: unknown,
@@ -54,6 +58,27 @@ export const errorHandler = (
         code: "VALIDATION_ERROR",
         message: "Validation failed",
         fieldErrors,
+      },
+    });
+    return;
+  }
+
+  // Operational error from Express/body-parser internals (e.g. a request
+  // body over the size limit). These follow the http-errors convention —
+  // a numeric statusCode plus an `expose` flag marking the message safe to
+  // return to the client — so they get the same 4xx treatment AppError
+  // gets, instead of falling through to "unexpected error" as a 500.
+  if (isHttpError(err) && err.expose) {
+    logger.warn(
+      { statusCode: err.statusCode, message: err.message, method: req.method, path: req.path },
+      "Operational error",
+    );
+
+    res.status(err.statusCode).json({
+      success: false,
+      error: {
+        code: "REQUEST_ERROR",
+        message: err.message,
       },
     });
     return;

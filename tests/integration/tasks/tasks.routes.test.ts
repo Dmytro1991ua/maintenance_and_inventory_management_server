@@ -30,6 +30,35 @@ describe("GET /api/v1/tasks", () => {
 
     expect(response.status).toBe(401);
   });
+
+  it("should filter by status", async () => {
+    const technician = await createTechnicianUser();
+    await createTestTask({ status: "OPEN" });
+    await createTestTask({ status: "DONE" });
+
+    const response = await request(app)
+      .get("/api/v1/tasks?status=DONE")
+      .set(authHeader(signTestAccessToken(technician)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].status).toBe("DONE");
+  });
+
+  it("should filter by assignedTo", async () => {
+    const technician = await createTechnicianUser();
+    const otherTechnician = await createTechnicianUser();
+    await createTestTask({ assignedTo: technician.id });
+    await createTestTask({ assignedTo: otherTechnician.id });
+
+    const response = await request(app)
+      .get(`/api/v1/tasks?assignedTo=${technician.id}`)
+      .set(authHeader(signTestAccessToken(technician)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].assignedTo).toBe(technician.id);
+  });
 });
 
 describe("GET /api/v1/tasks/:id", () => {
@@ -173,6 +202,18 @@ describe("PATCH /api/v1/tasks/:id", () => {
     const technician = await createTechnicianUser();
     const otherTechnician = await createTechnicianUser();
     const task = await createTestTask({ assignedTo: otherTechnician.id });
+
+    const response = await request(app)
+      .patch(`/api/v1/tasks/${task.id}`)
+      .set(authHeader(signTestAccessToken(technician)))
+      .send({ status: "DONE" });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("should return 403 when TECHNICIAN updates a fully unassigned task", async () => {
+    const technician = await createTechnicianUser();
+    const task = await createTestTask({ assignedTo: null });
 
     const response = await request(app)
       .patch(`/api/v1/tasks/${task.id}`)
