@@ -1,25 +1,27 @@
-import { Request, Response } from "express";
+import { CookieOptions, Request, Response } from "express";
 
 import { env } from "../../config";
 import { UnauthorizedError } from "../../errors";
 import { REFRESH_TOKEN_COOKIE_MAX_AGE_MS } from "./auth.constants";
 import { authService } from "./auth.service";
 
-const REFRESH_TOKEN_COOKIE_OPTIONS = {
+// UI and API are cross-site in prod (separate domains), so the cookie needs
+// SameSite=None+Secure — Lax blocks it on cross-site fetch/XHR.
+const getRefreshTokenCookieOptions = (): CookieOptions => ({
   httpOnly: true,
   secure: env.NODE_ENV === "production",
-  sameSite: "lax" as const,
-};
+  sameSite: env.NODE_ENV === "production" ? "none" : "lax",
+});
 
 const setRefreshTokenCookie = (res: Response, refreshToken: string): void => {
   res.cookie("jwt", refreshToken, {
-    ...REFRESH_TOKEN_COOKIE_OPTIONS,
+    ...getRefreshTokenCookieOptions(),
     maxAge: REFRESH_TOKEN_COOKIE_MAX_AGE_MS,
   });
 };
 
 const clearRefreshTokenCookie = (res: Response): void => {
-  res.clearCookie("jwt", REFRESH_TOKEN_COOKIE_OPTIONS);
+  res.clearCookie("jwt", getRefreshTokenCookieOptions());
 };
 
 export const authController = {

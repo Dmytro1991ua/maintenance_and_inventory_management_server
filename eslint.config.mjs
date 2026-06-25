@@ -7,6 +7,8 @@ import simpleImportSort from "eslint-plugin-simple-import-sort";
 import importX from "eslint-plugin-import-x";
 
 export default [
+  { ignores: ["src/generated/**"] },
+
   js.configs.recommended,
   ...tseslint.configs.recommended,
 
