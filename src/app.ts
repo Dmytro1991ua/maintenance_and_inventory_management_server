@@ -12,6 +12,7 @@ import cookieParser from "cookie-parser";
 import express, { Application } from "express";
 import swaggerUi from "swagger-ui-express";
 
+import { env } from "./config";
 import { generateOpenApiDocument } from "./config/openapi";
 import { API_PREFIX } from "./constants";
 import {
@@ -33,6 +34,10 @@ import usersRouter from "./modules/users/users.routes";
 const app: Application = express();
 
 app.disable("x-powered-by");
+
+// Trust Railway's proxy (prod only) so req.ip is the real client, not the
+// proxy — otherwise express-rate-limit buckets every client together.
+if (env.NODE_ENV === "production") app.set("trust proxy", 1);
 
 app.use(helmetMiddleware);
 app.use(corsMiddleware);
