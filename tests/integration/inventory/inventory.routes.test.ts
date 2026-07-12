@@ -92,10 +92,11 @@ describe("POST /api/v1/inventory", () => {
     const response = await request(app)
       .post("/api/v1/inventory")
       .set(authHeader(signTestAccessToken(admin)))
-      .send({ name: "Cordless Drill", serialNumber: "SN-NEW-001", quantity: 10, minStockLevel: 2 });
+      .send({ name: "Cordless Drill", serialNumber: "SN-NEW-001", category: "TOOLS", quantity: 10, minStockLevel: 2 });
 
     expect(response.status).toBe(201);
     expect(response.body.data.serialNumber).toBe("SN-NEW-001");
+    expect(response.body.data.category).toBe("TOOLS");
   });
 
   it("should create an item for MANAGER", async () => {
@@ -104,7 +105,7 @@ describe("POST /api/v1/inventory", () => {
     const response = await request(app)
       .post("/api/v1/inventory")
       .set(authHeader(signTestAccessToken(manager)))
-      .send({ name: "Cordless Drill", serialNumber: "SN-NEW-002", quantity: 10, minStockLevel: 2 });
+      .send({ name: "Cordless Drill", serialNumber: "SN-NEW-002", category: "TOOLS", quantity: 10, minStockLevel: 2 });
 
     expect(response.status).toBe(201);
   });
@@ -115,7 +116,7 @@ describe("POST /api/v1/inventory", () => {
     const response = await request(app)
       .post("/api/v1/inventory")
       .set(authHeader(signTestAccessToken(technician)))
-      .send({ name: "Cordless Drill", serialNumber: "SN-NEW-003", quantity: 10, minStockLevel: 2 });
+      .send({ name: "Cordless Drill", serialNumber: "SN-NEW-003", category: "TOOLS", quantity: 10, minStockLevel: 2 });
 
     expect(response.status).toBe(403);
   });
@@ -127,7 +128,7 @@ describe("POST /api/v1/inventory", () => {
     const response = await request(app)
       .post("/api/v1/inventory")
       .set(authHeader(signTestAccessToken(admin)))
-      .send({ name: "Another Drill", serialNumber: existing.serialNumber, quantity: 5, minStockLevel: 1 });
+      .send({ name: "Another Drill", serialNumber: existing.serialNumber, category: "TOOLS", quantity: 5, minStockLevel: 1 });
 
     expect(response.status).toBe(409);
   });
@@ -138,7 +139,7 @@ describe("POST /api/v1/inventory", () => {
     const response = await request(app)
       .post("/api/v1/inventory")
       .set(authHeader(signTestAccessToken(admin)))
-      .send({ name: "", serialNumber: "SN-BAD", quantity: -1, minStockLevel: 1 });
+      .send({ name: "", serialNumber: "SN-BAD", category: "TOOLS", quantity: -1, minStockLevel: 1 });
 
     expect(response.status).toBe(400);
     expect(response.body.error.code).toBe("VALIDATION_ERROR");
@@ -214,5 +215,51 @@ describe("DELETE /api/v1/inventory/:id", () => {
       .set(authHeader(signTestAccessToken(admin)));
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe("GET /api/v1/inventory/categories", () => {
+  it("should return all category values for any authenticated user", async () => {
+    const technician = await createTechnicianUser();
+
+    const response = await request(app)
+      .get("/api/v1/inventory/categories")
+      .set(authHeader(signTestAccessToken(technician)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data).toEqual([
+      "ELECTRICAL",
+      "PLUMBING",
+      "HVAC",
+      "TOOLS",
+      "FASTENERS",
+      "CHEMICALS",
+      "SAFETY",
+      "BUILDING_MATERIALS",
+    ]);
+  });
+
+  it("should return 401 when no token is provided", async () => {
+    const response = await request(app).get("/api/v1/inventory/categories");
+
+    expect(response.status).toBe(401);
+  });
+});
+
+describe("GET /api/v1/inventory?category=", () => {
+  it("should filter items by category", async () => {
+    const technician = await createTechnicianUser();
+    await createTestInventoryItem({ name: "Wire Reel", category: "ELECTRICAL" });
+    await createTestInventoryItem({ name: "Ball Valve", category: "PLUMBING" });
+
+    const response = await request(app)
+      .get("/api/v1/inventory?category=ELECTRICAL")
+      .set(authHeader(signTestAccessToken(technician)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].name).toBe("Wire Reel");
+    expect(response.body.data[0].category).toBe("ELECTRICAL");
   });
 });

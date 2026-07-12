@@ -13,7 +13,7 @@ describe("low-stock notification flow", () => {
     const createResponse = await request(app)
       .post("/api/v1/inventory")
       .set(authHeader(signTestAccessToken(admin)))
-      .send({ name: "Cordless Drill", serialNumber: "SN-LOWSTOCK-1", quantity: 1, minStockLevel: 5 });
+      .send({ name: "Cordless Drill", serialNumber: "SN-LOWSTOCK-1", category: "TOOLS", quantity: 1, minStockLevel: 5 });
 
     expect(createResponse.status).toBe(201);
     const itemId = createResponse.body.data.id;

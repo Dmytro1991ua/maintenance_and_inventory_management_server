@@ -12,6 +12,10 @@ import { inventoryService } from "./inventory.service";
  * Inventory controller — HTTP layer only.
  */
 export const inventoryController = {
+  getCategories: (_req: Request, res: Response): void => {
+    res.json({ success: true, data: inventoryService.getCategories() });
+  },
+
   findAll: async (req: Request, res: Response): Promise<void> => {
     const query = req.query as unknown as InventoryQuery;
 

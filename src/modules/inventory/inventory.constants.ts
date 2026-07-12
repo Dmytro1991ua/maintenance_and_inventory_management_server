@@ -1,9 +1,21 @@
 import { Prisma } from "../../generated/prisma/client";
 
+export const INVENTORY_CATEGORIES = [
+  "ELECTRICAL",
+  "PLUMBING",
+  "HVAC",
+  "TOOLS",
+  "FASTENERS",
+  "CHEMICALS",
+  "SAFETY",
+  "BUILDING_MATERIALS",
+] as const;
+
 export const INVENTORY_SELECT = {
   id: true,
   name: true,
   serialNumber: true,
+  category: true,
   quantity: true,
   minStockLevel: true,
   createdAt: true,
@@ -18,6 +30,7 @@ export const INVENTORY_SQL_SELECT = Prisma.sql`
   id,
   name,
   "serialNumber",
+  category,
   quantity,
   "minStockLevel",
   "createdAt",
@@ -29,7 +42,12 @@ export const INVENTORY_SQL_SELECT = Prisma.sql`
 // definition can't drift between the two.
 export const LOW_STOCK_CONDITION = Prisma.sql`quantity < "minStockLevel"`;
 
-export const INVENTORY_ENTITY_ALLOWED_SORT_FIELDS = ["name", "quantity", "createdAt"] as const;
+export const INVENTORY_ENTITY_ALLOWED_SORT_FIELDS = [
+  "name",
+  "quantity",
+  "category",
+  "createdAt",
+] as const;
 
 export const INVENTORY_ENTITY_DEFAULT_SORT_FIELD = "createdAt" as const;
 

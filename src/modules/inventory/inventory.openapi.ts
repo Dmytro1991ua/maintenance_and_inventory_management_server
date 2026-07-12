@@ -1,6 +1,7 @@
 import { ErrorResponseSchema, registry } from "../../config/openapi";
 import {
   CreateInventoryItemSchema,
+  InventoryCategoriesResponseSchema,
   InventoryItemIdParamSchema,
   InventoryItemResponseSchema,
   InventoryListResponseSchema,
@@ -12,9 +13,23 @@ const bearerAuth = [{ bearerAuth: [] }];
 
 registry.registerPath({
   method: "get",
+  path: "/inventory/categories",
+  description: "Return the complete list of valid inventory category values.",
+  tags: ["Inventory"],
+  security: bearerAuth,
+  responses: {
+    200: {
+      description: "Array of category enum values",
+      content: { "application/json": { schema: InventoryCategoriesResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
   path: "/inventory",
   description:
-    "List inventory items. Supports pagination, search, sorting, and `lowStock=true` to filter items below their minimum stock level.",
+    "List inventory items. Supports pagination, search, sorting, `lowStock=true` to filter items below their minimum stock level, and `category` to filter by item category.",
   tags: ["Inventory"],
   security: bearerAuth,
   request: { query: InventoryQuerySchema },

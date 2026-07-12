@@ -1,11 +1,23 @@
+enum InventoryCategory {
+  ELECTRICAL
+  PLUMBING
+  HVAC
+  TOOLS
+  FASTENERS
+  CHEMICALS
+  SAFETY
+  BUILDING_MATERIALS
+}
+
 model InventoryItem {
-  id            String   @id @default(uuid())
+  id            String            @id @default(uuid())
   name          String
-  serialNumber  String   @unique
+  serialNumber  String            @unique
+  category      InventoryCategory
   quantity      Int
   minStockLevel Int
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
 
   @@map("inventory_items")
 }

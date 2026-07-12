@@ -36,6 +36,7 @@ describe("inventoryService", () => {
     const result = await inventoryService.create({
       name: mockInventoryItem.name,
       serialNumber: mockInventoryItem.serialNumber,
+      category: mockInventoryItem.category,
       quantity: mockInventoryItem.quantity,
       minStockLevel: mockInventoryItem.minStockLevel,
     });
@@ -51,6 +52,7 @@ describe("inventoryService", () => {
       inventoryService.create({
         name: "Duplicate Drill",
         serialNumber: "SN-EXISTING",
+        category: "TOOLS",
         quantity: 1,
         minStockLevel: 1,
       }),
@@ -91,7 +93,7 @@ describe("inventoryService", () => {
     expect(inventoryRepositoryMock.delete).toHaveBeenCalledWith(mockInventoryItem.id);
   });
 
-  it("should throw NotFoundError when item does not exist", async () => {
+  it("should throw NotFoundError when deleting an item that does not exist", async () => {
     inventoryRepositoryMock.findById.mockResolvedValue(null);
 
     await expect(inventoryService.delete("nonexistent")).rejects.toThrow(NotFoundError);

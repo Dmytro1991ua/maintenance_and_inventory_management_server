@@ -20,9 +20,16 @@ import {
 const router = Router();
 
 /**
+ * GET /api/v1/inventory/categories
+ * All authenticated users — static list of valid category values.
+ * Must be registered before /:id so Express doesn't treat "categories" as an ID.
+ */
+router.get("/categories", authenticate, inventoryController.getCategories);
+
+/**
  * GET /api/v1/inventory
  * All authenticated users — paginated, filtered, sorted.
- * Supports ?lowStock=true to filter items below minimum stock level.
+ * Supports ?lowStock=true and ?category=ELECTRICAL filters.
  */
 router.get(
   "/",

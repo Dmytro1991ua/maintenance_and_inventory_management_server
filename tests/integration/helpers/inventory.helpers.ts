@@ -4,7 +4,7 @@ import { prisma } from "../../../src/config";
 import type { InventoryItem } from "../../../src/generated/prisma/client";
 
 type CreateTestInventoryItemOptions = Partial<
-  Pick<InventoryItem, "name" | "serialNumber" | "quantity" | "minStockLevel">
+  Pick<InventoryItem, "name" | "serialNumber" | "category" | "quantity" | "minStockLevel">
 >;
 
 export const createTestInventoryItem = (
@@ -14,6 +14,7 @@ export const createTestInventoryItem = (
     data: {
       name: options.name ?? "Cordless Drill",
       serialNumber: options.serialNumber ?? `SN-${randomUUID().slice(0, 8)}`,
+      category: options.category ?? "TOOLS",
       quantity: options.quantity ?? 12,
       minStockLevel: options.minStockLevel ?? 5,
     },
