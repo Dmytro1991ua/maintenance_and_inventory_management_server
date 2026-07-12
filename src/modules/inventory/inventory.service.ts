@@ -1,12 +1,14 @@
 import { ConflictError } from "../../errors";
 import { findOrThrow } from "../../utils";
-import { INVENTORY_ITEM_NOT_FOUND_MESSAGE } from "./inventory.constants";
+import { INVENTORY_CATEGORIES, INVENTORY_ITEM_NOT_FOUND_MESSAGE } from "./inventory.constants";
 import { inventoryRepository } from "./inventory.repository";
 import type { CreateInventoryItem, InventoryQuery, UpdateInventoryItem } from "./inventory.schemas";
 
 export const inventoryService = {
-  // Supports pagination, search, sorting, and lowStock filter.
-  // lowStock=true returns only items where quantity < minStockLevel.
+  // Returns the static list of valid categories — no DB query needed.
+  getCategories: () => [...INVENTORY_CATEGORIES],
+
+  // Supports pagination, search, sorting, lowStock, and category filters.
   findAll: async (query: InventoryQuery) => {
     return inventoryRepository.findAll(query);
   },

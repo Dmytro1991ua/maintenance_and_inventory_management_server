@@ -14,7 +14,7 @@ import { buildInventoryWhere, buildLowStockWhere } from "./inventory.utils";
 
 export const inventoryRepository = {
   findAll: async (query: InventoryQuery) => {
-    const { page, limit, sortBy, sortOrder, search, lowStock } = query;
+    const { page, limit, sortBy, sortOrder, search, lowStock, category } = query;
 
     const field = resolveSortField(
       sortBy,
@@ -27,7 +27,7 @@ export const inventoryRepository = {
     // Prisma can't compare two columns, so raw SQL is used here.
     // API contract unchanged: frontend only sends lowStock=true via params.
     if (lowStock) {
-      const where = buildLowStockWhere(search);
+      const where = buildLowStockWhere(search, category);
 
       const [items, countResult] = await Promise.all([
         prisma.$queryRaw<InventoryItemDTO[]>`
@@ -53,7 +53,7 @@ export const inventoryRepository = {
       };
     }
 
-    const where = buildInventoryWhere(search);
+    const where = buildInventoryWhere(search, category);
 
     const [total, items] = await Promise.all([
       prisma.inventoryItem.count({ where }),

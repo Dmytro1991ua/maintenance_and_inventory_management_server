@@ -1,12 +1,19 @@
 import { z } from "zod";
 
+import { INVENTORY_CATEGORIES } from "./inventory.constants";
+
+export { INVENTORY_CATEGORIES };
+
+export const InventoryCategoryEnum = z.enum(INVENTORY_CATEGORIES);
+
 export const InventoryQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1).openapi({ example: 1 }),
     limit: z.coerce.number().int().min(1).max(100).default(20).openapi({ example: 20 }),
-    sortBy: z.enum(["name", "quantity", "createdAt"]).default("createdAt"),
+    sortBy: z.enum(["name", "quantity", "category", "createdAt"]).default("createdAt"),
     sortOrder: z.enum(["asc", "desc"]).default("desc"),
     search: z.string().optional().openapi({ example: "drill" }),
+    category: InventoryCategoryEnum.optional(),
     // z.coerce.boolean() would parse the literal string "false" as true —
     // any non-empty string is truthy in JS. z.stringbool() handles "true"/
     // "false" query-string values correctly.
@@ -26,6 +33,7 @@ export const CreateInventoryItemSchema = z
       .min(1, { error: "Serial number is required" })
       .max(100)
       .openapi({ example: "SN-00123" }),
+    category: InventoryCategoryEnum,
     quantity: z.coerce
       .number()
       .int()
@@ -47,6 +55,7 @@ export const UpdateInventoryItemSchema = z
       .max(100)
       .optional()
       .openapi({ example: "Cordless Drill (18V)" }),
+    category: InventoryCategoryEnum.optional(),
     quantity: z.coerce
       .number()
       .int()
@@ -74,6 +83,7 @@ export const InventoryItemSchema = z
     id: z.uuid(),
     name: z.string(),
     serialNumber: z.string(),
+    category: InventoryCategoryEnum,
     quantity: z.number(),
     minStockLevel: z.number(),
     createdAt: z.iso.datetime(),
@@ -101,6 +111,14 @@ export const InventoryListResponseSchema = z
   })
   .openapi("InventoryListResponse");
 
+export const InventoryCategoriesResponseSchema = z
+  .object({
+    success: z.literal(true),
+    data: z.array(InventoryCategoryEnum),
+  })
+  .openapi("InventoryCategoriesResponse");
+
+export type InventoryCategory = z.infer<typeof InventoryCategoryEnum>;
 export type InventoryQuery = z.infer<typeof InventoryQuerySchema>;
 export type CreateInventoryItem = z.infer<typeof CreateInventoryItemSchema>;
 export type UpdateInventoryItem = z.infer<typeof UpdateInventoryItemSchema>;
