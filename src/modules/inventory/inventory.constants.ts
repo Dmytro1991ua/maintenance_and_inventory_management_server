@@ -11,6 +11,16 @@ export const INVENTORY_CATEGORIES = [
   "BUILDING_MATERIALS",
 ] as const;
 
+export const INVENTORY_STATUSES = ["IN_STOCK", "LOW_STOCK", "OUT_OF_STOCK"] as const;
+
+type InventoryStatusKey = (typeof INVENTORY_STATUSES)[number];
+
+export const INVENTORY_STATUS_SQL: Record<InventoryStatusKey, Prisma.Sql> = {
+  IN_STOCK: Prisma.sql`quantity >= "minStockLevel"`,
+  LOW_STOCK: Prisma.sql`quantity > 0 AND quantity < "minStockLevel"`,
+  OUT_OF_STOCK: Prisma.sql`quantity = 0`,
+};
+
 export const INVENTORY_SELECT = {
   id: true,
   name: true,

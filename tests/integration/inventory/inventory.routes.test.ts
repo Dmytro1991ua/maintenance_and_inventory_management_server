@@ -26,13 +26,13 @@ describe("GET /api/v1/inventory", () => {
     expect(response.body.meta.total).toBe(1);
   });
 
-  it("should filter to only low-stock items when lowStock=true", async () => {
+  it("should filter to only low-stock items when status=LOW_STOCK", async () => {
     const technician = await createTechnicianUser();
     await createTestInventoryItem({ name: "Low item", quantity: 1, minStockLevel: 5 });
     await createTestInventoryItem({ name: "Healthy item", quantity: 20, minStockLevel: 5 });
 
     const response = await request(app)
-      .get("/api/v1/inventory?lowStock=true")
+      .get("/api/v1/inventory?status=LOW_STOCK")
       .set(authHeader(signTestAccessToken(technician)));
 
     expect(response.status).toBe(200);
@@ -261,5 +261,37 @@ describe("GET /api/v1/inventory?category=", () => {
     expect(response.body.data).toHaveLength(1);
     expect(response.body.data[0].name).toBe("Wire Reel");
     expect(response.body.data[0].category).toBe("ELECTRICAL");
+  });
+});
+
+describe("GET /api/v1/inventory?status=", () => {
+  it.each([
+    { status: "OUT_OF_STOCK", expectedName: "Empty item" },
+    { status: "LOW_STOCK", expectedName: "Low item" },
+    { status: "IN_STOCK", expectedName: "Healthy item" },
+  ])("should return only $status items when status=$status", async ({ status, expectedName }) => {
+    const technician = await createTechnicianUser();
+    await createTestInventoryItem({ name: "Empty item", quantity: 0, minStockLevel: 5 });
+    await createTestInventoryItem({ name: "Low item", quantity: 2, minStockLevel: 5 });
+    await createTestInventoryItem({ name: "Healthy item", quantity: 20, minStockLevel: 5 });
+
+    const response = await request(app)
+      .get(`/api/v1/inventory?status=${status}`)
+      .set(authHeader(signTestAccessToken(technician)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].name).toBe(expectedName);
+  });
+
+  it("should return 400 for an invalid status value", async () => {
+    const technician = await createTechnicianUser();
+
+    const response = await request(app)
+      .get("/api/v1/inventory?status=INVALID")
+      .set(authHeader(signTestAccessToken(technician)));
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
   });
 });

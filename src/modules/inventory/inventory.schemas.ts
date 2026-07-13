@@ -1,10 +1,11 @@
 import { z } from "zod";
 
-import { INVENTORY_CATEGORIES } from "./inventory.constants";
+import { INVENTORY_CATEGORIES, INVENTORY_STATUSES } from "./inventory.constants";
 
 export { INVENTORY_CATEGORIES };
 
 export const InventoryCategoryEnum = z.enum(INVENTORY_CATEGORIES);
+export const InventoryStatusEnum = z.enum(INVENTORY_STATUSES);
 
 export const InventoryQuerySchema = z
   .object({
@@ -14,10 +15,7 @@ export const InventoryQuerySchema = z
     sortOrder: z.enum(["asc", "desc"]).default("desc"),
     search: z.string().optional().openapi({ example: "drill" }),
     category: InventoryCategoryEnum.optional(),
-    // z.coerce.boolean() would parse the literal string "false" as true —
-    // any non-empty string is truthy in JS. z.stringbool() handles "true"/
-    // "false" query-string values correctly.
-    lowStock: z.stringbool().optional().openapi({ example: true }),
+    status: InventoryStatusEnum.optional(),
   })
   .openapi("InventoryQuery");
 
@@ -119,6 +117,7 @@ export const InventoryCategoriesResponseSchema = z
   .openapi("InventoryCategoriesResponse");
 
 export type InventoryCategory = z.infer<typeof InventoryCategoryEnum>;
+export type InventoryStatus = z.infer<typeof InventoryStatusEnum>;
 export type InventoryQuery = z.infer<typeof InventoryQuerySchema>;
 export type CreateInventoryItem = z.infer<typeof CreateInventoryItemSchema>;
 export type UpdateInventoryItem = z.infer<typeof UpdateInventoryItemSchema>;
