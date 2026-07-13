@@ -1,5 +1,4 @@
 import { Prisma } from "../../generated/prisma/client";
-import { LOW_STOCK_CONDITION } from "./inventory.constants";
 import type { InventoryCategory } from "./inventory.schemas";
 
 const normalizeSearch = (search?: string): string | undefined => {
@@ -8,11 +7,14 @@ const normalizeSearch = (search?: string): string | undefined => {
   return normalizedSearch || undefined;
 };
 
-/**
- * Builds the raw SQL WHERE clause for low-stock queries.
- * Extracted to avoid duplicating SQL between data fetch and count queries.
- */
-export const buildLowStockWhere = (search?: string, category?: InventoryCategory): Prisma.Sql => {
+// Builds a raw SQL WHERE clause from a pre-built condition fragment plus
+// optional search and category filters. Used for any query that requires
+// column-to-column comparisons (which Prisma ORM cannot express).
+export const buildRawWhere = (
+  condition: Prisma.Sql,
+  search?: string,
+  category?: InventoryCategory,
+): Prisma.Sql => {
   const normalizedSearch = normalizeSearch(search);
 
   const searchClause = normalizedSearch
@@ -29,7 +31,7 @@ export const buildLowStockWhere = (search?: string, category?: InventoryCategory
     : Prisma.sql``;
 
   return Prisma.sql`
-    ${LOW_STOCK_CONDITION}
+    ${condition}
     ${searchClause}
     ${categoryClause}
   `;

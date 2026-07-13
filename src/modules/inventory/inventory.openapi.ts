@@ -29,7 +29,7 @@ registry.registerPath({
   method: "get",
   path: "/inventory",
   description:
-    "List inventory items. Supports pagination, search, sorting, `lowStock=true` to filter items below their minimum stock level, and `category` to filter by item category.",
+    "List inventory items. Supports pagination, search, sorting, `category` filter, and `status` filter (`IN_STOCK`, `LOW_STOCK`, `OUT_OF_STOCK`).",
   tags: ["Inventory"],
   security: bearerAuth,
   request: { query: InventoryQuerySchema },

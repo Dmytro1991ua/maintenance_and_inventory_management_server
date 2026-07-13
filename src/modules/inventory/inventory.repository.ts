@@ -6,15 +6,16 @@ import {
   INVENTORY_ENTITY_DEFAULT_SORT_FIELD,
   INVENTORY_SELECT,
   INVENTORY_SQL_SELECT,
+  INVENTORY_STATUS_SQL,
   LOW_STOCK_CONDITION,
 } from "./inventory.constants";
 import { CreateInventoryItem, InventoryQuery, UpdateInventoryItem } from "./inventory.schemas";
 import type { InventoryItemDTO } from "./inventory.types";
-import { buildInventoryWhere, buildLowStockWhere } from "./inventory.utils";
+import { buildInventoryWhere, buildRawWhere } from "./inventory.utils";
 
 export const inventoryRepository = {
   findAll: async (query: InventoryQuery) => {
-    const { page, limit, sortBy, sortOrder, search, lowStock, category } = query;
+    const { page, limit, sortBy, sortOrder, search, category, status } = query;
 
     const field = resolveSortField(
       sortBy,
@@ -23,11 +24,10 @@ export const inventoryRepository = {
     );
     const skip = getSkipValue(page, limit);
 
-    // Low stock = quantity < minStockLevel (same-row comparison).
-    // Prisma can't compare two columns, so raw SQL is used here.
-    // API contract unchanged: frontend only sends lowStock=true via params.
-    if (lowStock) {
-      const where = buildLowStockWhere(search, category);
+    // status requires raw SQL — Prisma can't compare two columns in the same
+    // row (quantity vs minStockLevel).
+    if (status) {
+      const where = buildRawWhere(INVENTORY_STATUS_SQL[status], search, category);
 
       const [items, countResult] = await Promise.all([
         prisma.$queryRaw<InventoryItemDTO[]>`
