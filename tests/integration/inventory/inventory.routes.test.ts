@@ -184,6 +184,70 @@ describe("PATCH /api/v1/inventory/:id", () => {
   });
 });
 
+describe("PATCH /api/v1/inventory/:id/restock", () => {
+  it("should increment quantity by quantityToAdd for ADMIN", async () => {
+    const admin = await createAdminUser();
+    const item = await createTestInventoryItem({ quantity: 5 });
+
+    const response = await request(app)
+      .patch(`/api/v1/inventory/${item.id}/restock`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({ quantityToAdd: 10 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.quantity).toBe(15);
+  });
+
+  it("should increment quantity by quantityToAdd for MANAGER", async () => {
+    const manager = await createManagerUser();
+    const item = await createTestInventoryItem({ quantity: 0 });
+
+    const response = await request(app)
+      .patch(`/api/v1/inventory/${item.id}/restock`)
+      .set(authHeader(signTestAccessToken(manager)))
+      .send({ quantityToAdd: 25 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.quantity).toBe(25);
+  });
+
+  it("should return 403 for TECHNICIAN", async () => {
+    const technician = await createTechnicianUser();
+    const item = await createTestInventoryItem();
+
+    const response = await request(app)
+      .patch(`/api/v1/inventory/${item.id}/restock`)
+      .set(authHeader(signTestAccessToken(technician)))
+      .send({ quantityToAdd: 10 });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("should return 404 when the item does not exist", async () => {
+    const admin = await createAdminUser();
+
+    const response = await request(app)
+      .patch(`/api/v1/inventory/${NONEXISTENT_ID}/restock`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({ quantityToAdd: 10 });
+
+    expect(response.status).toBe(404);
+  });
+
+  it("should return 400 when quantityToAdd is less than 1", async () => {
+    const admin = await createAdminUser();
+    const item = await createTestInventoryItem();
+
+    const response = await request(app)
+      .patch(`/api/v1/inventory/${item.id}/restock`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({ quantityToAdd: 0 });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+  });
+});
+
 describe("DELETE /api/v1/inventory/:id", () => {
   it("should delete the item for ADMIN", async () => {
     const admin = await createAdminUser();

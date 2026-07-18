@@ -4,6 +4,7 @@ import type {
   CreateInventoryItem,
   InventoryItemIdParam,
   InventoryQuery,
+  RestockInventoryItem,
   UpdateInventoryItem,
 } from "./inventory.schemas";
 import { inventoryService } from "./inventory.service";
@@ -42,6 +43,15 @@ export const inventoryController = {
     const data = req.body as UpdateInventoryItem;
 
     const item = await inventoryService.update(id, data);
+
+    res.json({ success: true, data: item });
+  },
+  restock: async (req: Request, res: Response): Promise<void> => {
+    const { id } = req.params as InventoryItemIdParam;
+
+    const data = req.body as RestockInventoryItem;
+
+    const item = await inventoryService.restock(id, data);
 
     res.json({ success: true, data: item });
   },

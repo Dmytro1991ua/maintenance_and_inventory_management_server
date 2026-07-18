@@ -9,7 +9,12 @@ import {
   INVENTORY_STATUS_SQL,
   LOW_STOCK_CONDITION,
 } from "./inventory.constants";
-import { CreateInventoryItem, InventoryQuery, UpdateInventoryItem } from "./inventory.schemas";
+import {
+  CreateInventoryItem,
+  InventoryQuery,
+  RestockInventoryItem,
+  UpdateInventoryItem,
+} from "./inventory.schemas";
 import type { InventoryItemDTO } from "./inventory.types";
 import { buildInventoryWhere, buildRawWhere } from "./inventory.utils";
 
@@ -98,6 +103,12 @@ export const inventoryRepository = {
     prisma.inventoryItem.update({
       where: { id },
       data,
+      select: INVENTORY_SELECT,
+    }),
+  restock: async (id: string, { quantityToAdd }: RestockInventoryItem) =>
+    prisma.inventoryItem.update({
+      where: { id },
+      data: { quantity: { increment: quantityToAdd } },
       select: INVENTORY_SELECT,
     }),
   delete: async (id: string): Promise<void> => {
