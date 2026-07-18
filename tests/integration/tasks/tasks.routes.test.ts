@@ -45,6 +45,35 @@ describe("GET /api/v1/tasks", () => {
     expect(response.body.data[0].status).toBe("DONE");
   });
 
+  it("should filter by search term across title and description", async () => {
+    const technician = await createTechnicianUser();
+    await createTestTask({ title: "Replace HVAC filter" });
+    await createTestTask({ title: "Fix plumbing leak", description: "HVAC room pipe" });
+    await createTestTask({ title: "Paint walls" });
+
+    const response = await request(app)
+      .get("/api/v1/tasks?search=hvac")
+      .set(authHeader(signTestAccessToken(technician)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(2);
+  });
+
+  it("should return only overdue tasks when overdue=true", async () => {
+    const technician = await createTechnicianUser();
+    await createTestTask({ title: "Overdue task", dueDate: new Date("2020-01-01"), status: "OPEN" });
+    await createTestTask({ title: "Future task", dueDate: new Date("2099-01-01"), status: "OPEN" });
+    await createTestTask({ title: "Done overdue task", dueDate: new Date("2020-01-01"), status: "DONE" });
+
+    const response = await request(app)
+      .get("/api/v1/tasks?overdue=true")
+      .set(authHeader(signTestAccessToken(technician)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].title).toBe("Overdue task");
+  });
+
   it("should filter by assignedTo", async () => {
     const technician = await createTechnicianUser();
     const otherTechnician = await createTechnicianUser();

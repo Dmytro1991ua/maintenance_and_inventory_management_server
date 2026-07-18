@@ -6,8 +6,10 @@ export const TasksQuerySchema = z
     limit: z.coerce.number().int().min(1).max(100).default(20).openapi({ example: 20 }),
     sortBy: z.enum(["createdAt", "status", "title"]).default("createdAt"),
     sortOrder: z.enum(["asc", "desc"]).default("desc"),
+    search: z.string().optional().openapi({ example: "HVAC" }),
     status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]).optional().openapi({ example: "OPEN" }),
     assignedTo: z.uuid().optional().openapi({ example: "f47ac10b-58cc-4372-a567-0e02b2c3d479" }),
+    overdue: z.stringbool().optional().openapi({ example: true }),
   })
   .openapi("TasksQuery");
 

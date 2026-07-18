@@ -13,7 +13,8 @@ const bearerAuth = [{ bearerAuth: [] }];
 registry.registerPath({
   method: "get",
   path: "/tasks",
-  description: "List tasks. Filterable by status and assignee.",
+  description:
+    "List tasks. Supports search (title + description), `status`, `assignedTo`, and `overdue=true` filters.",
   tags: ["Tasks"],
   security: bearerAuth,
   request: { query: TasksQuerySchema },
