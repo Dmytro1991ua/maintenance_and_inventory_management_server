@@ -128,7 +128,7 @@ const seed = async (): Promise<void> => {
 
   const admin = await prisma.user.upsert({
     where: { email: "admin@example.com" },
-    update: {},
+    update: { password: hashedPassword },
     create: {
       userName: "admin",
       email: "admin@example.com",
