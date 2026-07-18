@@ -6,6 +6,7 @@ import {
   InventoryItemResponseSchema,
   InventoryListResponseSchema,
   InventoryQuerySchema,
+  RestockInventoryItemSchema,
   UpdateInventoryItemSchema,
 } from "./inventory.schemas";
 
@@ -81,6 +82,33 @@ registry.registerPath({
     },
     409: {
       description: "Serial number already exists",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/inventory/{id}/restock",
+  description:
+    "Increment an inventory item's quantity by the given amount. Requires ADMIN or MANAGER role.",
+  tags: ["Inventory"],
+  security: bearerAuth,
+  request: {
+    params: InventoryItemIdParamSchema,
+    body: { content: { "application/json": { schema: RestockInventoryItemSchema } } },
+  },
+  responses: {
+    200: {
+      description: "Item restocked — updated item returned",
+      content: { "application/json": { schema: InventoryItemResponseSchema } },
+    },
+    403: {
+      description: "Insufficient permissions",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "Item not found",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },

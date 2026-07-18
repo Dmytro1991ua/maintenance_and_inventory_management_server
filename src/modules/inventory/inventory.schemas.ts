@@ -74,6 +74,16 @@ export const InventoryItemIdParamSchema = z.object({
   id: z.uuid({ error: "Invalid inventory item ID" }),
 });
 
+export const RestockInventoryItemSchema = z
+  .object({
+    quantityToAdd: z.coerce
+      .number()
+      .int()
+      .min(1, { error: "Quantity to add must be at least 1" })
+      .openapi({ example: 50 }),
+  })
+  .openapi("RestockInventoryItemInput");
+
 // — Response schemas — documentation only ——————————————————————————————————
 
 export const InventoryItemSchema = z
@@ -121,4 +131,5 @@ export type InventoryStatus = z.infer<typeof InventoryStatusEnum>;
 export type InventoryQuery = z.infer<typeof InventoryQuerySchema>;
 export type CreateInventoryItem = z.infer<typeof CreateInventoryItemSchema>;
 export type UpdateInventoryItem = z.infer<typeof UpdateInventoryItemSchema>;
+export type RestockInventoryItem = z.infer<typeof RestockInventoryItemSchema>;
 export type InventoryItemIdParam = z.infer<typeof InventoryItemIdParamSchema>;

@@ -15,6 +15,7 @@ export const inventoryRepositoryMock = {
   findLowStock: jest.fn(),
   create: jest.fn(),
   update: jest.fn(),
+  restock: jest.fn(),
   delete: jest.fn(),
 };
 

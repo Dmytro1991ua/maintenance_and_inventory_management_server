@@ -82,6 +82,26 @@ describe("inventoryService", () => {
     expect(inventoryRepositoryMock.update).not.toHaveBeenCalled();
   });
 
+  it("should restock an existing item by incrementing quantity", async () => {
+    const mockInventoryItem = buildInventoryItem();
+
+    inventoryRepositoryMock.findById.mockResolvedValue(mockInventoryItem);
+    inventoryRepositoryMock.restock.mockResolvedValue({ ...mockInventoryItem, quantity: mockInventoryItem.quantity + 10 });
+
+    const result = await inventoryService.restock(mockInventoryItem.id, { quantityToAdd: 10 });
+
+    expect(result.quantity).toBe(mockInventoryItem.quantity + 10);
+    expect(inventoryRepositoryMock.restock).toHaveBeenCalledWith(mockInventoryItem.id, { quantityToAdd: 10 });
+  });
+
+  it("should throw NotFoundError when restocking an item that does not exist", async () => {
+    inventoryRepositoryMock.findById.mockResolvedValue(null);
+
+    await expect(inventoryService.restock("nonexistent", { quantityToAdd: 10 })).rejects.toThrow(NotFoundError);
+
+    expect(inventoryRepositoryMock.restock).not.toHaveBeenCalled();
+  });
+
   it("should delete an existing item", async () => {
     const mockInventoryItem = buildInventoryItem();
 

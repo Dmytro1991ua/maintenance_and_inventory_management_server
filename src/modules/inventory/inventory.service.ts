@@ -2,7 +2,12 @@ import { ConflictError } from "../../errors";
 import { findOrThrow } from "../../utils";
 import { INVENTORY_CATEGORIES, INVENTORY_ITEM_NOT_FOUND_MESSAGE } from "./inventory.constants";
 import { inventoryRepository } from "./inventory.repository";
-import type { CreateInventoryItem, InventoryQuery, UpdateInventoryItem } from "./inventory.schemas";
+import type {
+  CreateInventoryItem,
+  InventoryQuery,
+  RestockInventoryItem,
+  UpdateInventoryItem,
+} from "./inventory.schemas";
 
 export const inventoryService = {
   // Returns the static list of valid categories — no DB query needed.
@@ -30,6 +35,11 @@ export const inventoryService = {
     await findOrThrow(() => inventoryRepository.findById(id), INVENTORY_ITEM_NOT_FOUND_MESSAGE);
 
     return inventoryRepository.update(id, data);
+  },
+  restock: async (id: string, data: RestockInventoryItem) => {
+    await findOrThrow(() => inventoryRepository.findById(id), INVENTORY_ITEM_NOT_FOUND_MESSAGE);
+
+    return inventoryRepository.restock(id, data);
   },
   delete: async (id: string): Promise<void> => {
     await findOrThrow(() => inventoryRepository.findById(id), INVENTORY_ITEM_NOT_FOUND_MESSAGE);

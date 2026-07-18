@@ -14,6 +14,7 @@ import {
   CreateInventoryItemSchema,
   InventoryItemIdParamSchema,
   InventoryQuerySchema,
+  RestockInventoryItemSchema,
   UpdateInventoryItemSchema,
 } from "./inventory.schemas";
 
@@ -59,6 +60,20 @@ router.post(
   authorize([Role.ADMIN, Role.MANAGER]),
   validateBody(CreateInventoryItemSchema),
   asyncHandler(inventoryController.create),
+);
+
+/**
+ * PATCH /api/v1/inventory/:id/restock
+ * ADMIN + MANAGER only — increment quantity by quantityToAdd
+ * Must be registered before /:id so Express doesn't treat "restock" as a body route on /:id
+ */
+router.patch(
+  "/:id/restock",
+  authenticate,
+  authorize([Role.ADMIN, Role.MANAGER]),
+  validateParams(InventoryItemIdParamSchema),
+  validateBody(RestockInventoryItemSchema),
+  asyncHandler(inventoryController.restock),
 );
 
 /**
