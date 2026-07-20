@@ -12,6 +12,7 @@ export const inventoryRepositoryMock = {
   findAll: jest.fn(),
   findById: jest.fn(),
   findBySerialNumber: jest.fn(),
+  getStats: jest.fn(),
   findLowStock: jest.fn(),
   create: jest.fn(),
   update: jest.fn(),

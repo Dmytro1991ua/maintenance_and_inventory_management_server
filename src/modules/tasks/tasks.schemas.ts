@@ -10,6 +10,8 @@ export const TasksQuerySchema = z
     status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]).optional().openapi({ example: "OPEN" }),
     assignedTo: z.uuid().optional().openapi({ example: "f47ac10b-58cc-4372-a567-0e02b2c3d479" }),
     overdue: z.stringbool().optional().openapi({ example: true }),
+    dueDateFrom: z.coerce.date().optional().openapi({ example: "2026-07-21T00:00:00.000Z" }),
+    dueDateTo: z.coerce.date().optional().openapi({ example: "2026-07-27T23:59:59.999Z" }),
   })
   .openapi("TasksQuery");
 

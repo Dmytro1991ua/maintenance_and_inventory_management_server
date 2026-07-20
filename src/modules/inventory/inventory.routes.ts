@@ -28,6 +28,13 @@ const router = Router();
 router.get("/categories", authenticate, inventoryController.getCategories);
 
 /**
+ * GET /api/v1/inventory/stats
+ * All authenticated users — aggregate counts by status and category for the dashboard.
+ * Must be registered before /:id so Express doesn't treat "stats" as an ID.
+ */
+router.get("/stats", authenticate, asyncHandler(inventoryController.getStats));
+
+/**
  * GET /api/v1/inventory
  * All authenticated users — paginated, filtered, sorted.
  * Supports ?lowStock=true and ?category=ELECTRICAL filters.

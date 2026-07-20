@@ -126,6 +126,22 @@ export const InventoryCategoriesResponseSchema = z
   })
   .openapi("InventoryCategoriesResponse");
 
+const CategoryStatsSchema = z.object({
+  total: z.number().int(),
+  inStock: z.number().int(),
+  lowStock: z.number().int(),
+  outOfStock: z.number().int(),
+});
+
+export const InventoryStatsResponseSchema = z
+  .object({
+    success: z.literal(true),
+    data: CategoryStatsSchema.extend({
+      byCategory: z.record(InventoryCategoryEnum, CategoryStatsSchema),
+    }),
+  })
+  .openapi("InventoryStatsResponse");
+
 export type InventoryCategory = z.infer<typeof InventoryCategoryEnum>;
 export type InventoryStatus = z.infer<typeof InventoryStatusEnum>;
 export type InventoryQuery = z.infer<typeof InventoryQuerySchema>;

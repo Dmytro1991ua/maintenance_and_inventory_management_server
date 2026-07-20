@@ -6,6 +6,7 @@ import {
   InventoryItemResponseSchema,
   InventoryListResponseSchema,
   InventoryQuerySchema,
+  InventoryStatsResponseSchema,
   RestockInventoryItemSchema,
   UpdateInventoryItemSchema,
 } from "./inventory.schemas";
@@ -22,6 +23,21 @@ registry.registerPath({
     200: {
       description: "Array of category enum values",
       content: { "application/json": { schema: InventoryCategoriesResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/inventory/stats",
+  description:
+    "Aggregate inventory counts grouped by category. Returns totals for inStock, lowStock, and outOfStock across all categories and per category.",
+  tags: ["Inventory"],
+  security: bearerAuth,
+  responses: {
+    200: {
+      description: "Inventory stats",
+      content: { "application/json": { schema: InventoryStatsResponseSchema } },
     },
   },
 });
