@@ -61,6 +61,48 @@ describe("GET /api/v1/inventory", () => {
   });
 });
 
+describe("GET /api/v1/inventory/stats", () => {
+  it("should return aggregate counts across all categories", async () => {
+    const technician = await createTechnicianUser();
+    await createTestInventoryItem({ quantity: 10, minStockLevel: 5 }); // inStock
+    await createTestInventoryItem({ quantity: 2, minStockLevel: 5 });  // lowStock
+    await createTestInventoryItem({ quantity: 0, minStockLevel: 5 });  // outOfStock
+
+    const response = await request(app)
+      .get("/api/v1/inventory/stats")
+      .set(authHeader(signTestAccessToken(technician)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.total).toBe(3);
+    expect(response.body.data.inStock).toBe(1);
+    expect(response.body.data.lowStock).toBe(1);
+    expect(response.body.data.outOfStock).toBe(1);
+  });
+
+  it("should return counts broken down byCategory", async () => {
+    const technician = await createTechnicianUser();
+    await createTestInventoryItem({ category: "ELECTRICAL", quantity: 10, minStockLevel: 5 });
+    await createTestInventoryItem({ category: "ELECTRICAL", quantity: 0, minStockLevel: 5 });
+    await createTestInventoryItem({ category: "PLUMBING", quantity: 5, minStockLevel: 5 });
+
+    const response = await request(app)
+      .get("/api/v1/inventory/stats")
+      .set(authHeader(signTestAccessToken(technician)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.byCategory.ELECTRICAL.total).toBe(2);
+    expect(response.body.data.byCategory.ELECTRICAL.outOfStock).toBe(1);
+    expect(response.body.data.byCategory.PLUMBING.total).toBe(1);
+    expect(response.body.data.byCategory.PLUMBING.inStock).toBe(1);
+  });
+
+  it("should return 401 when no token is provided", async () => {
+    const response = await request(app).get("/api/v1/inventory/stats");
+
+    expect(response.status).toBe(401);
+  });
+});
+
 describe("GET /api/v1/inventory/:id", () => {
   it("should return the item when it exists", async () => {
     const technician = await createTechnicianUser();

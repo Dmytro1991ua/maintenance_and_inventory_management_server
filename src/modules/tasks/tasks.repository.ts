@@ -11,7 +11,18 @@ import { buildTasksWhere } from "./tasks.utils";
 
 export const tasksRepository = {
   findAll: async (query: TasksQuery) => {
-    const { page, limit, sortBy, sortOrder, search, status, assignedTo, overdue } = query;
+    const {
+      page,
+      limit,
+      sortBy,
+      sortOrder,
+      search,
+      status,
+      assignedTo,
+      overdue,
+      dueDateFrom,
+      dueDateTo,
+    } = query;
 
     const field = resolveSortField(
       sortBy,
@@ -19,7 +30,7 @@ export const tasksRepository = {
       TASK_ENTITY_DEFAULT_SORT_FIELD,
     );
     const skip = getSkipValue(page, limit);
-    const where = buildTasksWhere(search, status, assignedTo, overdue);
+    const where = buildTasksWhere(search, status, assignedTo, overdue, dueDateFrom, dueDateTo);
 
     const [total, tasks] = await Promise.all([
       prisma.task.count({ where }),

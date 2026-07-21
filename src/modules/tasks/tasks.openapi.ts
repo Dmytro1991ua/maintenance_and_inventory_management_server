@@ -14,7 +14,7 @@ registry.registerPath({
   method: "get",
   path: "/tasks",
   description:
-    "List tasks. Supports search (title + description), `status`, `assignedTo`, and `overdue=true` filters.",
+    "List tasks. Supports search (title + description), `status`, `assignedTo`, `overdue=true`, and `dueDateFrom`/`dueDateTo` date range filters.",
   tags: ["Tasks"],
   security: bearerAuth,
   request: { query: TasksQuerySchema },

@@ -17,6 +17,11 @@ export const inventoryController = {
     res.json({ success: true, data: inventoryService.getCategories() });
   },
 
+  getStats: async (_req: Request, res: Response): Promise<void> => {
+    const stats = await inventoryService.getStats();
+    res.json({ success: true, data: stats });
+  },
+
   findAll: async (req: Request, res: Response): Promise<void> => {
     const query = req.query as unknown as InventoryQuery;
 

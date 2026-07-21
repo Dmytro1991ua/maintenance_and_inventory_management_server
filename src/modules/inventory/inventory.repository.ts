@@ -88,6 +88,38 @@ export const inventoryRepository = {
     }),
   // Unpaginated — used by the low-stock notification job, which needs every
   // matching item in one pass rather than a UI page at a time.
+  getStats: async () => {
+    type CategoryRow = {
+      category: string;
+      total: number;
+      inStock: number;
+      lowStock: number;
+      outOfStock: number;
+    };
+
+    const rows = await prisma.$queryRaw<CategoryRow[]>`
+      SELECT
+        category::text,
+        (COUNT(*))::int                                                                        AS total,
+        (COUNT(*) FILTER (WHERE quantity >= "minStockLevel"))::int                             AS "inStock",
+        (COUNT(*) FILTER (WHERE quantity > 0 AND quantity < "minStockLevel"))::int             AS "lowStock",
+        (COUNT(*) FILTER (WHERE quantity = 0))::int                                            AS "outOfStock"
+      FROM inventory_items
+      GROUP BY category
+    `;
+
+    const byCategory = Object.fromEntries(
+      rows.map(({ category, ...counts }) => [category, counts]),
+    );
+
+    return {
+      total: rows.reduce((s, r) => s + r.total, 0),
+      inStock: rows.reduce((s, r) => s + r.inStock, 0),
+      lowStock: rows.reduce((s, r) => s + r.lowStock, 0),
+      outOfStock: rows.reduce((s, r) => s + r.outOfStock, 0),
+      byCategory,
+    };
+  },
   findLowStock: async (): Promise<InventoryItemDTO[]> =>
     prisma.$queryRaw<InventoryItemDTO[]>`
       SELECT ${INVENTORY_SQL_SELECT}

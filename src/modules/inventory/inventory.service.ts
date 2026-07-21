@@ -10,8 +10,9 @@ import type {
 } from "./inventory.schemas";
 
 export const inventoryService = {
-  // Returns the static list of valid categories — no DB query needed.
   getCategories: () => [...INVENTORY_CATEGORIES],
+
+  getStats: async () => inventoryRepository.getStats(),
 
   // Supports pagination, search, sorting, lowStock, and category filters.
   findAll: async (query: InventoryQuery) => {

@@ -5,8 +5,19 @@ export const buildTasksWhere = (
   status?: TaskStatus,
   assignedTo?: string,
   overdue?: boolean,
+  dueDateFrom?: Date,
+  dueDateTo?: Date,
 ): Prisma.TaskWhereInput => {
   const normalizedSearch = search?.trim() || undefined;
+
+  const hasDueDateCondition = dueDateFrom || dueDateTo || overdue;
+  const dueDateFilter = hasDueDateCondition
+    ? {
+        ...(dueDateFrom && { gte: dueDateFrom }),
+        ...(dueDateTo && { lte: dueDateTo }),
+        ...(overdue && { lt: new Date() }),
+      }
+    : undefined;
 
   return {
     ...(normalizedSearch && {
@@ -17,9 +28,7 @@ export const buildTasksWhere = (
     }),
     ...(status !== undefined && { status }),
     ...(assignedTo && { assignedTo }),
-    ...(overdue && {
-      dueDate: { lt: new Date() },
-      status: { not: TaskStatus.DONE },
-    }),
+    ...(dueDateFilter && { dueDate: dueDateFilter }),
+    ...(overdue && { status: { not: TaskStatus.DONE } }),
   };
 };

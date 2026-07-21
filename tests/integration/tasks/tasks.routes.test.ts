@@ -74,6 +74,21 @@ describe("GET /api/v1/tasks", () => {
     expect(response.body.data[0].title).toBe("Overdue task");
   });
 
+  it("should filter by dueDateFrom and dueDateTo", async () => {
+    const technician = await createTechnicianUser();
+    await createTestTask({ title: "Past task", dueDate: new Date("2020-06-01") });
+    await createTestTask({ title: "This week task", dueDate: new Date("2026-07-21") });
+    await createTestTask({ title: "Future task", dueDate: new Date("2099-01-01") });
+
+    const response = await request(app)
+      .get("/api/v1/tasks?dueDateFrom=2026-07-20T00:00:00.000Z&dueDateTo=2026-07-27T23:59:59.999Z")
+      .set(authHeader(signTestAccessToken(technician)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].title).toBe("This week task");
+  });
+
   it("should filter by assignedTo", async () => {
     const technician = await createTechnicianUser();
     const otherTechnician = await createTechnicianUser();
