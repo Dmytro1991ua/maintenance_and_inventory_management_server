@@ -11,10 +11,10 @@ import { buildDedupeKey, buildNotificationsWhere } from "./notifications.utils";
 
 export const notificationsRepository = {
   findAll: async (userId: string, query: NotificationsQuery) => {
-    const { page, limit, isRead } = query;
+    const { page, limit, isRead, type } = query;
 
     const skip = getSkipValue(page, limit);
-    const where = buildNotificationsWhere(userId, isRead);
+    const where = buildNotificationsWhere(userId, isRead, type);
 
     const [total, notifications] = await Promise.all([
       prisma.notification.count({ where }),
