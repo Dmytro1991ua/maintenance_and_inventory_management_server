@@ -42,6 +42,21 @@ describe("GET /api/v1/notifications", () => {
     expect(response.body.data[0].isRead).toBe(false);
   });
 
+  it("should filter by type", async () => {
+    const user = await createTechnicianUser();
+
+    await createTestNotification({ userId: user.id, type: "LOW_STOCK" });
+    await createTestNotification({ userId: user.id, type: "TASK_OVERDUE" });
+
+    const response = await request(app)
+      .get("/api/v1/notifications?type=TASK_OVERDUE")
+      .set(authHeader(signTestAccessToken(user)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].type).toBe("TASK_OVERDUE");
+  });
+
   it("should return 401 when no token is provided", async () => {
     const response = await request(app).get("/api/v1/notifications");
 

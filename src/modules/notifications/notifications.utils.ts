@@ -1,12 +1,13 @@
-import { Prisma } from "../../generated/prisma/client";
+import { NotificationType, Prisma } from "../../generated/prisma/client";
 
 export const buildNotificationsWhere = (
   userId: string,
   isRead?: boolean,
+  type?: NotificationType,
 ): Prisma.NotificationWhereInput => ({
-  // userId is always required — users only see their own notifications
   userId,
   ...(isRead !== undefined && { isRead }),
+  ...(type !== undefined && { type }),
 });
 
 /**

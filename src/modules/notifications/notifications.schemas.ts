@@ -8,6 +8,7 @@ export const NotificationsQuerySchema = z
     // any non-empty string is truthy in JS. z.stringbool() handles "true"/
     // "false" query-string values correctly.
     isRead: z.stringbool().optional().openapi({ example: false }),
+    type: z.enum(["LOW_STOCK", "TASK_OVERDUE"]).optional().openapi({ example: "LOW_STOCK" }),
   })
   .strict()
   .openapi("NotificationsQuery");

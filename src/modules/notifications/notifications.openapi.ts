@@ -15,7 +15,7 @@ registry.registerPath({
   method: "get",
   path: "/notifications",
   description:
-    "List the authenticated user's notifications. Filterable by read status, always sorted newest first.",
+    "List the authenticated user's notifications. Filterable by `isRead` and `type` (`LOW_STOCK`, `TASK_OVERDUE`), always sorted newest first.",
   tags: ["Notifications"],
   security: bearerAuth,
   request: { query: NotificationsQuerySchema },
