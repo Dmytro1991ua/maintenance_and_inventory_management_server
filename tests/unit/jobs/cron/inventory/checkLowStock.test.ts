@@ -65,6 +65,42 @@ describe("checkLowStock", () => {
     expect(createManyMock).not.toHaveBeenCalled();
   });
 
+  it("should use 'Low stock alert' message when quantity is above zero", async () => {
+    const item = buildInventoryItem({ name: "Cordless Drill", quantity: 2, minStockLevel: 5 });
+
+    inventoryRepositoryMock.findLowStock.mockResolvedValue([item]);
+    usersRepositoryMock.findByRoles.mockResolvedValue([{ id: "admin-1" }]);
+
+    await checkLowStock();
+
+    expect(createManyMock).toHaveBeenCalledWith(
+      NotificationType.LOW_STOCK,
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: `Low stock alert: "Cordless Drill" has 2 units remaining (minimum: 5).`,
+        }),
+      ]),
+    );
+  });
+
+  it("should use 'Out of stock' message when quantity is zero", async () => {
+    const item = buildInventoryItem({ name: "Cordless Drill", quantity: 0, minStockLevel: 5 });
+
+    inventoryRepositoryMock.findLowStock.mockResolvedValue([item]);
+    usersRepositoryMock.findByRoles.mockResolvedValue([{ id: "admin-1" }]);
+
+    await checkLowStock();
+
+    expect(createManyMock).toHaveBeenCalledWith(
+      NotificationType.LOW_STOCK,
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: `Out of stock: "Cordless Drill" has 0 units remaining (minimum: 5).`,
+        }),
+      ]),
+    );
+  });
+
   it("should not notify anyone when there are no ADMIN/MANAGER recipients", async () => {
     inventoryRepositoryMock.findLowStock.mockResolvedValue([buildInventoryItem()]);
     usersRepositoryMock.findByRoles.mockResolvedValue([]);

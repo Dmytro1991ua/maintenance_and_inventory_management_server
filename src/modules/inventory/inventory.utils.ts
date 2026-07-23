@@ -37,6 +37,15 @@ export const buildRawWhere = (
   `;
 };
 
+export const buildLowStockMessage = (
+  name: string,
+  quantity: number,
+  minStockLevel: number,
+): string =>
+  quantity === 0
+    ? `Out of stock: "${name}" has 0 units remaining (minimum: ${minStockLevel}).`
+    : `Low stock alert: "${name}" has ${quantity} units remaining (minimum: ${minStockLevel}).`;
+
 /**
  * Builds the Prisma WHERE input for normal (non-lowStock) queries.
  * Returns undefined when no filters are active so Prisma applies no WHERE filter.
