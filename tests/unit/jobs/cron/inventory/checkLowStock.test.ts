@@ -65,7 +65,7 @@ describe("checkLowStock", () => {
     expect(createManyMock).not.toHaveBeenCalled();
   });
 
-  it("should use 'Low stock alert' message when quantity is above zero", async () => {
+  it("should create a LOW_STOCK notification when quantity is above zero", async () => {
     const item = buildInventoryItem({ name: "Cordless Drill", quantity: 2, minStockLevel: 5 });
 
     inventoryRepositoryMock.findLowStock.mockResolvedValue([item]);
@@ -77,13 +77,14 @@ describe("checkLowStock", () => {
       NotificationType.LOW_STOCK,
       expect.arrayContaining([
         expect.objectContaining({
+          type: NotificationType.LOW_STOCK,
           message: `Low stock alert: "Cordless Drill" has 2 units remaining (minimum: 5).`,
         }),
       ]),
     );
   });
 
-  it("should use 'Out of stock' message when quantity is zero", async () => {
+  it("should create an OUT_OF_STOCK notification when quantity is zero", async () => {
     const item = buildInventoryItem({ name: "Cordless Drill", quantity: 0, minStockLevel: 5 });
 
     inventoryRepositoryMock.findLowStock.mockResolvedValue([item]);
@@ -92,9 +93,10 @@ describe("checkLowStock", () => {
     await checkLowStock();
 
     expect(createManyMock).toHaveBeenCalledWith(
-      NotificationType.LOW_STOCK,
+      NotificationType.OUT_OF_STOCK,
       expect.arrayContaining([
         expect.objectContaining({
+          type: NotificationType.OUT_OF_STOCK,
           message: `Out of stock: "Cordless Drill" has 0 units remaining (minimum: 5).`,
         }),
       ]),

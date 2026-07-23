@@ -1,5 +1,6 @@
 enum NotificationType {
   LOW_STOCK
+  OUT_OF_STOCK
   TASK_OVERDUE
 }
 

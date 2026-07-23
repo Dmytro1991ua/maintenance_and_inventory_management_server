@@ -8,7 +8,10 @@ export const NotificationsQuerySchema = z
     // any non-empty string is truthy in JS. z.stringbool() handles "true"/
     // "false" query-string values correctly.
     isRead: z.stringbool().optional().openapi({ example: false }),
-    type: z.enum(["LOW_STOCK", "TASK_OVERDUE"]).optional().openapi({ example: "LOW_STOCK" }),
+    type: z
+      .enum(["LOW_STOCK", "OUT_OF_STOCK", "TASK_OVERDUE"])
+      .optional()
+      .openapi({ example: "LOW_STOCK" }),
   })
   .strict()
   .openapi("NotificationsQuery");
@@ -25,7 +28,7 @@ export const NotificationIdParamSchema = z.object({
 });
 
 export const CreateNotificationSchema = z.object({
-  type: z.enum(["LOW_STOCK", "TASK_OVERDUE"]),
+  type: z.enum(["LOW_STOCK", "OUT_OF_STOCK", "TASK_OVERDUE"]),
   message: z.string().min(1).max(500),
   userId: z.uuid(),
   relatedEntityId: z.uuid().optional(),
@@ -36,7 +39,7 @@ export const CreateNotificationSchema = z.object({
 export const NotificationSchema = z
   .object({
     id: z.uuid(),
-    type: z.enum(["LOW_STOCK", "TASK_OVERDUE"]),
+    type: z.enum(["LOW_STOCK", "OUT_OF_STOCK", "TASK_OVERDUE"]),
     message: z.string().openapi({ example: 'Low stock: "Cordless Drill" has 2 units (min: 5).' }),
     isRead: z.boolean(),
     userId: z.uuid(),
