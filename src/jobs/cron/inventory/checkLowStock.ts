@@ -1,6 +1,7 @@
 import { logger } from "../../../config";
 import { NotificationType, Role } from "../../../generated/prisma/client";
 import { inventoryRepository } from "../../../modules/inventory/inventory.repository";
+import { buildLowStockMessage } from "../../../modules/inventory/inventory.utils";
 import { notificationsService } from "../../../modules/notifications/notifications.service";
 import { usersRepository } from "../../../modules/users/users.repository";
 
@@ -30,7 +31,7 @@ export const checkLowStock = async (): Promise<void> => {
   for (const item of lowStockItems) {
     const notifications = recipients.map(({ id }) => ({
       type: NotificationType.LOW_STOCK,
-      message: `Low stock alert: "${item.name}" has ${item.quantity} units remaining (minimum: ${item.minStockLevel}).`,
+      message: buildLowStockMessage(item.name, item.quantity, item.minStockLevel),
       userId: id,
       relatedEntityId: item.id,
     }));
