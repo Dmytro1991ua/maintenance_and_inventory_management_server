@@ -7,7 +7,8 @@ import { usersRepository } from "../../../modules/users/users.repository";
 
 /**
  * Checks for inventory items below their minimum stock level and creates
- * LOW_STOCK notifications for all ADMIN and MANAGER users.
+ * notifications for all ADMIN and MANAGER users: OUT_OF_STOCK when quantity
+ * is 0, LOW_STOCK otherwise.
  *
  * Processes per item rather than building one large cross-product array —
  * avoids loading N items × M recipients into memory simultaneously, and lets
@@ -29,14 +30,15 @@ export const checkLowStock = async (): Promise<void> => {
   }
 
   for (const item of lowStockItems) {
+    const type = item.quantity === 0 ? NotificationType.OUT_OF_STOCK : NotificationType.LOW_STOCK;
     const notifications = recipients.map(({ id }) => ({
-      type: NotificationType.LOW_STOCK,
+      type,
       message: buildLowStockMessage(item.name, item.quantity, item.minStockLevel),
       userId: id,
       relatedEntityId: item.id,
     }));
 
-    await notificationsService.createMany(NotificationType.LOW_STOCK, notifications);
+    await notificationsService.createMany(type, notifications);
   }
 
   logger.info(

@@ -46,6 +46,7 @@ describe("GET /api/v1/notifications", () => {
     const user = await createTechnicianUser();
 
     await createTestNotification({ userId: user.id, type: "LOW_STOCK" });
+    await createTestNotification({ userId: user.id, type: "OUT_OF_STOCK" });
     await createTestNotification({ userId: user.id, type: "TASK_OVERDUE" });
 
     const response = await request(app)
@@ -55,6 +56,22 @@ describe("GET /api/v1/notifications", () => {
     expect(response.status).toBe(200);
     expect(response.body.data).toHaveLength(1);
     expect(response.body.data[0].type).toBe("TASK_OVERDUE");
+  });
+
+  it("should filter OUT_OF_STOCK notifications independently", async () => {
+    const user = await createTechnicianUser();
+
+    await createTestNotification({ userId: user.id, type: "LOW_STOCK" });
+    await createTestNotification({ userId: user.id, type: "OUT_OF_STOCK" });
+    await createTestNotification({ userId: user.id, type: "TASK_OVERDUE" });
+
+    const response = await request(app)
+      .get("/api/v1/notifications?type=OUT_OF_STOCK")
+      .set(authHeader(signTestAccessToken(user)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].type).toBe("OUT_OF_STOCK");
   });
 
   it("should return 401 when no token is provided", async () => {
