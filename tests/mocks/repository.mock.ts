@@ -4,6 +4,7 @@ export const usersRepositoryMock = {
   findConflicts: jest.fn(),
   update: jest.fn(),
   updateRoles: jest.fn(),
+  updateStatus: jest.fn(),
   delete: jest.fn(),
   findByRoles: jest.fn(),
 };
@@ -46,4 +47,11 @@ export const authRepositoryMock = {
   findById: jest.fn(),
   findByUserName: jest.fn(),
   create: jest.fn(),
+};
+
+export const invitesRepositoryMock = {
+  create: jest.fn(),
+  findByToken: jest.fn(),
+  markUsed: jest.fn(),
+  findPending: jest.fn(),
 };

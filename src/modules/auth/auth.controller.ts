@@ -85,4 +85,10 @@ export const authController = {
 
     res.status(204).send();
   },
+
+  acceptInvite: async (req: Request, res: Response): Promise<void> => {
+    const result = await authService.acceptInvite(req.body);
+
+    res.status(201).json({ success: true, data: result });
+  },
 };

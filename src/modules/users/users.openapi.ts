@@ -1,7 +1,13 @@
 import { ErrorResponseSchema, registry } from "../../config/openapi";
 import {
+  InviteResponseSchema,
+  InviteUserSchema,
+  PendingInvitesResponseSchema,
+} from "./invites.schemas";
+import {
   UpdateRolesSchema,
   UpdateUserSchema,
+  UpdateUserStatusSchema,
   UserIdParamSchema,
   UserResponseSchema,
   UsersListResponseSchema,
@@ -134,6 +140,78 @@ registry.registerPath({
     204: { description: "User deleted" },
     403: {
       description: "ADMIN role required, or attempting to delete own account",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "User not found",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/users/invite",
+  description:
+    "Send an invite email to a new user. ADMIN only. The recipient receives a link to set their username and password.",
+  tags: ["Users"],
+  security: bearerAuth,
+  request: {
+    body: { content: { "application/json": { schema: InviteUserSchema } } },
+  },
+  responses: {
+    201: {
+      description: "Invite created and email sent",
+      content: { "application/json": { schema: InviteResponseSchema } },
+    },
+    403: {
+      description: "ADMIN role required",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    409: {
+      description: "Email already registered",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/users/pending-invites",
+  description:
+    "List invites that have been sent but not yet accepted. ADMIN only. Includes an `isExpired` flag for invites past their 48-hour window.",
+  tags: ["Users"],
+  security: bearerAuth,
+  responses: {
+    200: {
+      description: "List of pending invites",
+      content: { "application/json": { schema: PendingInvitesResponseSchema } },
+    },
+    403: {
+      description: "ADMIN role required",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/users/{id}/status",
+  description:
+    "Activate or deactivate a user account. ADMIN only. An admin cannot change their own status.",
+  tags: ["Users"],
+  security: bearerAuth,
+  request: {
+    params: UserIdParamSchema,
+    body: { content: { "application/json": { schema: UpdateUserStatusSchema } } },
+  },
+  responses: {
+    200: {
+      description: "Status updated",
+      content: { "application/json": { schema: UserResponseSchema } },
+    },
+    403: {
+      description: "ADMIN role required, or attempting to change own status",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
     404: {

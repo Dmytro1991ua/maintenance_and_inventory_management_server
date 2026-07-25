@@ -3,10 +3,18 @@ import jwt, { type SignOptions } from "jsonwebtoken";
 import { v4 as uuid } from "uuid";
 
 import { env, logger, redis } from "../../config";
-import { ConflictError, UnauthorizedError } from "../../errors";
+import {
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  UnauthorizedError,
+} from "../../errors";
+import { UserStatus } from "../../generated/prisma/client";
+import { invitesRepository } from "../users/invites.repository";
 import { BCRYPT_SALT_ROUNDS, DUMMY_HASH, REFRESH_TOKEN_TTL_SECONDS } from "./auth.constants";
 import { authRepository } from "./auth.repository";
-import { LoginInput, RegisterInput } from "./auth.schemas";
+import { AcceptInviteInput, LoginInput, RegisterInput } from "./auth.schemas";
 import { getRefreshTokenKey, getUserSessionKey } from "./auth.utils";
 
 const storeRefreshToken = async (userId: string, tokenId: string, token: string): Promise<void> => {
@@ -113,6 +121,8 @@ export const authService = {
     const match = await bcrypt.compare(input.password, user?.password ?? DUMMY_HASH);
 
     if (!user || !match) throw new UnauthorizedError("Invalid credentials");
+    if (user.status === UserStatus.INACTIVE)
+      throw new ForbiddenError("Your account has been deactivated");
 
     // Unique identifier for a refresh-token session (jti)
     // Allows tracking, rotating, and revoking individual login sessions per device
@@ -168,6 +178,12 @@ export const authService = {
       throw new UnauthorizedError("Invalid token");
     }
 
+    if (user.status === UserStatus.INACTIVE) {
+      await revokeAllSessions(userId);
+
+      throw new ForbiddenError("Your account has been deactivated");
+    }
+
     // Refresh Token Rotation — old token dies, new pair issued
     await deleteRefreshToken(userId, tokenId);
 
@@ -194,5 +210,28 @@ export const authService = {
       // Log but never throw — logout must always succeed from the user's perspective
       logger.error({ err }, "Failed to delete refresh token on logout");
     }
+  },
+
+  acceptInvite: async (input: AcceptInviteInput) => {
+    const invite = await invitesRepository.findByToken(input.token);
+
+    if (!invite) throw new NotFoundError("Invite not found");
+    if (invite.usedAt) throw new BadRequestError("Invite has already been used");
+    if (invite.expiresAt < new Date()) throw new BadRequestError("Invite has expired");
+
+    const existingUserName = await authRepository.findByUserName(input.userName);
+
+    if (existingUserName) throw new ConflictError("Username already taken");
+
+    const hashedPassword = await bcrypt.hash(input.password, BCRYPT_SALT_ROUNDS);
+
+    const user = await authRepository.create(
+      { userName: input.userName, email: invite.email, password: hashedPassword },
+      [invite.role],
+    );
+
+    await invitesRepository.markUsed(invite.id);
+
+    return { id: user.id, userName: user.userName, email: user.email };
   },
 };

@@ -5,10 +5,18 @@ export const UsersQuerySchema = z
     page: z.coerce.number().int().min(1).default(1).openapi({ example: 1 }),
     limit: z.coerce.number().int().min(1).max(100).default(20).openapi({ example: 20 }),
     role: z.enum(["ADMIN", "MANAGER", "TECHNICIAN"]).optional().openapi({ example: "TECHNICIAN" }),
+    status: z.enum(["ACTIVE", "INACTIVE"]).optional().openapi({ example: "ACTIVE" }),
     sortBy: z.enum(["createdAt", "userName", "email"]).default("createdAt"),
     sortOrder: z.enum(["asc", "desc"]).default("desc"),
   })
   .openapi("UsersQuery");
+
+export const UpdateUserStatusSchema = z
+  .object({
+    status: z.enum(["ACTIVE", "INACTIVE"]).openapi({ example: "INACTIVE" }),
+  })
+  .strict()
+  .openapi("UpdateUserStatusInput");
 
 export const UpdateUserSchema = z
   .object({
@@ -51,6 +59,7 @@ export const UserSchema = z
     userName: z.string().openapi({ example: "johndoe" }),
     email: z.string().openapi({ example: "john@example.com" }),
     roles: z.array(z.enum(["ADMIN", "MANAGER", "TECHNICIAN"])),
+    status: z.enum(["ACTIVE", "INACTIVE"]).openapi({ example: "ACTIVE" }),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })
@@ -79,4 +88,5 @@ export const UsersListResponseSchema = z
 export type UsersQuery = z.infer<typeof UsersQuerySchema>;
 export type UpdateUser = z.infer<typeof UpdateUserSchema>;
 export type UpdateRoles = z.infer<typeof UpdateRolesSchema>;
+export type UpdateUserStatus = z.infer<typeof UpdateUserStatusSchema>;
 export type UserIdParam = z.infer<typeof UserIdParamSchema>;

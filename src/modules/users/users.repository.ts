@@ -6,14 +6,15 @@ import {
   USER_ENTITY_DEFAULT_SORT_FIELD,
   USER_SELECT,
 } from "./users.constants";
-import type { UpdateRoles, UpdateUser, UsersQuery } from "./users.schemas";
+import type { UpdateRoles, UpdateUser, UpdateUserStatus, UsersQuery } from "./users.schemas";
 
 export const usersRepository = {
   findAll: async (query: UsersQuery) => {
-    const { page, limit, role, sortBy, sortOrder } = query;
+    const { page, limit, role, status, sortBy, sortOrder } = query;
 
     const where: Prisma.UserWhereInput = {
       ...(role ? { roles: { has: role } } : {}),
+      ...(status ? { status } : {}),
     };
 
     const field = resolveSortField(
@@ -101,6 +102,12 @@ export const usersRepository = {
     prisma.user.update({
       where: { id },
       data: { roles: data.roles },
+      select: USER_SELECT,
+    }),
+  updateStatus: (id: string, data: UpdateUserStatus) =>
+    prisma.user.update({
+      where: { id },
+      data: { status: data.status },
       select: USER_SELECT,
     }),
   delete: (id: string) => prisma.user.delete({ where: { id } }),

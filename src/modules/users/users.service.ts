@@ -3,7 +3,7 @@ import { Role } from "../../generated/prisma/client";
 import { findOrThrow } from "../../utils";
 import { USER_NOT_FOUND_MESSAGE } from "./users.constants";
 import { usersRepository } from "./users.repository";
-import type { UpdateRoles, UpdateUser, UsersQuery } from "./users.schemas";
+import type { UpdateRoles, UpdateUser, UpdateUserStatus, UsersQuery } from "./users.schemas";
 
 export const usersService = {
   findAll: async (query: UsersQuery) => {
@@ -53,6 +53,17 @@ export const usersService = {
 
     return usersRepository.updateRoles(targetId, data);
   },
+  // ADMIN only
+  updateStatus: async (targetId: string, data: UpdateUserStatus, requestingUserId: string) => {
+    if (targetId === requestingUserId) {
+      throw new ForbiddenError("You cannot change your own status");
+    }
+
+    await findOrThrow(() => usersRepository.findById(targetId), USER_NOT_FOUND_MESSAGE);
+
+    return usersRepository.updateStatus(targetId, data);
+  },
+
   // ADMIN only
   delete: async (targetId: string, requestingUserId: string) => {
     // Prevent self-deletion — an admin accidentally deleting themselves

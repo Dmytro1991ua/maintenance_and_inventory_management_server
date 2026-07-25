@@ -1,5 +1,5 @@
 import { prisma } from "../../config";
-import { User } from "../../generated/prisma/client";
+import { Role, User } from "../../generated/prisma/client";
 import { RegisterInput } from "./auth.schemas";
 
 /**
@@ -19,15 +19,16 @@ export const authRepository = {
     return prisma.user.findUnique({ where: { userName } });
   },
 
-  create: (data: RegisterInput): Promise<User> => {
+  create: (data: RegisterInput, roles?: Role[]): Promise<User> => {
     return prisma.user.create({
       data: {
         userName: data.userName,
         email: data.email,
         password: data.password,
         // Role is never taken from the request — clients must not be able to
-        // self-assign privileges. Admins assign roles via a dedicated endpoint.
-        roles: ["TECHNICIAN"],
+        // self-assign privileges. Admins assign roles via a dedicated endpoint,
+        // or via the invite flow which pre-assigns a role from the invite record.
+        roles: roles ?? ["TECHNICIAN"],
       },
     });
   },

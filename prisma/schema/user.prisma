@@ -4,15 +4,21 @@ enum Role {
   TECHNICIAN
 }
 
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
 model User {
-  id        String   @id @default(uuid())
-  userName  String   @unique
-  email     String   @unique
+  id        String     @id @default(uuid())
+  userName  String     @unique
+  email     String     @unique
   password  String
-  roles     Role[]   @default([TECHNICIAN])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  tasks     Task[]   
+  roles     Role[]     @default([TECHNICIAN])
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  tasks     Task[]
   notifications Notification[]
 
   @@map("users")
