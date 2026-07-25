@@ -1,7 +1,15 @@
 import request from "supertest";
 
 import app from "../../../src/app";
-import { authHeader, createAdminUser, createManagerUser, createTechnicianUser, createTestUser, signTestAccessToken } from "../helpers";
+import { UserStatus } from "../../../src/generated/prisma/client";
+import {
+  authHeader,
+  createAdminUser,
+  createManagerUser,
+  createTechnicianUser,
+  createTestUser,
+  signTestAccessToken,
+} from "../helpers";
 
 const NONEXISTENT_ID = "00000000-0000-0000-0000-000000000000";
 
@@ -229,6 +237,134 @@ describe("PATCH /api/v1/users/:id/roles", () => {
       .send({ roles: ["MANAGER"] });
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe("PATCH /api/v1/users/:id/status", () => {
+  it("should allow ADMIN to deactivate another user", async () => {
+    const admin = await createAdminUser();
+    const target = await createTechnicianUser();
+
+    const response = await request(app)
+      .patch(`/api/v1/users/${target.id}/status`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({ status: "INACTIVE" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.status).toBe("INACTIVE");
+  });
+
+  it("should allow ADMIN to reactivate a user", async () => {
+    const admin = await createAdminUser();
+    const target = await createTestUser({ status: UserStatus.INACTIVE });
+
+    const response = await request(app)
+      .patch(`/api/v1/users/${target.id}/status`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({ status: "ACTIVE" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.status).toBe("ACTIVE");
+  });
+
+  it("should return 403 when ADMIN tries to change their own status", async () => {
+    const admin = await createAdminUser();
+
+    const response = await request(app)
+      .patch(`/api/v1/users/${admin.id}/status`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({ status: "INACTIVE" });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("should return 403 for MANAGER", async () => {
+    const manager = await createManagerUser();
+    const target = await createTechnicianUser();
+
+    const response = await request(app)
+      .patch(`/api/v1/users/${target.id}/status`)
+      .set(authHeader(signTestAccessToken(manager)))
+      .send({ status: "INACTIVE" });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("should return 403 for TECHNICIAN", async () => {
+    const technician = await createTechnicianUser();
+    const target = await createTechnicianUser();
+
+    const response = await request(app)
+      .patch(`/api/v1/users/${target.id}/status`)
+      .set(authHeader(signTestAccessToken(technician)))
+      .send({ status: "INACTIVE" });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("should return 401 when unauthenticated", async () => {
+    const response = await request(app)
+      .patch(`/api/v1/users/${NONEXISTENT_ID}/status`)
+      .send({ status: "INACTIVE" });
+
+    expect(response.status).toBe(401);
+  });
+
+  it("should return 404 when the target user does not exist", async () => {
+    const admin = await createAdminUser();
+
+    const response = await request(app)
+      .patch(`/api/v1/users/${NONEXISTENT_ID}/status`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({ status: "INACTIVE" });
+
+    expect(response.status).toBe(404);
+  });
+
+  it("should return 400 when status is an invalid value", async () => {
+    const admin = await createAdminUser();
+    const target = await createTechnicianUser();
+
+    const response = await request(app)
+      .patch(`/api/v1/users/${target.id}/status`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({ status: "PENDING" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("should return 400 when status is missing", async () => {
+    const admin = await createAdminUser();
+    const target = await createTechnicianUser();
+
+    const response = await request(app)
+      .patch(`/api/v1/users/${target.id}/status`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({});
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("should return the full user shape in the response", async () => {
+    const admin = await createAdminUser();
+    const target = await createTechnicianUser();
+
+    const response = await request(app)
+      .patch(`/api/v1/users/${target.id}/status`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({ status: "INACTIVE" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({
+      id: target.id,
+      userName: expect.any(String),
+      email: expect.any(String),
+      roles: expect.any(Array),
+      status: "INACTIVE",
+    });
+    expect(response.body.data).not.toHaveProperty("password");
   });
 });
 

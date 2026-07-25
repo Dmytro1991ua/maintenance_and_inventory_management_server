@@ -1,5 +1,6 @@
 export { authHeader, signTestAccessToken } from "./auth.helpers";
 export { createTestInventoryItem } from "./inventory.helpers";
+export { createTestInvite } from "./invite.helpers";
 export { createTestNotification } from "./notification.helpers";
 export { createTestTask } from "./task.helpers";
 export {

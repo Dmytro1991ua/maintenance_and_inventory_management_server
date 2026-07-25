@@ -1,0 +1,11 @@
+model UserInvite {
+  id        String    @id @default(uuid())
+  email     String
+  role      Role
+  token     String    @unique @default(uuid())
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("user_invites")
+}

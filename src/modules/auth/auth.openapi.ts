@@ -1,5 +1,6 @@
 import { ErrorResponseSchema, registry } from "../../config/openapi";
 import {
+  AcceptInviteSchema,
   LoginResponseSchema,
   LoginSchema,
   RegisterResponseSchema,
@@ -80,5 +81,34 @@ registry.registerPath({
   tags: ["Auth"],
   responses: {
     204: { description: "Logged out" },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/auth/accept-invite",
+  description:
+    "Accept an invite and create your account. The invite token (from the email link) pre-assigns your role. Supply your chosen username and password.",
+  tags: ["Auth"],
+  request: {
+    body: { content: { "application/json": { schema: AcceptInviteSchema } } },
+  },
+  responses: {
+    201: {
+      description: "Account created",
+      content: { "application/json": { schema: RegisterResponseSchema } },
+    },
+    400: {
+      description: "Invite expired or already used",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "Invite not found",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    409: {
+      description: "Username already taken",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
   },
 });

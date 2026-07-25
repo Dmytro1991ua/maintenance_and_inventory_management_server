@@ -31,6 +31,29 @@ export const LoginSchema = z
   })
   .openapi("LoginInput");
 
+export const AcceptInviteSchema = z
+  .object({
+    token: z
+      .uuid({ error: "Invalid invite token" })
+      .openapi({ example: "550e8400-e29b-41d4-a716-446655440000" }),
+    userName: z
+      .string()
+      .min(3, { error: "Username must be at least 3 characters" })
+      .max(30, { error: "Username must be at most 30 characters" })
+      .regex(/^[a-zA-Z0-9_]+$/, {
+        error: "Username can only contain letters, numbers and underscores",
+      })
+      .openapi({ example: "janedoe" }),
+    password: z
+      .string()
+      .min(8, { error: "Password must be at least 8 characters" })
+      .max(64, { error: "Password must be at most 64 characters" })
+      .regex(/[A-Z]/, { error: "Password must contain at least one uppercase letter" })
+      .regex(/[0-9]/, { error: "Password must contain at least one number" })
+      .openapi({ example: "Password123" }),
+  })
+  .openapi("AcceptInviteInput");
+
 //Response schemas — documentation only
 
 export const RegisterResponseSchema = z
@@ -56,3 +79,4 @@ export const LoginResponseSchema = z
 
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
+export type AcceptInviteInput = z.infer<typeof AcceptInviteSchema>;

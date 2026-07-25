@@ -1,8 +1,9 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
-import { UnauthorizedError, ConflictError } from "../../../src/errors";
-import { authRepositoryMock, buildUser, createRedisMock, loggerMock } from "../../mocks";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError, UnauthorizedError } from "../../../src/errors";
+import { UserStatus } from "../../../src/generated/prisma/client";
+import { authRepositoryMock, buildInvite, buildUser, createRedisMock, invitesRepositoryMock, loggerMock } from "../../mocks";
 import type {
   BcryptCompareFn,
   BcryptHashFn,
@@ -13,6 +14,10 @@ import type {
 
 jest.mock("../../../src/modules/auth/auth.repository", () => ({
   authRepository: authRepositoryMock,
+}));
+
+jest.mock("../../../src/modules/users/invites.repository", () => ({
+  invitesRepository: invitesRepositoryMock,
 }));
 
 jest.mock("../../../src/config", () => ({
@@ -162,6 +167,30 @@ describe("authService", () => {
       await expect(
         authService.login({ email: "user@example.com", password: "wrong-password" }),
       ).rejects.toThrow(UnauthorizedError);
+    });
+
+    it("should throw ForbiddenError when the user is INACTIVE", async () => {
+      authRepositoryMock.findByEmail.mockResolvedValue(
+        buildUser({ status: UserStatus.INACTIVE }),
+      );
+      mockedBcrypt.compare.mockResolvedValue(true);
+
+      await expect(
+        authService.login({ email: "user@example.com", password: "correct-password" }),
+      ).rejects.toThrow(ForbiddenError);
+    });
+
+    it("should not issue tokens when the user is INACTIVE", async () => {
+      authRepositoryMock.findByEmail.mockResolvedValue(
+        buildUser({ status: UserStatus.INACTIVE }),
+      );
+      mockedBcrypt.compare.mockResolvedValue(true);
+
+      await expect(
+        authService.login({ email: "user@example.com", password: "correct-password" }),
+      ).rejects.toThrow();
+
+      expect(mockRedis.pipeline).not.toHaveBeenCalled();
     });
 
     it("should give the same error for a nonexistent user and a wrong password", async () => {
@@ -318,6 +347,90 @@ describe("authService", () => {
       await expect(authService.refresh("token-for-deleted-user")).rejects.toThrow(
         UnauthorizedError,
       );
+    });
+  });
+
+  describe("acceptInvite", () => {
+    const validInput = {
+      token: "550e8400-e29b-41d4-a716-446655440000",
+      userName: "janedoe",
+      password: "Password123",
+    };
+
+    it("should throw NotFoundError when the token does not exist", async () => {
+      invitesRepositoryMock.findByToken.mockResolvedValue(null);
+
+      await expect(authService.acceptInvite(validInput)).rejects.toThrow(NotFoundError);
+    });
+
+    it("should throw BadRequestError when the invite has already been used", async () => {
+      invitesRepositoryMock.findByToken.mockResolvedValue(
+        buildInvite({ usedAt: new Date("2026-07-24T00:00:00.000Z") }),
+      );
+
+      await expect(authService.acceptInvite(validInput)).rejects.toThrow(BadRequestError);
+    });
+
+    it("should throw BadRequestError when the invite has expired", async () => {
+      invitesRepositoryMock.findByToken.mockResolvedValue(
+        buildInvite({ expiresAt: new Date("2026-01-01T00:00:00.000Z") }),
+      );
+
+      await expect(authService.acceptInvite(validInput)).rejects.toThrow(BadRequestError);
+    });
+
+    it("should throw ConflictError when the userName is already taken", async () => {
+      invitesRepositoryMock.findByToken.mockResolvedValue(buildInvite());
+      authRepositoryMock.findByUserName.mockResolvedValue(buildUser({ userName: "janedoe" }));
+
+      await expect(authService.acceptInvite(validInput)).rejects.toThrow(ConflictError);
+    });
+
+    it("should create the user with the role from the invite", async () => {
+      const invite = buildInvite({ role: "MANAGER" });
+      invitesRepositoryMock.findByToken.mockResolvedValue(invite);
+      authRepositoryMock.findByUserName.mockResolvedValue(null);
+      mockedBcrypt.hash.mockResolvedValue("hashed-pw");
+      authRepositoryMock.create.mockResolvedValue(
+        buildUser({ id: "new-user", userName: "janedoe", email: invite.email }),
+      );
+      invitesRepositoryMock.markUsed.mockResolvedValue(invite);
+
+      await authService.acceptInvite(validInput);
+
+      expect(authRepositoryMock.create).toHaveBeenCalledWith(
+        expect.objectContaining({ userName: "janedoe", email: invite.email }),
+        ["MANAGER"],
+      );
+    });
+
+    it("should mark the invite as used after creating the user", async () => {
+      const invite = buildInvite({ id: "invite-1" });
+      invitesRepositoryMock.findByToken.mockResolvedValue(invite);
+      authRepositoryMock.findByUserName.mockResolvedValue(null);
+      mockedBcrypt.hash.mockResolvedValue("hashed-pw");
+      authRepositoryMock.create.mockResolvedValue(buildUser());
+      invitesRepositoryMock.markUsed.mockResolvedValue(invite);
+
+      await authService.acceptInvite(validInput);
+
+      expect(invitesRepositoryMock.markUsed).toHaveBeenCalledWith("invite-1");
+    });
+
+    it("should return id, userName, and email — never the password hash", async () => {
+      const invite = buildInvite({ email: "jane@example.com" });
+      invitesRepositoryMock.findByToken.mockResolvedValue(invite);
+      authRepositoryMock.findByUserName.mockResolvedValue(null);
+      mockedBcrypt.hash.mockResolvedValue("hashed-pw");
+      authRepositoryMock.create.mockResolvedValue(
+        buildUser({ id: "new-user", userName: "janedoe", email: "jane@example.com" }),
+      );
+      invitesRepositoryMock.markUsed.mockResolvedValue(invite);
+
+      const result = await authService.acceptInvite(validInput);
+
+      expect(result).toEqual({ id: "new-user", userName: "janedoe", email: "jane@example.com" });
+      expect(result).not.toHaveProperty("password");
     });
   });
 

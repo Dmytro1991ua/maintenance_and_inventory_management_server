@@ -12,6 +12,9 @@ const envSchema = z.object({
   ACCESS_TOKEN_EXPIRES_IN: z.string().default("15m"),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default("1d"),
   ALLOWED_ORIGINS: z.string().default("http://localhost:3000"),
+  APP_URL: z.url().default("http://localhost:5173"),
+  RESEND_API_KEY: z.string().optional(),
+  SEED_DEMO_PASSWORD: z.string().default("Demo@Mainstay1"),
 });
 
 const parsed = envSchema.safeParse(process.env);

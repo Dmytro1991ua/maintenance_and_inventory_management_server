@@ -9,10 +9,12 @@ import {
   validateParams,
   validateQuery,
 } from "../../middleware";
+import { InviteUserSchema } from "./invites.schemas";
 import { usersController } from "./users.controller";
 import {
   UpdateRolesSchema,
   UpdateUserSchema,
+  UpdateUserStatusSchema,
   UserIdParamSchema,
   UsersQuerySchema,
 } from "./users.schemas";
@@ -37,6 +39,18 @@ router.get(
  * Must be defined BEFORE /:id to prevent "me" being treated as a param
  */
 router.get("/me", authenticate, asyncHandler(usersController.getMe));
+
+/**
+ * GET /api/v1/users/pending-invites
+ * ADMIN only — list invites that have not been accepted yet
+ * Must be defined BEFORE /:id to prevent "pending-invites" being treated as a param
+ */
+router.get(
+  "/pending-invites",
+  authenticate,
+  authorize([Role.ADMIN]),
+  asyncHandler(usersController.getPendingInvites),
+);
 
 /**
  * GET /api/v1/users/:id
@@ -86,6 +100,31 @@ router.delete(
   authorize([Role.ADMIN]),
   validateParams(UserIdParamSchema),
   asyncHandler(usersController.delete),
+);
+
+/**
+ * POST /api/v1/users/invite
+ * ADMIN only — create an invite token and send email to the recipient
+ */
+router.post(
+  "/invite",
+  authenticate,
+  authorize([Role.ADMIN]),
+  validateBody(InviteUserSchema),
+  asyncHandler(usersController.inviteUser),
+);
+
+/**
+ * PATCH /api/v1/users/:id/status
+ * ADMIN only — activate or deactivate a user
+ */
+router.patch(
+  "/:id/status",
+  authenticate,
+  authorize([Role.ADMIN]),
+  validateParams(UserIdParamSchema),
+  validateBody(UpdateUserStatusSchema),
+  asyncHandler(usersController.updateStatus),
 );
 
 export default router;

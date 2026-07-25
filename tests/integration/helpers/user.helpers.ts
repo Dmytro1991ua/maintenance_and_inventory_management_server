@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import { randomUUID } from "node:crypto";
 
 import { prisma } from "../../../src/config";
-import { Role, type User } from "../../../src/generated/prisma/client";
+import { Role, UserStatus, type User } from "../../../src/generated/prisma/client";
 
 // Cost factor kept low (vs. BCRYPT_SALT_ROUNDS=12 in production) — tests
 // create many users and don't need brute-force resistance, only a real
@@ -16,6 +16,7 @@ type CreateTestUserOptions = {
   email?: string;
   password?: string;
   roles?: Role[];
+  status?: UserStatus;
 };
 
 // Inserts a user directly via Prisma, bypassing POST /auth/register —
@@ -35,6 +36,7 @@ export const createTestUser = async (
       email: options.email ?? `user_${unique}@example.com`,
       password: hashedPassword,
       roles: options.roles ?? [Role.TECHNICIAN],
+      ...(options.status ? { status: options.status } : {}),
     },
   });
 

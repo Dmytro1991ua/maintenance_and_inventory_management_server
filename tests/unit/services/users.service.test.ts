@@ -174,4 +174,33 @@ describe("usersService", () => {
 
     await expect(usersService.delete("nonexistent", "user-admin")).rejects.toThrow(NotFoundError);
   });
+
+  describe("updateStatus", () => {
+    it("should update status when admin targets another user", async () => {
+      const mockUser = buildUser({ id: "user-2" });
+      usersRepositoryMock.findById.mockResolvedValue(mockUser);
+      usersRepositoryMock.updateStatus.mockResolvedValue({ ...mockUser, status: "INACTIVE" });
+
+      const result = await usersService.updateStatus("user-2", { status: "INACTIVE" }, "user-admin");
+
+      expect(usersRepositoryMock.updateStatus).toHaveBeenCalledWith("user-2", { status: "INACTIVE" });
+      expect(result.status).toBe("INACTIVE");
+    });
+
+    it("should throw ForbiddenError when an admin tries to change their own status", async () => {
+      await expect(
+        usersService.updateStatus("user-admin", { status: "INACTIVE" }, "user-admin"),
+      ).rejects.toThrow(ForbiddenError);
+
+      expect(usersRepositoryMock.updateStatus).not.toHaveBeenCalled();
+    });
+
+    it("should throw NotFoundError when the target user does not exist", async () => {
+      usersRepositoryMock.findById.mockResolvedValue(null);
+
+      await expect(
+        usersService.updateStatus("nonexistent", { status: "INACTIVE" }, "user-admin"),
+      ).rejects.toThrow(NotFoundError);
+    });
+  });
 });

@@ -2,7 +2,7 @@ import { Router } from "express";
 
 import { asyncHandler, authLimiter, validateBody } from "../../middleware";
 import { authController } from "./auth.controller";
-import { LoginSchema, RegisterSchema } from "./auth.schemas";
+import { AcceptInviteSchema, LoginSchema, RegisterSchema } from "./auth.schemas";
 
 const router = Router();
 
@@ -34,5 +34,15 @@ router.post("/refresh", asyncHandler(authController.refresh));
  * Public — clears HttpOnly cookie, removes token from Redis
  */
 router.post("/logout", asyncHandler(authController.logout));
+
+/**
+ * POST /api/v1/auth/accept-invite
+ * Public (token-gated) — validates invite token, creates user with pre-assigned role
+ */
+router.post(
+  "/accept-invite",
+  validateBody(AcceptInviteSchema),
+  asyncHandler(authController.acceptInvite),
+);
 
 export default router;

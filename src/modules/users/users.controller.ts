@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 
 import { UnauthorizedError } from "../../errors";
+import { invitesService } from "./invites.service";
 import type { UsersQuery } from "./users.schemas";
 import { usersService } from "./users.service";
 
@@ -56,5 +57,25 @@ export const usersController = {
     await usersService.delete(req.params.id as string, req.user.id);
 
     res.status(204).send();
+  },
+
+  inviteUser: async (req: Request, res: Response): Promise<void> => {
+    const result = await invitesService.invite(req.body);
+
+    res.status(201).json({ success: true, data: result });
+  },
+
+  getPendingInvites: async (_req: Request, res: Response): Promise<void> => {
+    const data = await invitesService.getPendingInvites();
+
+    res.json({ success: true, data });
+  },
+
+  updateStatus: async (req: Request, res: Response): Promise<void> => {
+    const { id } = req.user!;
+
+    const user = await usersService.updateStatus(req.params.id as string, req.body, id);
+
+    res.json({ success: true, data: user });
   },
 };

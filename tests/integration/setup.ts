@@ -12,6 +12,7 @@ beforeEach(async () => {
   await prisma.notification.deleteMany();
   await prisma.task.deleteMany();
   await prisma.inventoryItem.deleteMany();
+  await prisma.userInvite.deleteMany();
   await prisma.user.deleteMany();
 });
 
