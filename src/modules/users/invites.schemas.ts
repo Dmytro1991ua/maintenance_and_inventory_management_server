@@ -42,4 +42,6 @@ export const PendingInvitesResponseSchema = z
   })
   .openapi("PendingInvitesResponse");
 
+export const InviteIdParamSchema = z.object({ id: z.uuid() });
+
 export type InviteUserInput = z.infer<typeof InviteUserSchema>;

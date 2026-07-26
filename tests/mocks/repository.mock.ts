@@ -51,7 +51,10 @@ export const authRepositoryMock = {
 
 export const invitesRepositoryMock = {
   create: jest.fn(),
+  findById: jest.fn(),
   findByToken: jest.fn(),
+  findUnusedByEmail: jest.fn(),
   markUsed: jest.fn(),
+  delete: jest.fn(),
   findPending: jest.fn(),
 };

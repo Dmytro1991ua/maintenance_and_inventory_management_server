@@ -9,7 +9,7 @@ import {
   validateParams,
   validateQuery,
 } from "../../middleware";
-import { InviteUserSchema } from "./invites.schemas";
+import { InviteIdParamSchema, InviteUserSchema } from "./invites.schemas";
 import { usersController } from "./users.controller";
 import {
   UpdateRolesSchema,
@@ -112,6 +112,19 @@ router.post(
   authorize([Role.ADMIN]),
   validateBody(InviteUserSchema),
   asyncHandler(usersController.inviteUser),
+);
+
+/**
+ * DELETE /api/v1/users/invites/:id
+ * ADMIN only — cancel a pending invite that has not been accepted yet
+ * Must be defined BEFORE /:id routes to avoid param conflicts
+ */
+router.delete(
+  "/invites/:id",
+  authenticate,
+  authorize([Role.ADMIN]),
+  validateParams(InviteIdParamSchema),
+  asyncHandler(usersController.cancelInvite),
 );
 
 /**

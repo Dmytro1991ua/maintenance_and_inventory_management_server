@@ -1,4 +1,4 @@
-import { ConflictError } from "../../../src/errors";
+import { BadRequestError, ConflictError, NotFoundError } from "../../../src/errors";
 import { Role } from "../../../src/generated/prisma/client";
 import {
   buildInvite,
@@ -34,16 +34,18 @@ describe("invitesService.invite", () => {
     jest.clearAllMocks();
   });
 
-  it("should throw ConflictError when the email is already registered", async () => {
+  it("should throw ConflictError when the email is already registered as a user", async () => {
     usersRepositoryMock.findConflicts.mockResolvedValue({ email: true, userName: false });
+    invitesRepositoryMock.findUnusedByEmail.mockResolvedValue(null);
 
     await expect(
       invitesService.invite({ email: "existing@example.com", role: "TECHNICIAN" }),
     ).rejects.toThrow(ConflictError);
   });
 
-  it("should not create an invite or send an email when the email conflicts", async () => {
+  it("should not create an invite or send an email when the email conflicts with an existing user", async () => {
     usersRepositoryMock.findConflicts.mockResolvedValue({ email: true, userName: false });
+    invitesRepositoryMock.findUnusedByEmail.mockResolvedValue(null);
 
     await expect(
       invitesService.invite({ email: "existing@example.com", role: "TECHNICIAN" }),
@@ -53,8 +55,36 @@ describe("invitesService.invite", () => {
     expect(sendInviteMock).not.toHaveBeenCalled();
   });
 
+  it("should throw ConflictError when a non-expired pending invite already exists", async () => {
+    usersRepositoryMock.findConflicts.mockResolvedValue({ email: false, userName: false });
+    invitesRepositoryMock.findUnusedByEmail.mockResolvedValue(
+      buildInvite({ expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000) }),
+    );
+
+    await expect(
+      invitesService.invite({ email: "jane@example.com", role: "TECHNICIAN" }),
+    ).rejects.toThrow(ConflictError);
+
+    expect(invitesRepositoryMock.create).not.toHaveBeenCalled();
+  });
+
+  it("should auto-delete an expired pending invite and create a fresh one", async () => {
+    usersRepositoryMock.findConflicts.mockResolvedValue({ email: false, userName: false });
+    const expiredInvite = buildInvite({ id: "old-id", expiresAt: new Date(Date.now() - 1000) });
+    invitesRepositoryMock.findUnusedByEmail.mockResolvedValue(expiredInvite);
+    invitesRepositoryMock.delete.mockResolvedValue(expiredInvite);
+    const newInvite = buildInvite({ id: "new-id" });
+    invitesRepositoryMock.create.mockResolvedValue(newInvite);
+
+    await invitesService.invite({ email: "jane@example.com", role: "TECHNICIAN" });
+
+    expect(invitesRepositoryMock.delete).toHaveBeenCalledWith("old-id");
+    expect(invitesRepositoryMock.create).toHaveBeenCalled();
+  });
+
   it("should create an invite with expiresAt ~48 hours from now", async () => {
     usersRepositoryMock.findConflicts.mockResolvedValue({ email: false, userName: false });
+    invitesRepositoryMock.findUnusedByEmail.mockResolvedValue(null);
     const invite = buildInvite();
     invitesRepositoryMock.create.mockResolvedValue(invite);
 
@@ -72,6 +102,7 @@ describe("invitesService.invite", () => {
 
   it("should call emailService.sendInvite with the invite URL containing the token", async () => {
     usersRepositoryMock.findConflicts.mockResolvedValue({ email: false, userName: false });
+    invitesRepositoryMock.findUnusedByEmail.mockResolvedValue(null);
     const invite = buildInvite({ token: "test-token-uuid" });
     invitesRepositoryMock.create.mockResolvedValue(invite);
 
@@ -86,6 +117,7 @@ describe("invitesService.invite", () => {
 
   it("should return invite data without the token", async () => {
     usersRepositoryMock.findConflicts.mockResolvedValue({ email: false, userName: false });
+    invitesRepositoryMock.findUnusedByEmail.mockResolvedValue(null);
     const invite = buildInvite({ id: "inv-1", email: "jane@example.com", role: "MANAGER" });
     invitesRepositoryMock.create.mockResolvedValue(invite);
 
@@ -98,6 +130,36 @@ describe("invitesService.invite", () => {
       expiresAt: invite.expiresAt,
     });
     expect(result).not.toHaveProperty("token");
+  });
+});
+
+describe("invitesService.cancelInvite", () => {
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it("should delete the invite when it exists and has not been accepted", async () => {
+    const invite = buildInvite({ id: "inv-1" });
+    invitesRepositoryMock.findById.mockResolvedValue(invite);
+
+    await invitesService.cancelInvite("inv-1");
+
+    expect(invitesRepositoryMock.delete).toHaveBeenCalledWith("inv-1");
+  });
+
+  it("should throw NotFoundError when the invite does not exist", async () => {
+    invitesRepositoryMock.findById.mockResolvedValue(null);
+
+    await expect(invitesService.cancelInvite("nonexistent")).rejects.toThrow(NotFoundError);
+    expect(invitesRepositoryMock.delete).not.toHaveBeenCalled();
+  });
+
+  it("should throw BadRequestError when the invite has already been accepted", async () => {
+    const invite = buildInvite({ usedAt: new Date() });
+    invitesRepositoryMock.findById.mockResolvedValue(invite);
+
+    await expect(invitesService.cancelInvite(invite.id)).rejects.toThrow(BadRequestError);
+    expect(invitesRepositoryMock.delete).not.toHaveBeenCalled();
   });
 });
 
