@@ -71,6 +71,12 @@ export const usersController = {
     res.json({ success: true, data });
   },
 
+  cancelInvite: async (req: Request, res: Response): Promise<void> => {
+    await invitesService.cancelInvite(req.params.id as string);
+
+    res.status(204).send();
+  },
+
   updateStatus: async (req: Request, res: Response): Promise<void> => {
     const { id } = req.user!;
 

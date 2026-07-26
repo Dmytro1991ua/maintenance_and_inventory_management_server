@@ -1,5 +1,6 @@
 import { ErrorResponseSchema, registry } from "../../config/openapi";
 import {
+  InviteIdParamSchema,
   InviteResponseSchema,
   InviteUserSchema,
   PendingInvitesResponseSchema,
@@ -189,6 +190,31 @@ registry.registerPath({
     },
     403: {
       description: "ADMIN role required",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "delete",
+  path: "/users/invites/{id}",
+  description:
+    "Cancel a pending invite that has not yet been accepted. ADMIN only. Returns 400 if the invite was already accepted.",
+  tags: ["Users"],
+  security: bearerAuth,
+  request: { params: InviteIdParamSchema },
+  responses: {
+    204: { description: "Invite cancelled" },
+    400: {
+      description: "Invite already accepted",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    403: {
+      description: "ADMIN role required",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "Invite not found",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },
