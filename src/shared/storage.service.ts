@@ -6,7 +6,9 @@ const getClient = () => {
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
     throw new Error("Supabase is not configured — set SUPABASE_URL and SUPABASE_SERVICE_KEY");
   }
-  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY);
+  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
 };
 
 const getBucket = () => {
