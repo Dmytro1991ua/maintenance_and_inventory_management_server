@@ -341,7 +341,7 @@ describe("GET /api/v1/users/pending-invites", () => {
 
   it("should return items in descending creation order", async () => {
     const admin = await createAdminUser();
-    await createTestInvite({ email: "first@example.com" });
+    await createTestInvite({ email: "first@example.com", createdAt: new Date(Date.now() - 2000) });
     await createTestInvite({ email: "second@example.com" });
 
     const response = await request(app)

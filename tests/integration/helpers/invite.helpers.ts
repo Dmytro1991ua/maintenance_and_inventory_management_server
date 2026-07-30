@@ -7,6 +7,7 @@ export const createTestInvite = async (options: {
   token?: string;
   expiresAt?: Date;
   usedAt?: Date | null;
+  createdAt?: Date;
 } = {}) => {
   const expiresAt = options.expiresAt ?? new Date(Date.now() + 48 * 60 * 60 * 1000);
 
@@ -17,6 +18,7 @@ export const createTestInvite = async (options: {
       token: options.token ?? crypto.randomUUID(),
       expiresAt,
       usedAt: options.usedAt ?? null,
+      ...(options.createdAt ? { createdAt: options.createdAt } : {}),
     },
   });
 };
