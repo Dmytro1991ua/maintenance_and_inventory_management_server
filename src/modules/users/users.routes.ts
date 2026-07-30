@@ -9,6 +9,7 @@ import {
   validateParams,
   validateQuery,
 } from "../../middleware";
+import { uploadAvatarMiddleware } from "../../middleware/upload";
 import { InviteIdParamSchema, InviteUserSchema } from "./invites.schemas";
 import { usersController } from "./users.controller";
 import {
@@ -39,6 +40,17 @@ router.get(
  * Must be defined BEFORE /:id to prevent "me" being treated as a param
  */
 router.get("/me", authenticate, asyncHandler(usersController.getMe));
+
+/**
+ * PATCH /api/v1/users/me/avatar
+ * Any authenticated user — upload or replace their profile picture
+ */
+router.patch(
+  "/me/avatar",
+  authenticate,
+  uploadAvatarMiddleware,
+  asyncHandler(usersController.uploadAvatar),
+);
 
 /**
  * GET /api/v1/users/pending-invites

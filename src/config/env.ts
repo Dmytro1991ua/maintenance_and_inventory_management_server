@@ -15,6 +15,9 @@ const envSchema = z.object({
   APP_URL: z.url().default("http://localhost:5173"),
   RESEND_API_KEY: z.string().optional(),
   SEED_DEMO_PASSWORD: z.string().default("Demo@Mainstay1"),
+  SUPABASE_URL: z.url().optional(),
+  SUPABASE_SERVICE_KEY: z.string().optional(),
+  SUPABASE_BUCKET: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

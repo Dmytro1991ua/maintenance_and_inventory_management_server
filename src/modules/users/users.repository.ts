@@ -110,5 +110,11 @@ export const usersRepository = {
       data: { status: data.status },
       select: USER_SELECT,
     }),
+  updateAvatar: (id: string, avatarUrl: string) =>
+    prisma.user.update({
+      where: { id },
+      data: { avatarUrl },
+      select: USER_SELECT,
+    }),
   delete: (id: string) => prisma.user.delete({ where: { id } }),
 };

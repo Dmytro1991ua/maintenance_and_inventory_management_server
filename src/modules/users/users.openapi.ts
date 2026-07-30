@@ -222,6 +222,25 @@ registry.registerPath({
 
 registry.registerPath({
   method: "patch",
+  path: "/users/me/avatar",
+  description:
+    "Upload or replace the authenticated user's profile picture. Accepts multipart/form-data with an `avatar` field (JPEG, PNG, or WebP; max 5 MB).",
+  tags: ["Users"],
+  security: bearerAuth,
+  responses: {
+    200: {
+      description: "Avatar uploaded — returns the updated user profile",
+      content: { "application/json": { schema: UserResponseSchema } },
+    },
+    400: {
+      description: "No file provided, wrong format, or file too large",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
   path: "/users/{id}/status",
   description:
     "Activate or deactivate a user account. ADMIN only. An admin cannot change their own status.",

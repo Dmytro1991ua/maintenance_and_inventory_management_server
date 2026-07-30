@@ -13,6 +13,7 @@ export const USER_SELECT = {
   email: true,
   roles: true,
   status: true,
+  avatarUrl: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.UserSelect;
