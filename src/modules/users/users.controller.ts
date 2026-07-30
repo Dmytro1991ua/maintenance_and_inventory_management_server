@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 
-import { UnauthorizedError } from "../../errors";
+import { BadRequestError, UnauthorizedError } from "../../errors";
 import { invitesService } from "./invites.service";
 import type { UsersQuery } from "./users.schemas";
 import { usersService } from "./users.service";
@@ -75,6 +75,15 @@ export const usersController = {
     await invitesService.cancelInvite(req.params.id as string);
 
     res.status(204).send();
+  },
+
+  uploadAvatar: async (req: Request, res: Response): Promise<void> => {
+    if (!req.user) throw new UnauthorizedError("Not authenticated");
+    if (!req.file) throw new BadRequestError("No file uploaded");
+
+    const user = await usersService.uploadAvatar(req.user.id, req.file);
+
+    res.json({ success: true, data: user });
   },
 
   updateStatus: async (req: Request, res: Response): Promise<void> => {

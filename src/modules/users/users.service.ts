@@ -1,5 +1,6 @@
 import { ConflictError, ForbiddenError } from "../../errors";
 import { Role } from "../../generated/prisma/client";
+import { storageService } from "../../shared/storage.service";
 import { findOrThrow } from "../../utils";
 import { USER_NOT_FOUND_MESSAGE } from "./users.constants";
 import { usersRepository } from "./users.repository";
@@ -62,6 +63,17 @@ export const usersService = {
     await findOrThrow(() => usersRepository.findById(targetId), USER_NOT_FOUND_MESSAGE);
 
     return usersRepository.updateStatus(targetId, data);
+  },
+
+  uploadAvatar: async (userId: string, file: Express.Multer.File) => {
+    const user = await findOrThrow(() => usersRepository.findById(userId), USER_NOT_FOUND_MESSAGE);
+
+    if (user.avatarUrl) {
+      await storageService.deleteAvatar(user.avatarUrl).catch(() => {});
+    }
+
+    const avatarUrl = await storageService.uploadAvatar(userId, file.buffer, file.mimetype);
+    return usersRepository.updateAvatar(userId, avatarUrl);
   },
 
   // ADMIN only
