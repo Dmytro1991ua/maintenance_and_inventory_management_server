@@ -20,7 +20,6 @@ export const storageService = {
       method: "POST",
       headers: {
         apikey: key,
-        Authorization: `Bearer ${key}`,
         "Content-Type": mimetype,
         "x-upsert": "true",
       },
@@ -46,7 +45,6 @@ export const storageService = {
       method: "DELETE",
       headers: {
         apikey: key,
-        Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ prefixes: [filePath] }),
