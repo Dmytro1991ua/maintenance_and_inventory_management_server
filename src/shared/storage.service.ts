@@ -1,53 +1,53 @@
-import { createClient } from "@supabase/supabase-js";
-
 import { env } from "../config";
 
-const getClient = () => {
+const getConfig = () => {
   if (!env.SUPABASE_URL || !env.SUPABASE_SERVICE_KEY) {
     throw new Error("Supabase is not configured — set SUPABASE_URL and SUPABASE_SERVICE_KEY");
   }
-  return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_KEY, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-};
-
-const getBucket = () => {
-  if (!env.SUPABASE_BUCKET) throw new Error("SUPABASE_BUCKET is not configured");
-  return env.SUPABASE_BUCKET;
+  if (!env.SUPABASE_BUCKET) {
+    throw new Error("SUPABASE_BUCKET is not configured");
+  }
+  return { url: env.SUPABASE_URL, key: env.SUPABASE_SERVICE_KEY, bucket: env.SUPABASE_BUCKET };
 };
 
 export const storageService = {
   uploadAvatar: async (userId: string, buffer: Buffer, mimetype: string): Promise<string> => {
-    const client = getClient();
-    const bucket = getBucket();
-
+    const { url, key, bucket } = getConfig();
     const ext = mimetype.split("/")[1] ?? "jpg";
     const filePath = `${userId}/${Date.now()}.${ext}`;
 
-    const { error } = await client.storage.from(bucket).upload(filePath, buffer, {
-      contentType: mimetype,
-      upsert: true,
+    const res = await fetch(`${url}/storage/v1/object/${bucket}/${filePath}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": mimetype,
+        "x-upsert": "true",
+      },
+      body: buffer,
     });
 
-    if (error) throw new Error(`Upload failed: ${error.message}`);
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Upload failed: ${text}`);
+    }
 
-    const { data } = client.storage.from(bucket).getPublicUrl(filePath);
-
-    return data.publicUrl;
+    return `${url}/storage/v1/object/public/${bucket}/${filePath}`;
   },
 
-  deleteAvatar: async (url: string): Promise<void> => {
-    const client = getClient();
-    const bucket = getBucket();
-
+  deleteAvatar: async (avatarUrl: string): Promise<void> => {
+    const { url, key, bucket } = getConfig();
     const prefix = `/storage/v1/object/public/${bucket}/`;
-
-    const idx = url.indexOf(prefix);
-
+    const idx = avatarUrl.indexOf(prefix);
     if (idx === -1) return;
+    const filePath = avatarUrl.slice(idx + prefix.length);
 
-    const filePath = url.slice(idx + prefix.length);
-
-    await client.storage.from(bucket).remove([filePath]);
+    await fetch(`${url}/storage/v1/object/${bucket}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ prefixes: [filePath] }),
+    });
   },
 };
