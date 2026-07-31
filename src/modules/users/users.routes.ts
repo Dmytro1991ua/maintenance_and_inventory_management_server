@@ -13,6 +13,7 @@ import { uploadAvatarMiddleware } from "../../middleware/upload";
 import { InviteIdParamSchema, InviteUserSchema } from "./invites.schemas";
 import { usersController } from "./users.controller";
 import {
+  ChangePasswordSchema,
   UpdateRolesSchema,
   UpdateUserSchema,
   UpdateUserStatusSchema,
@@ -50,6 +51,17 @@ router.patch(
   authenticate,
   uploadAvatarMiddleware,
   asyncHandler(usersController.uploadAvatar),
+);
+
+/**
+ * PATCH /api/v1/users/me/password
+ * Any authenticated user — change their own password; revokes all active sessions
+ */
+router.patch(
+  "/me/password",
+  authenticate,
+  validateBody(ChangePasswordSchema),
+  asyncHandler(usersController.changePassword),
 );
 
 /**

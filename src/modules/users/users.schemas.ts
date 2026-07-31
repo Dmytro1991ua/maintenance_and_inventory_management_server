@@ -51,6 +51,23 @@ export const UserIdParamSchema = z.object({
   id: z.uuid({ error: "Invalid user ID" }),
 });
 
+export const ChangePasswordSchema = z
+  .object({
+    currentPassword: z
+      .string()
+      .min(1, { error: "Current password is required" })
+      .openapi({ example: "OldPassword123" }),
+    newPassword: z
+      .string()
+      .min(8, { error: "Password must be at least 8 characters" })
+      .max(64, { error: "Password must be at most 64 characters" })
+      .regex(/[A-Z]/, { error: "Password must contain at least one uppercase letter" })
+      .regex(/[0-9]/, { error: "Password must contain at least one number" })
+      .openapi({ example: "NewPassword456" }),
+  })
+  .strict()
+  .openapi("ChangePasswordInput");
+
 // — Response schemas — documentation only ——————————————————————————————————
 
 export const UserSchema = z
@@ -90,3 +107,4 @@ export type UpdateUser = z.infer<typeof UpdateUserSchema>;
 export type UpdateRoles = z.infer<typeof UpdateRolesSchema>;
 export type UpdateUserStatus = z.infer<typeof UpdateUserStatusSchema>;
 export type UserIdParam = z.infer<typeof UserIdParamSchema>;
+export type ChangePassword = z.infer<typeof ChangePasswordSchema>;

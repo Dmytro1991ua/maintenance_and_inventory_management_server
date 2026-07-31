@@ -86,6 +86,14 @@ export const usersController = {
     res.json({ success: true, data: user });
   },
 
+  changePassword: async (req: Request, res: Response): Promise<void> => {
+    if (!req.user) throw new UnauthorizedError("Not authenticated");
+
+    await usersService.changePassword(req.user.id, req.body);
+
+    res.status(204).send();
+  },
+
   updateStatus: async (req: Request, res: Response): Promise<void> => {
     const { id } = req.user!;
 

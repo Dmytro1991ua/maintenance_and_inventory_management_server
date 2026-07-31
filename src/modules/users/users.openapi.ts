@@ -6,6 +6,7 @@ import {
   PendingInvitesResponseSchema,
 } from "./invites.schemas";
 import {
+  ChangePasswordSchema,
   UpdateRolesSchema,
   UpdateUserSchema,
   UpdateUserStatusSchema,
@@ -215,6 +216,25 @@ registry.registerPath({
     },
     404: {
       description: "Invite not found",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/users/me/password",
+  description:
+    "Change the authenticated user's password. Requires the current password for verification. Revokes all active sessions — the user must log in again on all devices.",
+  tags: ["Users"],
+  security: bearerAuth,
+  request: {
+    body: { content: { "application/json": { schema: ChangePasswordSchema } } },
+  },
+  responses: {
+    204: { description: "Password changed — all sessions revoked" },
+    400: {
+      description: "Current password incorrect, or new password same as current",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },
