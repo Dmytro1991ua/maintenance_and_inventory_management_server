@@ -116,5 +116,16 @@ export const usersRepository = {
       data: { avatarUrl },
       select: USER_SELECT,
     }),
+  findByIdWithPassword: (id: string) =>
+    prisma.user.findUnique({
+      where: { id },
+      select: { id: true, password: true },
+    }),
+  updatePassword: (id: string, hashedPassword: string) =>
+    prisma.user.update({
+      where: { id },
+      data: { password: hashedPassword },
+      select: USER_SELECT,
+    }),
   delete: (id: string) => prisma.user.delete({ where: { id } }),
 };

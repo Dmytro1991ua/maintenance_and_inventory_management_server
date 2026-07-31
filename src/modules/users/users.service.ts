@@ -1,10 +1,21 @@
-import { ConflictError, ForbiddenError } from "../../errors";
+import bcrypt from "bcrypt";
+
+import { redis } from "../../config";
+import { BadRequestError, ConflictError, ForbiddenError, UnauthorizedError } from "../../errors";
 import { Role } from "../../generated/prisma/client";
 import { storageService } from "../../shared/storage.service";
 import { findOrThrow } from "../../utils";
+import { BCRYPT_SALT_ROUNDS } from "../auth/auth.constants";
+import { getRefreshTokenKey, getUserSessionKey } from "../auth/auth.utils";
 import { USER_NOT_FOUND_MESSAGE } from "./users.constants";
 import { usersRepository } from "./users.repository";
-import type { UpdateRoles, UpdateUser, UpdateUserStatus, UsersQuery } from "./users.schemas";
+import type {
+  ChangePassword,
+  UpdateRoles,
+  UpdateUser,
+  UpdateUserStatus,
+  UsersQuery,
+} from "./users.schemas";
 
 export const usersService = {
   findAll: async (query: UsersQuery) => {
@@ -74,6 +85,36 @@ export const usersService = {
 
     const avatarUrl = await storageService.uploadAvatar(userId, file.buffer, file.mimetype);
     return usersRepository.updateAvatar(userId, avatarUrl);
+  },
+
+  changePassword: async (userId: string, data: ChangePassword): Promise<void> => {
+    const user = await usersRepository.findByIdWithPassword(userId);
+
+    if (!user) throw new UnauthorizedError("Not authenticated");
+
+    const match = await bcrypt.compare(data.currentPassword, user.password);
+
+    if (!match) throw new BadRequestError("Current password is incorrect");
+
+    if (data.currentPassword === data.newPassword) {
+      throw new BadRequestError("New password must be different from the current password");
+    }
+
+    const hashed = await bcrypt.hash(data.newPassword, BCRYPT_SALT_ROUNDS);
+
+    await usersRepository.updatePassword(userId, hashed);
+
+    // Password change is a security event — revoke all active sessions so the
+    // user must re-authenticate on every device with the new credentials.
+    const sessionKey = getUserSessionKey(userId);
+    const tokenIds = await redis.smembers(sessionKey);
+
+    if (tokenIds.length > 0) {
+      await redis
+        .pipeline()
+        .del(...tokenIds.map((id) => getRefreshTokenKey(userId, id)), sessionKey)
+        .exec();
+    }
   },
 
   // ADMIN only
