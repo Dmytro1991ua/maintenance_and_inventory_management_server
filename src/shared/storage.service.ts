@@ -19,6 +19,7 @@ export const storageService = {
     const res = await fetch(`${url}/storage/v1/object/${bucket}/${filePath}`, {
       method: "POST",
       headers: {
+        apikey: key,
         Authorization: `Bearer ${key}`,
         "Content-Type": mimetype,
         "x-upsert": "true",
@@ -44,6 +45,7 @@ export const storageService = {
     await fetch(`${url}/storage/v1/object/${bucket}`, {
       method: "DELETE",
       headers: {
+        apikey: key,
         Authorization: `Bearer ${key}`,
         "Content-Type": "application/json",
       },
