@@ -222,6 +222,34 @@ registry.registerPath({
 });
 
 registry.registerPath({
+  method: "delete",
+  path: "/users/me/sessions",
+  description:
+    "Sign out of all devices by revoking every active refresh token. The caller's current access token remains valid until it expires (≤15 min).",
+  tags: ["Users"],
+  security: bearerAuth,
+  responses: {
+    204: { description: "All sessions revoked" },
+  },
+});
+
+registry.registerPath({
+  method: "delete",
+  path: "/users/me",
+  description:
+    "Permanently delete the authenticated user's own account. All active sessions are revoked before deletion.",
+  tags: ["Users"],
+  security: bearerAuth,
+  responses: {
+    204: { description: "Account deleted" },
+    404: {
+      description: "User not found",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
   method: "patch",
   path: "/users/me/password",
   description:
