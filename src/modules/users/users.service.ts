@@ -1,12 +1,13 @@
 import bcrypt from "bcrypt";
 
-import { redis } from "../../config";
+import { logger, redis } from "../../config";
 import { BadRequestError, ConflictError, ForbiddenError, UnauthorizedError } from "../../errors";
 import { Role } from "../../generated/prisma/client";
 import { storageService } from "../../shared/storage.service";
 import { findOrThrow } from "../../utils";
 import { BCRYPT_SALT_ROUNDS } from "../auth/auth.constants";
 import { getRefreshTokenKey, getUserSessionKey } from "../auth/auth.utils";
+import { tasksRepository } from "../tasks/tasks.repository";
 import { USER_NOT_FOUND_MESSAGE } from "./users.constants";
 import { usersRepository } from "./users.repository";
 import type {
@@ -92,7 +93,11 @@ export const usersService = {
     const user = await findOrThrow(() => usersRepository.findById(userId), USER_NOT_FOUND_MESSAGE);
 
     if (user.avatarUrl) {
-      await storageService.deleteAvatar(user.avatarUrl).catch(() => {});
+      try {
+        await storageService.deleteAvatar(user.avatarUrl);
+      } catch (err) {
+        logger.warn({ err, userId }, "Failed to delete old avatar during upload");
+      }
     }
 
     const avatarUrl = await storageService.uploadAvatar(userId, file.buffer, file.mimetype);
@@ -125,11 +130,23 @@ export const usersService = {
   },
 
   deleteAccount: async (userId: string): Promise<void> => {
-    await findOrThrow(() => usersRepository.findById(userId), USER_NOT_FOUND_MESSAGE);
+    const user = await findOrThrow(() => usersRepository.findById(userId), USER_NOT_FOUND_MESSAGE);
 
     // Revoke sessions before deleting — avoids orphaned Redis keys
     // and ensures in-flight tokens stop working immediately.
     await revokeAllSessions(userId);
+
+    if (user.avatarUrl) {
+      try {
+        await storageService.deleteAvatar(user.avatarUrl);
+      } catch (err) {
+        logger.warn({ err, userId }, "Failed to delete avatar during account deletion");
+      }
+    }
+
+    // Reset IN_PROGRESS tasks before deletion — once the user row is gone,
+    // the DB cascade nulls assignedTo and we lose the ability to find them.
+    await tasksRepository.resetInProgressForUser(userId);
     await usersRepository.delete(userId);
   },
 

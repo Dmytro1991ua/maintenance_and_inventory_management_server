@@ -75,6 +75,12 @@ export const tasksRepository = {
       data,
       select: TASK_SELECT,
     }),
+  resetInProgressForUser: async (userId: string): Promise<void> => {
+    await prisma.task.updateMany({
+      where: { assignedTo: userId, status: TaskStatus.IN_PROGRESS },
+      data: { status: TaskStatus.OPEN },
+    });
+  },
   delete: async (id: string): Promise<void> => {
     await prisma.task.delete({ where: { id } });
   },
