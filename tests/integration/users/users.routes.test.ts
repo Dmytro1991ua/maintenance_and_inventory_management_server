@@ -1,12 +1,14 @@
 import request from "supertest";
 
 import app from "../../../src/app";
+import { prisma } from "../../../src/config";
 import { UserStatus } from "../../../src/generated/prisma/client";
 import {
   authHeader,
   createAdminUser,
   createManagerUser,
   createTechnicianUser,
+  createTestTask,
   createTestUser,
   DEFAULT_TEST_PASSWORD,
   signTestAccessToken,
@@ -571,6 +573,20 @@ describe("DELETE /api/v1/users/me", () => {
       .send({ email: user.email, password: DEFAULT_TEST_PASSWORD });
 
     expect(login.status).toBe(401);
+  });
+
+  it("should reset IN_PROGRESS tasks to OPEN on account deletion", async () => {
+    const user = await createTestUser();
+    const task = await createTestTask({ assignedTo: user.id, status: "IN_PROGRESS" });
+
+    await request(app)
+      .delete("/api/v1/users/me")
+      .set(authHeader(signTestAccessToken(user)));
+
+    const updated = await prisma.task.findUnique({ where: { id: task.id } });
+
+    expect(updated?.status).toBe("OPEN");
+    expect(updated?.assignedTo).toBeNull();
   });
 
   it("should return 401 when unauthenticated", async () => {
