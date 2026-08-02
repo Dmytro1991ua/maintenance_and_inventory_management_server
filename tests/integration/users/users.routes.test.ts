@@ -8,6 +8,7 @@ import {
   createManagerUser,
   createTechnicianUser,
   createTestUser,
+  DEFAULT_TEST_PASSWORD,
   signTestAccessToken,
 } from "../helpers";
 
@@ -365,6 +366,217 @@ describe("PATCH /api/v1/users/:id/status", () => {
       status: "INACTIVE",
     });
     expect(response.body.data).not.toHaveProperty("password");
+  });
+});
+
+describe("PATCH /api/v1/users/me/password", () => {
+  it("should return 204 on a valid password change", async () => {
+    const user = await createTestUser();
+
+    const response = await request(app)
+      .patch("/api/v1/users/me/password")
+      .set(authHeader(signTestAccessToken(user)))
+      .send({ currentPassword: DEFAULT_TEST_PASSWORD, newPassword: "NewPass456!" });
+
+    expect(response.status).toBe(204);
+  });
+
+  it("should accept login with the new password after change", async () => {
+    const user = await createTestUser();
+
+    await request(app)
+      .patch("/api/v1/users/me/password")
+      .set(authHeader(signTestAccessToken(user)))
+      .send({ currentPassword: DEFAULT_TEST_PASSWORD, newPassword: "NewPass456!" });
+
+    const login = await request(app)
+      .post("/api/v1/auth/login")
+      .send({ email: user.email, password: "NewPass456!" });
+
+    expect(login.status).toBe(200);
+  });
+
+  it("should reject login with the old password after change", async () => {
+    const user = await createTestUser();
+
+    await request(app)
+      .patch("/api/v1/users/me/password")
+      .set(authHeader(signTestAccessToken(user)))
+      .send({ currentPassword: DEFAULT_TEST_PASSWORD, newPassword: "NewPass456!" });
+
+    const login = await request(app)
+      .post("/api/v1/auth/login")
+      .send({ email: user.email, password: DEFAULT_TEST_PASSWORD });
+
+    expect(login.status).toBe(401);
+  });
+
+  it("should return 400 when current password is wrong", async () => {
+    const user = await createTestUser();
+
+    const response = await request(app)
+      .patch("/api/v1/users/me/password")
+      .set(authHeader(signTestAccessToken(user)))
+      .send({ currentPassword: "WrongPass999!", newPassword: "NewPass456!" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("BAD_REQUEST");
+    expect(response.body.error.message).toBe("Current password is incorrect");
+  });
+
+  it("should return 400 when new password is the same as current", async () => {
+    const user = await createTestUser();
+
+    const response = await request(app)
+      .patch("/api/v1/users/me/password")
+      .set(authHeader(signTestAccessToken(user)))
+      .send({ currentPassword: DEFAULT_TEST_PASSWORD, newPassword: DEFAULT_TEST_PASSWORD });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("BAD_REQUEST");
+  });
+
+  it.each([
+    ["too short", "Short1"],
+    ["no uppercase letter", "nouppercase1"],
+    ["no number", "NoNumbers!"],
+  ])("should return 400 when newPassword has %s", async (_label, newPassword) => {
+    const user = await createTestUser();
+
+    const response = await request(app)
+      .patch("/api/v1/users/me/password")
+      .set(authHeader(signTestAccessToken(user)))
+      .send({ currentPassword: DEFAULT_TEST_PASSWORD, newPassword });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("should return 400 when currentPassword is missing", async () => {
+    const user = await createTestUser();
+
+    const response = await request(app)
+      .patch("/api/v1/users/me/password")
+      .set(authHeader(signTestAccessToken(user)))
+      .send({ newPassword: "NewPass456!" });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("should return 400 when newPassword is missing", async () => {
+    const user = await createTestUser();
+
+    const response = await request(app)
+      .patch("/api/v1/users/me/password")
+      .set(authHeader(signTestAccessToken(user)))
+      .send({ currentPassword: DEFAULT_TEST_PASSWORD });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it("should return 401 when unauthenticated", async () => {
+    const response = await request(app)
+      .patch("/api/v1/users/me/password")
+      .send({ currentPassword: DEFAULT_TEST_PASSWORD, newPassword: "NewPass456!" });
+
+    expect(response.status).toBe(401);
+  });
+});
+
+describe("DELETE /api/v1/users/me/sessions", () => {
+  it("should return 204 and revoke all active sessions", async () => {
+    const user = await createTestUser();
+
+    // Real login so a refresh token lands in Redis
+    const loginRes = await request(app)
+      .post("/api/v1/auth/login")
+      .send({ email: user.email, password: DEFAULT_TEST_PASSWORD });
+
+    expect(loginRes.status).toBe(200);
+    const refreshToken = loginRes.headers["set-cookie"]?.[0];
+
+    const response = await request(app)
+      .delete("/api/v1/users/me/sessions")
+      .set(authHeader(signTestAccessToken(user)));
+
+    expect(response.status).toBe(204);
+
+    // Refresh token should no longer work
+    const refreshRes = await request(app)
+      .post("/api/v1/auth/refresh")
+      .set("Cookie", refreshToken ?? "");
+
+    expect(refreshRes.status).toBe(401);
+  });
+
+  it("should return 204 even when there are no active sessions to revoke", async () => {
+    const user = await createTestUser();
+
+    // Call twice — second call hits an already-empty session set
+    await request(app)
+      .delete("/api/v1/users/me/sessions")
+      .set(authHeader(signTestAccessToken(user)));
+
+    const response = await request(app)
+      .delete("/api/v1/users/me/sessions")
+      .set(authHeader(signTestAccessToken(user)));
+
+    expect(response.status).toBe(204);
+  });
+
+  it("should return 401 when unauthenticated", async () => {
+    const response = await request(app).delete("/api/v1/users/me/sessions");
+
+    expect(response.status).toBe(401);
+  });
+});
+
+describe("DELETE /api/v1/users/me", () => {
+  it("should return 204 and remove the account", async () => {
+    const user = await createTestUser();
+
+    const response = await request(app)
+      .delete("/api/v1/users/me")
+      .set(authHeader(signTestAccessToken(user)));
+
+    expect(response.status).toBe(204);
+  });
+
+  it("should make the account unreachable by an admin after deletion", async () => {
+    const admin = await createAdminUser();
+    const user = await createTestUser();
+
+    await request(app)
+      .delete("/api/v1/users/me")
+      .set(authHeader(signTestAccessToken(user)));
+
+    const lookup = await request(app)
+      .get(`/api/v1/users/${user.id}`)
+      .set(authHeader(signTestAccessToken(admin)));
+
+    expect(lookup.status).toBe(404);
+  });
+
+  it("should prevent login after account deletion", async () => {
+    const user = await createTestUser();
+
+    await request(app)
+      .delete("/api/v1/users/me")
+      .set(authHeader(signTestAccessToken(user)));
+
+    const login = await request(app)
+      .post("/api/v1/auth/login")
+      .send({ email: user.email, password: DEFAULT_TEST_PASSWORD });
+
+    expect(login.status).toBe(401);
+  });
+
+  it("should return 401 when unauthenticated", async () => {
+    const response = await request(app).delete("/api/v1/users/me");
+
+    expect(response.status).toBe(401);
   });
 });
 

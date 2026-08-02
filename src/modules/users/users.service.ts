@@ -17,6 +17,18 @@ import type {
   UsersQuery,
 } from "./users.schemas";
 
+const revokeAllSessions = async (userId: string): Promise<void> => {
+  const sessionKey = getUserSessionKey(userId);
+  const tokenIds = await redis.smembers(sessionKey);
+
+  if (tokenIds.length > 0) {
+    await redis
+      .pipeline()
+      .del(...tokenIds.map((id) => getRefreshTokenKey(userId, id)), sessionKey)
+      .exec();
+  }
+};
+
 export const usersService = {
   findAll: async (query: UsersQuery) => {
     return usersRepository.findAll(query);
@@ -104,17 +116,21 @@ export const usersService = {
 
     await usersRepository.updatePassword(userId, hashed);
 
-    // Password change is a security event — revoke all active sessions so the
-    // user must re-authenticate on every device with the new credentials.
-    const sessionKey = getUserSessionKey(userId);
-    const tokenIds = await redis.smembers(sessionKey);
+    // Password change is a security event — revoke all sessions on all devices.
+    await revokeAllSessions(userId);
+  },
 
-    if (tokenIds.length > 0) {
-      await redis
-        .pipeline()
-        .del(...tokenIds.map((id) => getRefreshTokenKey(userId, id)), sessionKey)
-        .exec();
-    }
+  signOutAllDevices: async (userId: string): Promise<void> => {
+    await revokeAllSessions(userId);
+  },
+
+  deleteAccount: async (userId: string): Promise<void> => {
+    await findOrThrow(() => usersRepository.findById(userId), USER_NOT_FOUND_MESSAGE);
+
+    // Revoke sessions before deleting — avoids orphaned Redis keys
+    // and ensures in-flight tokens stop working immediately.
+    await revokeAllSessions(userId);
+    await usersRepository.delete(userId);
   },
 
   // ADMIN only

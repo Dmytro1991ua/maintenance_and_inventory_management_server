@@ -94,6 +94,22 @@ export const usersController = {
     res.status(204).send();
   },
 
+  signOutAllDevices: async (req: Request, res: Response): Promise<void> => {
+    if (!req.user) throw new UnauthorizedError("Not authenticated");
+
+    await usersService.signOutAllDevices(req.user.id);
+
+    res.status(204).send();
+  },
+
+  deleteAccount: async (req: Request, res: Response): Promise<void> => {
+    if (!req.user) throw new UnauthorizedError("Not authenticated");
+
+    await usersService.deleteAccount(req.user.id);
+
+    res.status(204).send();
+  },
+
   updateStatus: async (req: Request, res: Response): Promise<void> => {
     const { id } = req.user!;
 

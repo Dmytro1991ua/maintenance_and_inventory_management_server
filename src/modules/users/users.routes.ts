@@ -65,6 +65,18 @@ router.patch(
 );
 
 /**
+ * DELETE /api/v1/users/me/sessions
+ * Any authenticated user — sign out of all devices by revoking every refresh token
+ */
+router.delete("/me/sessions", authenticate, asyncHandler(usersController.signOutAllDevices));
+
+/**
+ * DELETE /api/v1/users/me
+ * Any authenticated user — permanently delete their own account and revoke all sessions
+ */
+router.delete("/me", authenticate, asyncHandler(usersController.deleteAccount));
+
+/**
  * GET /api/v1/users/pending-invites
  * ADMIN only — list invites that have not been accepted yet
  * Must be defined BEFORE /:id to prevent "pending-invites" being treated as a param
