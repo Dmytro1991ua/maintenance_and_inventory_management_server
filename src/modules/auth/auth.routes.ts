@@ -2,7 +2,13 @@ import { Router } from "express";
 
 import { asyncHandler, authLimiter, validateBody } from "../../middleware";
 import { authController } from "./auth.controller";
-import { AcceptInviteSchema, LoginSchema, RegisterSchema } from "./auth.schemas";
+import {
+  AcceptInviteSchema,
+  ForgotPasswordSchema,
+  LoginSchema,
+  RegisterSchema,
+  ResetPasswordSchema,
+} from "./auth.schemas";
 
 const router = Router();
 
@@ -43,6 +49,28 @@ router.post(
   "/accept-invite",
   validateBody(AcceptInviteSchema),
   asyncHandler(authController.acceptInvite),
+);
+
+/**
+ * POST /api/v1/auth/forgot-password
+ * Public — rate-limited; always 204 regardless of whether email exists
+ */
+router.post(
+  "/forgot-password",
+  authLimiter,
+  validateBody(ForgotPasswordSchema),
+  asyncHandler(authController.forgotPassword),
+);
+
+/**
+ * POST /api/v1/auth/reset-password
+ * Public — rate-limited; validates token, updates password, revokes all sessions
+ */
+router.post(
+  "/reset-password",
+  authLimiter,
+  validateBody(ResetPasswordSchema),
+  asyncHandler(authController.resetPassword),
 );
 
 export default router;

@@ -19,6 +19,10 @@ export const authRepository = {
     return prisma.user.findUnique({ where: { userName } });
   },
 
+  updatePassword: async (id: string, hashedPassword: string): Promise<void> => {
+    await prisma.user.update({ where: { id }, data: { password: hashedPassword } });
+  },
+
   create: (data: RegisterInput, roles?: Role[]): Promise<User> => {
     return prisma.user.create({
       data: {

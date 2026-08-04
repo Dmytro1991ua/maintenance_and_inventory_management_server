@@ -54,6 +54,27 @@ export const AcceptInviteSchema = z
   })
   .openapi("AcceptInviteInput");
 
+export const ForgotPasswordSchema = z
+  .object({
+    email: z.email({ error: "Invalid email address" }).openapi({ example: "john@example.com" }),
+  })
+  .openapi("ForgotPasswordInput");
+
+export const ResetPasswordSchema = z
+  .object({
+    token: z
+      .uuid({ error: "Invalid reset token" })
+      .openapi({ example: "550e8400-e29b-41d4-a716-446655440000" }),
+    newPassword: z
+      .string()
+      .min(8, { error: "Password must be at least 8 characters" })
+      .max(64, { error: "Password must be at most 64 characters" })
+      .regex(/[A-Z]/, { error: "Password must contain at least one uppercase letter" })
+      .regex(/[0-9]/, { error: "Password must contain at least one number" })
+      .openapi({ example: "NewPassword123" }),
+  })
+  .openapi("ResetPasswordInput");
+
 //Response schemas — documentation only
 
 export const RegisterResponseSchema = z
@@ -80,3 +101,5 @@ export const LoginResponseSchema = z
 export type RegisterInput = z.infer<typeof RegisterSchema>;
 export type LoginInput = z.infer<typeof LoginSchema>;
 export type AcceptInviteInput = z.infer<typeof AcceptInviteSchema>;
+export type ForgotPasswordInput = z.infer<typeof ForgotPasswordSchema>;
+export type ResetPasswordInput = z.infer<typeof ResetPasswordSchema>;

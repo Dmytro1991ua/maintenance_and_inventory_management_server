@@ -12,3 +12,6 @@ export const getRefreshTokenKey = (userId: string, tokenId: string): string =>
   `auth:refresh:${userId}:${tokenId}`;
 
 export const getUserSessionKey = (userId: string): string => `auth:sessions:${userId}`;
+
+// auth:password-reset:{token} — stores userId, TTL = 1 hour, single-use
+export const getPasswordResetTokenKey = (token: string): string => `auth:password-reset:${token}`;
