@@ -91,4 +91,17 @@ export const authController = {
 
     res.status(201).json({ success: true, data: result });
   },
+
+  forgotPassword: async (req: Request, res: Response): Promise<void> => {
+    await authService.forgotPassword(req.body);
+
+    // Always 204 — never reveal whether the email exists
+    res.status(204).send();
+  },
+
+  resetPassword: async (req: Request, res: Response): Promise<void> => {
+    await authService.resetPassword(req.body);
+
+    res.status(204).send();
+  },
 };

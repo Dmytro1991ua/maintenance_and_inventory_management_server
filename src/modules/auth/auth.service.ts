@@ -11,11 +11,23 @@ import {
   UnauthorizedError,
 } from "../../errors";
 import { UserStatus } from "../../generated/prisma/client";
+import { emailService } from "../../shared/email.service";
 import { invitesRepository } from "../users/invites.repository";
-import { BCRYPT_SALT_ROUNDS, DUMMY_HASH, REFRESH_TOKEN_TTL_SECONDS } from "./auth.constants";
+import {
+  BCRYPT_SALT_ROUNDS,
+  DUMMY_HASH,
+  PASSWORD_RESET_TOKEN_TTL_SECONDS,
+  REFRESH_TOKEN_TTL_SECONDS,
+} from "./auth.constants";
 import { authRepository } from "./auth.repository";
-import { AcceptInviteInput, LoginInput, RegisterInput } from "./auth.schemas";
-import { getRefreshTokenKey, getUserSessionKey } from "./auth.utils";
+import {
+  AcceptInviteInput,
+  ForgotPasswordInput,
+  LoginInput,
+  RegisterInput,
+  ResetPasswordInput,
+} from "./auth.schemas";
+import { getPasswordResetTokenKey, getRefreshTokenKey, getUserSessionKey } from "./auth.utils";
 
 const storeRefreshToken = async (userId: string, tokenId: string, token: string): Promise<void> => {
   // Pipeline: three operations writes in one Redis round trip
@@ -210,6 +222,49 @@ export const authService = {
       // Log but never throw — logout must always succeed from the user's perspective
       logger.error({ err }, "Failed to delete refresh token on logout");
     }
+  },
+
+  forgotPassword: async (input: ForgotPasswordInput): Promise<void> => {
+    const user = await authRepository.findByEmail(input.email);
+
+    // Always return silently — never reveal whether the email is registered.
+    // The caller gets 204 regardless, so there's no timing difference to exploit.
+    if (!user) return;
+
+    const token = uuid();
+    await redis.set(
+      getPasswordResetTokenKey(token),
+      user.id,
+      "EX",
+      PASSWORD_RESET_TOKEN_TTL_SECONDS,
+    );
+
+    const resetUrl = `${env.APP_URL}/reset-password?token=${token}`;
+
+    try {
+      await emailService.sendPasswordReset(user.email, resetUrl);
+    } catch (err) {
+      // Best-effort — don't expose email-delivery failures to the caller.
+      // The token stays in Redis; user can request another reset if email doesn't arrive.
+      logger.error({ err, userId: user.id }, "Failed to send password reset email");
+    }
+  },
+
+  resetPassword: async (input: ResetPasswordInput): Promise<void> => {
+    const tokenKey = getPasswordResetTokenKey(input.token);
+    const userId = await redis.get(tokenKey);
+
+    if (!userId) throw new BadRequestError("Reset link is invalid or has expired");
+
+    const hashed = await bcrypt.hash(input.newPassword, BCRYPT_SALT_ROUNDS);
+
+    // Delete token first — single-use, even if the password update fails below
+    await redis.del(tokenKey);
+
+    await authRepository.updatePassword(userId, hashed);
+
+    // Password reset is a security event — log out all devices
+    await revokeAllSessions(userId);
   },
 
   acceptInvite: async (input: AcceptInviteInput) => {

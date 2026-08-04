@@ -16,6 +16,34 @@ const roleLabel: Record<string, string> = {
 };
 
 export const emailService = {
+  sendPasswordReset: async (to: string, resetUrl: string): Promise<void> => {
+    const resend = getResend();
+
+    await resend.emails.send({
+      from: "Mainstay <onboarding@resend.dev>",
+      to,
+      subject: "Reset your Mainstay password",
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+          <h2>Reset your password</h2>
+          <p>
+            We received a request to reset the password for your Mainstay account.
+            Click the button below to choose a new password.
+          </p>
+          <p>
+            <a href="${resetUrl}" style="display:inline-block;padding:12px 24px;background:#3b82f6;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">
+              Reset Password
+            </a>
+          </p>
+          <p style="color:#6b7280;font-size:14px">
+            This link expires in 1 hour. If you didn't request a password reset,
+            you can safely ignore this email — your password won't change.
+          </p>
+        </div>
+      `,
+    });
+  },
+
   sendInvite: async (to: string, inviteUrl: string, role: Role): Promise<void> => {
     const resend = getResend();
 

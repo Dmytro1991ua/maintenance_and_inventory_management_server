@@ -13,3 +13,7 @@ export const REFRESH_TOKEN_COOKIE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 1 day in 
 // bcrypt.compare against this takes ~300ms for any input, matching the real credential-check path
 // and preventing timing attacks that would otherwise reveal which emails are registered.
 export const DUMMY_HASH = "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW";
+
+// Redis TTL for password-reset tokens — short-lived by design.
+// 1 hour is the industry norm: long enough to be usable, short enough to limit exposure.
+export const PASSWORD_RESET_TOKEN_TTL_SECONDS = 60 * 60; // 1 hour
