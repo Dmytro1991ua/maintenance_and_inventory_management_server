@@ -7,6 +7,8 @@ import {
 } from "./invites.schemas";
 import {
   ChangePasswordSchema,
+  NotificationPreferencesResponseSchema,
+  NotificationPreferencesSchema,
   UpdateRolesSchema,
   UpdateUserSchema,
   UpdateUserStatusSchema,
@@ -309,6 +311,43 @@ registry.registerPath({
     },
     404: {
       description: "User not found",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/users/me/notification-preferences",
+  description:
+    "Get the authenticated user's notification preferences. Missing keys default to enabled — a fresh account with no saved preferences receives all notification types.",
+  tags: ["Users"],
+  security: bearerAuth,
+  responses: {
+    200: {
+      description: "Current preferences",
+      content: { "application/json": { schema: NotificationPreferencesResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/users/me/notification-preferences",
+  description:
+    "Partially update notification preferences. Only the keys you send are changed — omitted keys stay as they are. Set a type to false to stop receiving those notifications.",
+  tags: ["Users"],
+  security: bearerAuth,
+  request: {
+    body: { content: { "application/json": { schema: NotificationPreferencesSchema } } },
+  },
+  responses: {
+    200: {
+      description: "Updated preferences",
+      content: { "application/json": { schema: NotificationPreferencesResponseSchema } },
+    },
+    400: {
+      description: "Validation error",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },

@@ -127,5 +127,22 @@ export const usersRepository = {
       data: { password: hashedPassword },
       select: USER_SELECT,
     }),
+  findNotificationPreferences: (id: string) =>
+    prisma.user.findUnique({
+      where: { id },
+      select: { notificationPreferences: true },
+    }),
+  // Batch fetch for the notification filter in notificationsService.createMany
+  findPreferencesByIds: (ids: string[]) =>
+    prisma.user.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, notificationPreferences: true },
+    }),
+  updateNotificationPreferences: (id: string, preferences: Record<string, boolean>) =>
+    prisma.user.update({
+      where: { id },
+      data: { notificationPreferences: preferences },
+      select: { notificationPreferences: true },
+    }),
   delete: (id: string) => prisma.user.delete({ where: { id } }),
 };

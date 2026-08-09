@@ -68,6 +68,15 @@ export const ChangePasswordSchema = z
   .strict()
   .openapi("ChangePasswordInput");
 
+export const NotificationPreferencesSchema = z
+  .object({
+    LOW_STOCK: z.boolean().optional().openapi({ example: true }),
+    OUT_OF_STOCK: z.boolean().optional().openapi({ example: true }),
+    TASK_OVERDUE: z.boolean().optional().openapi({ example: false }),
+  })
+  .strict()
+  .openapi("NotificationPreferencesInput");
+
 // — Response schemas — documentation only ——————————————————————————————————
 
 export const UserSchema = z
@@ -102,9 +111,21 @@ export const UsersListResponseSchema = z
   })
   .openapi("UsersListResponse");
 
+export const NotificationPreferencesResponseSchema = z
+  .object({
+    success: z.literal(true),
+    data: z.object({
+      LOW_STOCK: z.boolean(),
+      OUT_OF_STOCK: z.boolean(),
+      TASK_OVERDUE: z.boolean(),
+    }),
+  })
+  .openapi("NotificationPreferencesResponse");
+
 export type UsersQuery = z.infer<typeof UsersQuerySchema>;
 export type UpdateUser = z.infer<typeof UpdateUserSchema>;
 export type UpdateRoles = z.infer<typeof UpdateRolesSchema>;
 export type UpdateUserStatus = z.infer<typeof UpdateUserStatusSchema>;
 export type UserIdParam = z.infer<typeof UserIdParamSchema>;
 export type ChangePassword = z.infer<typeof ChangePasswordSchema>;
+export type NotificationPreferencesInput = z.infer<typeof NotificationPreferencesSchema>;

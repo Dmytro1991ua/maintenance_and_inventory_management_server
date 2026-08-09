@@ -16,9 +16,10 @@ model User {
   password  String
   roles     Role[]     @default([TECHNICIAN])
   status    UserStatus @default(ACTIVE)
-  avatarUrl String?
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  avatarUrl               String?
+  notificationPreferences Json       @default("{}")
+  createdAt               DateTime   @default(now())
+  updatedAt               DateTime   @updatedAt
   tasks     Task[]
   notifications Notification[]
 
