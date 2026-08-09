@@ -117,4 +117,20 @@ export const usersController = {
 
     res.json({ success: true, data: user });
   },
+
+  getNotificationPreferences: async (req: Request, res: Response): Promise<void> => {
+    if (!req.user) throw new UnauthorizedError("Not authenticated");
+
+    const data = await usersService.getNotificationPreferences(req.user.id);
+
+    res.json({ success: true, data });
+  },
+
+  updateNotificationPreferences: async (req: Request, res: Response): Promise<void> => {
+    if (!req.user) throw new UnauthorizedError("Not authenticated");
+
+    const data = await usersService.updateNotificationPreferences(req.user.id, req.body);
+
+    res.json({ success: true, data });
+  },
 };

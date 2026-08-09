@@ -1,7 +1,13 @@
 import bcrypt from "bcrypt";
 
 import { logger, redis } from "../../config";
-import { BadRequestError, ConflictError, ForbiddenError, UnauthorizedError } from "../../errors";
+import {
+  BadRequestError,
+  ConflictError,
+  ForbiddenError,
+  NotFoundError,
+  UnauthorizedError,
+} from "../../errors";
 import { Role } from "../../generated/prisma/client";
 import { storageService } from "../../shared/storage.service";
 import { findOrThrow } from "../../utils";
@@ -12,11 +18,25 @@ import { USER_NOT_FOUND_MESSAGE } from "./users.constants";
 import { usersRepository } from "./users.repository";
 import type {
   ChangePassword,
+  NotificationPreferencesInput,
   UpdateRoles,
   UpdateUser,
   UpdateUserStatus,
   UsersQuery,
 } from "./users.schemas";
+
+// Missing key means enabled (opt-out model — no key = user never touched it = receives notifications)
+const toPrefsRecord = (raw: unknown): Record<string, boolean> =>
+  raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, boolean>) : {};
+
+const normalizePreferences = (raw: unknown) => {
+  const stored = toPrefsRecord(raw);
+  return {
+    LOW_STOCK: stored.LOW_STOCK !== false,
+    OUT_OF_STOCK: stored.OUT_OF_STOCK !== false,
+    TASK_OVERDUE: stored.TASK_OVERDUE !== false,
+  };
+};
 
 const revokeAllSessions = async (userId: string): Promise<void> => {
   const sessionKey = getUserSessionKey(userId);
@@ -127,6 +147,21 @@ export const usersService = {
 
   signOutAllDevices: async (userId: string): Promise<void> => {
     await revokeAllSessions(userId);
+  },
+
+  getNotificationPreferences: async (userId: string) => {
+    const result = await usersRepository.findNotificationPreferences(userId);
+    if (!result) throw new NotFoundError(USER_NOT_FOUND_MESSAGE);
+    return normalizePreferences(result.notificationPreferences);
+  },
+
+  updateNotificationPreferences: async (userId: string, data: NotificationPreferencesInput) => {
+    const existing = await usersRepository.findNotificationPreferences(userId);
+    if (!existing) throw new NotFoundError(USER_NOT_FOUND_MESSAGE);
+    const stored = toPrefsRecord(existing.notificationPreferences);
+    const merged = { ...stored, ...data };
+    const updated = await usersRepository.updateNotificationPreferences(userId, merged);
+    return normalizePreferences(updated.notificationPreferences);
   },
 
   deleteAccount: async (userId: string): Promise<void> => {

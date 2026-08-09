@@ -14,6 +14,7 @@ import { InviteIdParamSchema, InviteUserSchema } from "./invites.schemas";
 import { usersController } from "./users.controller";
 import {
   ChangePasswordSchema,
+  NotificationPreferencesSchema,
   UpdateRolesSchema,
   UpdateUserSchema,
   UpdateUserStatusSchema,
@@ -69,6 +70,27 @@ router.patch(
  * Any authenticated user — sign out of all devices by revoking every refresh token
  */
 router.delete("/me/sessions", authenticate, asyncHandler(usersController.signOutAllDevices));
+
+/**
+ * GET /api/v1/users/me/notification-preferences
+ * Any authenticated user — returns their current notification opt-in/out settings
+ */
+router.get(
+  "/me/notification-preferences",
+  authenticate,
+  asyncHandler(usersController.getNotificationPreferences),
+);
+
+/**
+ * PATCH /api/v1/users/me/notification-preferences
+ * Any authenticated user — partial update; unset keys are left unchanged
+ */
+router.patch(
+  "/me/notification-preferences",
+  authenticate,
+  validateBody(NotificationPreferencesSchema),
+  asyncHandler(usersController.updateNotificationPreferences),
+);
 
 /**
  * DELETE /api/v1/users/me

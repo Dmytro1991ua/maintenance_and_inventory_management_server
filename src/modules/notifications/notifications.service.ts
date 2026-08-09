@@ -1,5 +1,6 @@
 import { NotificationType } from "../../generated/prisma/client";
 import { ensureOwner, findOrThrow } from "../../utils";
+import { usersRepository } from "../users/users.repository";
 import { NOTIFICATION_NOT_FOUND_MESSAGE } from "./notifications.constants";
 import { notificationsRepository } from "./notifications.repository";
 import type {
@@ -7,7 +8,20 @@ import type {
   NotificationsQuery,
   UpdateNotification,
 } from "./notifications.schemas";
-import { buildDedupeKey } from "./notifications.utils";
+import { buildDedupeKey, isNotificationTypeEnabled } from "./notifications.utils";
+
+const filterByPreferences = async (
+  notifications: CreateNotification[],
+  type: NotificationType,
+): Promise<CreateNotification[]> => {
+  const uniqueUserIds = [...new Set(notifications.map((n) => n.userId))];
+  const preferenceRows = await usersRepository.findPreferencesByIds(uniqueUserIds);
+  const preferencesByUserId = new Map(preferenceRows.map((r) => [r.id, r.notificationPreferences]));
+
+  return notifications.filter((n) =>
+    isNotificationTypeEnabled(preferencesByUserId.get(n.userId) ?? null, type),
+  );
+};
 
 export const notificationsService = {
   findAll: async (userId: string, query: NotificationsQuery) => {
@@ -51,7 +65,11 @@ export const notificationsService = {
   createMany: async (type: NotificationType, notifications: CreateNotification[]) => {
     if (notifications.length === 0) return { created: 0, skipped: 0 };
 
-    const relatedEntityIds = notifications.flatMap((notification) =>
+    const enabledNotifications = await filterByPreferences(notifications, type);
+
+    if (enabledNotifications.length === 0) return { created: 0, skipped: notifications.length };
+
+    const relatedEntityIds = enabledNotifications.flatMap((notification) =>
       notification.relatedEntityId ? [notification.relatedEntityId] : [],
     );
 
@@ -63,7 +81,7 @@ export const notificationsService = {
     // Drop entries that would duplicate an existing unread notification for the
     // same (user, entity) pair — otherwise an ongoing condition (e.g. an item
     // still below its stock threshold) would spam the same user every run.
-    const notificationsToInsert = notifications.filter(
+    const notificationsToInsert = enabledNotifications.filter(
       (notification) =>
         !notification.relatedEntityId ||
         !duplicateKeys.has(buildDedupeKey(notification.userId, notification.relatedEntityId)),
