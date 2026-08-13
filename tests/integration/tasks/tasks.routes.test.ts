@@ -10,6 +10,11 @@ import {
   signTestAccessToken,
 } from "../helpers";
 
+// Suppress outbound email — these tests cover routing and DB logic only
+jest.mock("../../../src/shared/email.service", () => ({
+  emailService: { sendTaskAssignment: jest.fn().mockResolvedValue(undefined) },
+}));
+
 const NONEXISTENT_ID = "00000000-0000-0000-0000-000000000000";
 
 describe("GET /api/v1/tasks", () => {

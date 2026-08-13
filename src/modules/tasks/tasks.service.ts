@@ -1,5 +1,7 @@
+import { logger } from "../../config";
 import { ForbiddenError } from "../../errors";
 import { Role } from "../../generated/prisma/client";
+import { emailService } from "../../shared/email.service";
 import { ensureOwner, findOrThrow } from "../../utils";
 import { usersRepository } from "../users/users.repository";
 import { ASSIGNEE_NOT_FOUND_MESSAGE } from "./tasks.constants";
@@ -24,7 +26,19 @@ export const tasksService = {
       await findOrThrow(() => usersRepository.findById(assignedTo), ASSIGNEE_NOT_FOUND_MESSAGE);
     }
 
-    return tasksRepository.create(data);
+    const task = await tasksRepository.create(data);
+
+    if (task.assignee) {
+      emailService
+        .sendTaskAssignment(task.assignee.email, {
+          id: task.id,
+          title: task.title,
+          dueDate: task.dueDate,
+        })
+        .catch((err) => logger.warn({ err }, "Failed to send task assignment email"));
+    }
+
+    return task;
   },
   //   ADMIN + MANAGER → can update any field (title, description, status, assignee)
   //   TECHNICIAN      → can only update status on tasks assigned to them
@@ -43,7 +57,19 @@ export const tasksService = {
         await findOrThrow(() => usersRepository.findById(assignedTo), ASSIGNEE_NOT_FOUND_MESSAGE);
       }
 
-      return tasksRepository.update(id, data);
+      const updatedTask = await tasksRepository.update(id, data);
+
+      if (data.assignedTo && data.assignedTo !== task.assignedTo && updatedTask.assignee) {
+        emailService
+          .sendTaskAssignment(updatedTask.assignee.email, {
+            id: updatedTask.id,
+            title: updatedTask.title,
+            dueDate: updatedTask.dueDate,
+          })
+          .catch((err) => logger.warn({ err }, "Failed to send task assignment email"));
+      }
+
+      return updatedTask;
     }
 
     // Technician must own the task
