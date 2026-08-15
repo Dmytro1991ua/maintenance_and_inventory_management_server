@@ -1,6 +1,11 @@
 import { Prisma } from "../../generated/prisma/client";
 
-export const TASK_ENTITY_ALLOWED_SORT_FIELDS = ["createdAt", "status", "title"] as const;
+export const TASK_ENTITY_ALLOWED_SORT_FIELDS = [
+  "createdAt",
+  "priority",
+  "status",
+  "title",
+] as const;
 export const TASK_ENTITY_DEFAULT_SORT_FIELD = "createdAt" as const;
 
 export const TASK_SELECT = {
@@ -8,6 +13,7 @@ export const TASK_SELECT = {
   title: true,
   description: true,
   status: true,
+  priority: true,
   assignedTo: true,
   dueDate: true,
   assignee: {
