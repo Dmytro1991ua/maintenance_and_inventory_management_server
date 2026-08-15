@@ -2,6 +2,7 @@ import { prisma } from "../../config";
 import { TaskStatus } from "../../generated/prisma/client";
 import { getSkipValue, getTotalPages, resolveSortField } from "../../utils";
 import {
+  ACTIVE_TASK_STATUSES,
   TASK_ENTITY_ALLOWED_SORT_FIELDS,
   TASK_ENTITY_DEFAULT_SORT_FIELD,
   TASK_SELECT,
@@ -83,6 +84,15 @@ export const tasksRepository = {
       where: { id },
       data,
       select: TASK_SELECT,
+    }),
+  findActiveForUser: async (userId: string, excludeTaskId?: string) =>
+    prisma.task.findFirst({
+      where: {
+        assignedTo: userId,
+        status: { in: ACTIVE_TASK_STATUSES },
+        ...(excludeTaskId ? { id: { not: excludeTaskId } } : {}),
+      },
+      select: { id: true },
     }),
   resetInProgressForUser: async (userId: string): Promise<void> => {
     await prisma.task.updateMany({

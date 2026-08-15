@@ -1,5 +1,5 @@
 import { logger } from "../../config";
-import { ForbiddenError } from "../../errors";
+import { ConflictError, ForbiddenError } from "../../errors";
 import { Role } from "../../generated/prisma/client";
 import { emailService } from "../../shared/email.service";
 import { ensureOwner, findOrThrow } from "../../utils";
@@ -7,6 +7,14 @@ import { usersRepository } from "../users/users.repository";
 import { ASSIGNEE_NOT_FOUND_MESSAGE } from "./tasks.constants";
 import { tasksRepository } from "./tasks.repository";
 import type { CreateTask, TasksQuery, UpdateTask } from "./tasks.schemas";
+
+const assertAssigneeAvailable = async (userId: string, excludeTaskId?: string): Promise<void> => {
+  const activeTask = await tasksRepository.findActiveForUser(userId, excludeTaskId);
+
+  if (activeTask) {
+    throw new ConflictError("Technician already has an active task and is not available");
+  }
+};
 
 export const tasksService = {
   findAll: async (query: TasksQuery) => {
@@ -24,6 +32,8 @@ export const tasksService = {
 
     if (assignedTo) {
       await findOrThrow(() => usersRepository.findById(assignedTo), ASSIGNEE_NOT_FOUND_MESSAGE);
+
+      await assertAssigneeAvailable(assignedTo);
     }
 
     const task = await tasksRepository.create(data);
@@ -55,6 +65,10 @@ export const tasksService = {
 
       if (assignedTo) {
         await findOrThrow(() => usersRepository.findById(assignedTo), ASSIGNEE_NOT_FOUND_MESSAGE);
+
+        if (assignedTo !== task.assignedTo) {
+          await assertAssigneeAvailable(assignedTo, id);
+        }
       }
 
       const updatedTask = await tasksRepository.update(id, data);
