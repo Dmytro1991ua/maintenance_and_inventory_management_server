@@ -24,6 +24,7 @@ import type {
   UpdateUserStatus,
   UsersQuery,
 } from "./users.schemas";
+import { mapUserToResponse } from "./users.utils";
 
 // Missing key means enabled (opt-out model — no key = user never touched it = receives notifications)
 const toPrefsRecord = (raw: unknown): Record<string, boolean> =>
@@ -52,10 +53,13 @@ const revokeAllSessions = async (userId: string): Promise<void> => {
 
 export const usersService = {
   findAll: async (query: UsersQuery) => {
-    return usersRepository.findAll(query);
+    const result = await usersRepository.findAll(query);
+
+    return { ...result, data: result.data.map(mapUserToResponse) };
   },
   findById: async (id: string) => {
-    return findOrThrow(() => usersRepository.findById(id), USER_NOT_FOUND_MESSAGE);
+    const user = await findOrThrow(() => usersRepository.findById(id), USER_NOT_FOUND_MESSAGE);
+    return mapUserToResponse(user);
   },
   // A user can update their own profile.
   // An ADMIN can update any profile.
@@ -89,14 +93,14 @@ export const usersService = {
     if (conflicts.email) throw new ConflictError("Email already in use");
     if (conflicts.userName) throw new ConflictError("Username already taken");
 
-    return usersRepository.update(targetId, data);
+    return mapUserToResponse(await usersRepository.update(targetId, data));
   },
   // ADMIN only
   // but we also guard here as defense in depth
   updateRoles: async (targetId: string, data: UpdateRoles) => {
     await findOrThrow(() => usersRepository.findById(targetId), USER_NOT_FOUND_MESSAGE);
 
-    return usersRepository.updateRoles(targetId, data);
+    return mapUserToResponse(await usersRepository.updateRoles(targetId, data));
   },
   // ADMIN only
   updateStatus: async (targetId: string, data: UpdateUserStatus, requestingUserId: string) => {
@@ -106,7 +110,7 @@ export const usersService = {
 
     await findOrThrow(() => usersRepository.findById(targetId), USER_NOT_FOUND_MESSAGE);
 
-    return usersRepository.updateStatus(targetId, data);
+    return mapUserToResponse(await usersRepository.updateStatus(targetId, data));
   },
 
   uploadAvatar: async (userId: string, file: Express.Multer.File) => {
@@ -121,7 +125,7 @@ export const usersService = {
     }
 
     const avatarUrl = await storageService.uploadAvatar(userId, file.buffer, file.mimetype);
-    return usersRepository.updateAvatar(userId, avatarUrl);
+    return mapUserToResponse(await usersRepository.updateAvatar(userId, avatarUrl));
   },
 
   changePassword: async (userId: string, data: ChangePassword): Promise<void> => {

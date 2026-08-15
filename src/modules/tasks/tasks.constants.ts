@@ -1,4 +1,6 @@
-import { Prisma } from "../../generated/prisma/client";
+import { Prisma, TaskStatus } from "../../generated/prisma/client";
+
+export const ACTIVE_TASK_STATUSES = [TaskStatus.OPEN, TaskStatus.IN_PROGRESS];
 
 export const TASK_ENTITY_ALLOWED_SORT_FIELDS = [
   "createdAt",

@@ -25,6 +25,7 @@ export const tasksRepositoryMock = {
   findAll: jest.fn(),
   findById: jest.fn(),
   findOverdue: jest.fn(),
+  findActiveForUser: jest.fn(),
   create: jest.fn(),
   update: jest.fn(),
   delete: jest.fn(),

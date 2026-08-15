@@ -1,14 +1,16 @@
-import { Role, User, UserStatus } from "../../src/generated/prisma/client";
+import { Role, TaskStatus, User, UserStatus } from "../../src/generated/prisma/client";
 
-export const buildUser = (overrides: Partial<User> = {}) => ({
+export const buildUser = (overrides: Partial<User> & { tasks?: { status: TaskStatus }[] } = {}) => ({
   id: "user-1",
   userName: "johndoe",
   email: "john@example.com",
   password: "$2b$12$hashedpasswordvalue",
   roles: [Role.TECHNICIAN],
   status: UserStatus.ACTIVE,
+  avatarUrl: null,
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+  tasks: [] as { status: TaskStatus }[],
   ...overrides,
 });
 

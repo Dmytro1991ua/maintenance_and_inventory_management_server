@@ -21,7 +21,7 @@ describe("usersService", () => {
 
       const result = await usersService.findById("user-1");
 
-      expect(result).toEqual(mockUser);
+      expect(result).toEqual({ ...mockUser, tasks: undefined, availability: "AVAILABLE" });
     });
 
     it("should throw NotFoundError when the user does not exist", async () => {

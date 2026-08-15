@@ -1,6 +1,7 @@
 import { prisma } from "../../config";
 import { Prisma, Role } from "../../generated/prisma/client";
 import { getSkipValue, getTotalPages, resolveSortField } from "../../utils";
+import { ACTIVE_TASK_STATUSES } from "../tasks/tasks.constants";
 import {
   ALLOWED_USERS_ENTITY_SORT_FIELDS,
   USER_ENTITY_DEFAULT_SORT_FIELD,
@@ -10,11 +11,17 @@ import type { UpdateRoles, UpdateUser, UpdateUserStatus, UsersQuery } from "./us
 
 export const usersRepository = {
   findAll: async (query: UsersQuery) => {
-    const { page, limit, role, status, sortBy, sortOrder } = query;
+    const { page, limit, role, status, available, sortBy, sortOrder } = query;
 
     const where: Prisma.UserWhereInput = {
       ...(role ? { roles: { has: role } } : {}),
       ...(status ? { status } : {}),
+      ...(available === true
+        ? {
+            roles: { has: Role.TECHNICIAN },
+            tasks: { none: { status: { in: ACTIVE_TASK_STATUSES } } },
+          }
+        : {}),
     };
 
     const field = resolveSortField(

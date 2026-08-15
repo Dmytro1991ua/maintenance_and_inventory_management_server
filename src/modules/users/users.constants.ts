@@ -1,4 +1,5 @@
 import { Prisma } from "../../generated/prisma/client";
+import { ACTIVE_TASK_STATUSES } from "../tasks/tasks.constants";
 
 // sortBy comes from the client — we whitelist allowed fields explicitly.
 // Dynamic orderBy without a whitelist can expose unexpected DB behavior
@@ -16,6 +17,11 @@ export const USER_SELECT = {
   avatarUrl: true,
   createdAt: true,
   updatedAt: true,
+  tasks: {
+    where: { status: { in: ACTIVE_TASK_STATUSES } },
+    select: { status: true },
+    take: 1,
+  },
 } satisfies Prisma.UserSelect;
 
 export const USER_NOT_FOUND_MESSAGE = "User not found";

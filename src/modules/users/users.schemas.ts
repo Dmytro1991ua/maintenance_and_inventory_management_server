@@ -6,6 +6,7 @@ export const UsersQuerySchema = z
     limit: z.coerce.number().int().min(1).max(100).default(20).openapi({ example: 20 }),
     role: z.enum(["ADMIN", "MANAGER", "TECHNICIAN"]).optional().openapi({ example: "TECHNICIAN" }),
     status: z.enum(["ACTIVE", "INACTIVE"]).optional().openapi({ example: "ACTIVE" }),
+    available: z.stringbool().optional().openapi({ example: true }),
     sortBy: z.enum(["createdAt", "userName", "email"]).default("createdAt"),
     sortOrder: z.enum(["asc", "desc"]).default("desc"),
   })
@@ -86,6 +87,10 @@ export const UserSchema = z
     email: z.string().openapi({ example: "john@example.com" }),
     roles: z.array(z.enum(["ADMIN", "MANAGER", "TECHNICIAN"])),
     status: z.enum(["ACTIVE", "INACTIVE"]).openapi({ example: "ACTIVE" }),
+    availability: z
+      .enum(["AVAILABLE", "RESERVED", "BUSY"])
+      .nullable()
+      .openapi({ example: "AVAILABLE", description: "Technicians only. null for ADMIN/MANAGER." }),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })
