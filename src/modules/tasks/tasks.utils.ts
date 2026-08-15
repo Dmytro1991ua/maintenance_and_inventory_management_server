@@ -1,8 +1,9 @@
-import { Prisma, TaskStatus } from "../../generated/prisma/client";
+import { Prisma, TaskPriority, TaskStatus } from "../../generated/prisma/client";
 
 export const buildTasksWhere = (
   search?: string,
   status?: TaskStatus,
+  priority?: TaskPriority,
   assignedTo?: string,
   overdue?: boolean,
   dueDateFrom?: Date,
@@ -27,6 +28,7 @@ export const buildTasksWhere = (
       ],
     }),
     ...(status !== undefined && { status }),
+    ...(priority !== undefined && { priority }),
     ...(assignedTo && { assignedTo }),
     ...(dueDateFilter && { dueDate: dueDateFilter }),
     ...(overdue && { status: { not: TaskStatus.DONE } }),

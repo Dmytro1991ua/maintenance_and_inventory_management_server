@@ -40,7 +40,7 @@ describe("tasksService", () => {
 
       tasksRepositoryMock.create.mockResolvedValue(mockTask);
 
-      const result = await tasksService.create({ title: "Replace HVAC filter" });
+      const result = await tasksService.create({ title: "Replace HVAC filter", priority: "MEDIUM" });
 
       expect(result).toEqual(mockTask);
       expect(usersRepositoryMock.findById).not.toHaveBeenCalled();
@@ -54,6 +54,7 @@ describe("tasksService", () => {
 
       const result = await tasksService.create({
         title: "Replace HVAC filter",
+        priority: "MEDIUM",
         assignedTo: "user-tech",
       });
 
@@ -64,7 +65,7 @@ describe("tasksService", () => {
       usersRepositoryMock.findById.mockResolvedValue(null);
 
       await expect(
-        tasksService.create({ title: "Replace HVAC filter", assignedTo: "nonexistent-user" }),
+        tasksService.create({ title: "Replace HVAC filter", priority: "MEDIUM", assignedTo: "nonexistent-user" }),
       ).rejects.toThrow(NotFoundError);
 
       expect(tasksRepositoryMock.create).not.toHaveBeenCalled();

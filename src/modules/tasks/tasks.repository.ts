@@ -18,6 +18,7 @@ export const tasksRepository = {
       sortOrder,
       search,
       status,
+      priority,
       assignedTo,
       overdue,
       dueDateFrom,
@@ -30,7 +31,15 @@ export const tasksRepository = {
       TASK_ENTITY_DEFAULT_SORT_FIELD,
     );
     const skip = getSkipValue(page, limit);
-    const where = buildTasksWhere(search, status, assignedTo, overdue, dueDateFrom, dueDateTo);
+    const where = buildTasksWhere(
+      search,
+      status,
+      priority,
+      assignedTo,
+      overdue,
+      dueDateFrom,
+      dueDateTo,
+    );
 
     const [total, tasks] = await Promise.all([
       prisma.task.count({ where }),

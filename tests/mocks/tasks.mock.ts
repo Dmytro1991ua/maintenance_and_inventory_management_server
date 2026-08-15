@@ -5,6 +5,7 @@ export const buildTask = (overrides: Partial<Task> = {}) => ({
   title: "Replace HVAC filter",
   description: null,
   status: "OPEN" as const,
+  priority: "MEDIUM" as const,
   assignedTo: "user-tech",
   dueDate: null,
   createdAt: new Date("2026-01-01T00:00:00.000Z"),

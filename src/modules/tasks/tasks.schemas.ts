@@ -4,10 +4,11 @@ export const TasksQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1).openapi({ example: 1 }),
     limit: z.coerce.number().int().min(1).max(100).default(20).openapi({ example: 20 }),
-    sortBy: z.enum(["createdAt", "status", "title"]).default("createdAt"),
+    sortBy: z.enum(["createdAt", "priority", "status", "title"]).default("createdAt"),
     sortOrder: z.enum(["asc", "desc"]).default("desc"),
     search: z.string().optional().openapi({ example: "HVAC" }),
     status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]).optional().openapi({ example: "OPEN" }),
+    priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional().openapi({ example: "HIGH" }),
     assignedTo: z.uuid().optional().openapi({ example: "f47ac10b-58cc-4372-a567-0e02b2c3d479" }),
     overdue: z.stringbool().optional().openapi({ example: true }),
     dueDateFrom: z.coerce.date().optional().openapi({ example: "2026-07-21T00:00:00.000Z" }),
@@ -27,6 +28,7 @@ export const CreateTaskSchema = z
       .max(2000)
       .optional()
       .openapi({ example: "Filter is overdue for replacement." }),
+    priority: z.enum(["LOW", "MEDIUM", "HIGH"]).default("MEDIUM").openapi({ example: "MEDIUM" }),
     assignedTo: z
       .uuid({ error: "Invalid user ID" })
       .optional()
@@ -41,6 +43,7 @@ export const UpdateTaskSchema = z
     title: z.string().min(1).max(200).optional(),
     description: z.string().max(2000).optional(),
     status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]).optional().openapi({ example: "IN_PROGRESS" }),
+    priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional().openapi({ example: "HIGH" }),
     assignedTo: z.uuid({ error: "Invalid user ID" }).nullable().optional(),
     dueDate: z.coerce.date().nullable().optional(),
   })
@@ -59,6 +62,7 @@ export const TaskSchema = z
     title: z.string(),
     description: z.string().nullable(),
     status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]),
+    priority: z.enum(["LOW", "MEDIUM", "HIGH"]),
     assignedTo: z.uuid().nullable(),
     assignee: z
       .object({

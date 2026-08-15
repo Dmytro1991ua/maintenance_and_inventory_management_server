@@ -2,7 +2,7 @@ import { prisma } from "../../../src/config";
 import type { Task } from "../../../src/generated/prisma/client";
 
 type CreateTestTaskOptions = Partial<
-  Pick<Task, "title" | "description" | "status" | "assignedTo" | "dueDate">
+  Pick<Task, "title" | "description" | "status" | "priority" | "assignedTo" | "dueDate">
 >;
 
 export const createTestTask = (options: CreateTestTaskOptions = {}): Promise<Task> =>
@@ -11,6 +11,7 @@ export const createTestTask = (options: CreateTestTaskOptions = {}): Promise<Tas
       title: options.title ?? "Replace HVAC filter",
       description: options.description ?? null,
       status: options.status ?? "OPEN",
+      priority: options.priority ?? "MEDIUM",
       assignedTo: options.assignedTo ?? null,
       dueDate: options.dueDate ?? null,
     },
