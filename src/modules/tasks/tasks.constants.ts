@@ -16,13 +16,24 @@ export const TASK_SELECT = {
   description: true,
   status: true,
   priority: true,
+  category: true,
   assignedTo: true,
   dueDate: true,
+  beforePhotoUrl: true,
+  afterPhotoUrl: true,
   assignee: {
     select: {
       id: true,
       userName: true,
       email: true,
+    },
+  },
+  partsUsed: {
+    select: {
+      id: true,
+      inventoryItemId: true,
+      quantity: true,
+      inventoryItem: { select: { name: true, serialNumber: true } },
     },
   },
   createdAt: true,

@@ -10,29 +10,42 @@ const getConfig = () => {
   return { url: env.SUPABASE_URL, key: env.SUPABASE_SERVICE_KEY, bucket: env.SUPABASE_BUCKET };
 };
 
+const uploadFile = async (filePath: string, buffer: Buffer, mimetype: string): Promise<string> => {
+  const { url, key, bucket } = getConfig();
+
+  const res = await fetch(`${url}/storage/v1/object/${bucket}/${filePath}`, {
+    method: "POST",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": mimetype,
+      "x-upsert": "true",
+    },
+    body: buffer,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Upload failed: ${text}`);
+  }
+
+  return `${url}/storage/v1/object/public/${bucket}/${filePath}`;
+};
+
 export const storageService = {
-  uploadAvatar: async (userId: string, buffer: Buffer, mimetype: string): Promise<string> => {
-    const { url, key, bucket } = getConfig();
+  uploadAvatar: (userId: string, buffer: Buffer, mimetype: string): Promise<string> => {
     const ext = mimetype.split("/")[1] ?? "jpg";
-    const filePath = `${userId}/${Date.now()}.${ext}`;
+    return uploadFile(`${userId}/${Date.now()}.${ext}`, buffer, mimetype);
+  },
 
-    const res = await fetch(`${url}/storage/v1/object/${bucket}/${filePath}`, {
-      method: "POST",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": mimetype,
-        "x-upsert": "true",
-      },
-      body: buffer,
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Upload failed: ${text}`);
-    }
-
-    return `${url}/storage/v1/object/public/${bucket}/${filePath}`;
+  uploadTaskPhoto: (
+    taskId: string,
+    type: "before" | "after",
+    buffer: Buffer,
+    mimetype: string,
+  ): Promise<string> => {
+    const ext = mimetype.split("/")[1] ?? "jpg";
+    return uploadFile(`tasks/${taskId}/${type}-${Date.now()}.${ext}`, buffer, mimetype);
   },
 
   deleteAvatar: async (avatarUrl: string): Promise<void> => {

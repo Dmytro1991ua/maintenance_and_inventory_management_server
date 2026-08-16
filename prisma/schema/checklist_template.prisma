@@ -1,0 +1,8 @@
+model ChecklistTemplate {
+  id        String            @id @default(uuid())
+  category  InventoryCategory @unique
+  items     String[]
+  updatedAt DateTime          @updatedAt
+
+  @@map("checklist_templates")
+}

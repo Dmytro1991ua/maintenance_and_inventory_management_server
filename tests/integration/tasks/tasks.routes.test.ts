@@ -255,7 +255,7 @@ describe("PATCH /api/v1/tasks/:id", () => {
     const response = await request(app)
       .patch(`/api/v1/tasks/${task.id}`)
       .set(authHeader(signTestAccessToken(technician)))
-      .send({ status: "DONE" });
+      .send({ status: "IN_PROGRESS" });
 
     expect(response.status).toBe(403);
   });
@@ -267,7 +267,7 @@ describe("PATCH /api/v1/tasks/:id", () => {
     const response = await request(app)
       .patch(`/api/v1/tasks/${task.id}`)
       .set(authHeader(signTestAccessToken(technician)))
-      .send({ status: "DONE" });
+      .send({ status: "IN_PROGRESS" });
 
     expect(response.status).toBe(403);
   });
@@ -279,9 +279,21 @@ describe("PATCH /api/v1/tasks/:id", () => {
     const response = await request(app)
       .patch(`/api/v1/tasks/${task.id}`)
       .set(authHeader(signTestAccessToken(technician)))
-      .send({ title: "Trying to change title", status: "DONE" });
+      .send({ title: "Trying to change title", status: "IN_PROGRESS" });
 
     expect(response.status).toBe(403);
+  });
+
+  it("should return 400 when any role tries to set status DONE via PATCH", async () => {
+    const admin = await createAdminUser();
+    const task = await createTestTask();
+
+    const response = await request(app)
+      .patch(`/api/v1/tasks/${task.id}`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({ status: "DONE" });
+
+    expect(response.status).toBe(400);
   });
 
   it("should return 404 when the task does not exist", async () => {

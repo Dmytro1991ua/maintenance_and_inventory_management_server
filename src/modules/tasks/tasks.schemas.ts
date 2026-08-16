@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+import { INVENTORY_CATEGORIES } from "../inventory/inventory.constants";
+
+export const TaskCategoryEnum = z.enum(INVENTORY_CATEGORIES);
+
 export const TasksQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1).openapi({ example: 1 }),
@@ -9,6 +13,7 @@ export const TasksQuerySchema = z
     search: z.string().optional().openapi({ example: "HVAC" }),
     status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]).optional().openapi({ example: "OPEN" }),
     priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional().openapi({ example: "HIGH" }),
+    category: TaskCategoryEnum.optional().openapi({ example: "HVAC" }),
     assignedTo: z.uuid().optional().openapi({ example: "f47ac10b-58cc-4372-a567-0e02b2c3d479" }),
     overdue: z.stringbool().optional().openapi({ example: true }),
     dueDateFrom: z.coerce.date().optional().openapi({ example: "2026-07-21T00:00:00.000Z" }),
@@ -29,6 +34,7 @@ export const CreateTaskSchema = z
       .optional()
       .openapi({ example: "Filter is overdue for replacement." }),
     priority: z.enum(["LOW", "MEDIUM", "HIGH"]).default("MEDIUM").openapi({ example: "MEDIUM" }),
+    category: TaskCategoryEnum.optional().openapi({ example: "HVAC" }),
     assignedTo: z
       .uuid({ error: "Invalid user ID" })
       .optional()
@@ -44,17 +50,48 @@ export const UpdateTaskSchema = z
     description: z.string().max(2000).optional(),
     status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]).optional().openapi({ example: "IN_PROGRESS" }),
     priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional().openapi({ example: "HIGH" }),
+    category: TaskCategoryEnum.nullable().optional(),
     assignedTo: z.uuid({ error: "Invalid user ID" }).nullable().optional(),
     dueDate: z.coerce.date().nullable().optional(),
   })
   .strict()
   .openapi("UpdateTaskInput");
 
+export const CompleteTaskSchema = z
+  .object({
+    checklist: z
+      .array(z.string().min(1))
+      .default([])
+      .openapi({
+        example: ["Unit powered off before work?", "Filter/component replaced or repaired?"],
+      }),
+    partsUsed: z
+      .array(
+        z.object({
+          inventoryItemId: z.uuid({ error: "Invalid inventory item ID" }),
+          quantity: z.number().int().min(1, { error: "Quantity must be at least 1" }),
+        }),
+      )
+      .default([])
+      .openapi({
+        example: [{ inventoryItemId: "f47ac10b-58cc-4372-a567-0e02b2c3d479", quantity: 2 }],
+      }),
+  })
+  .strict()
+  .openapi("CompleteTaskInput");
+
 export const TaskIdParamSchema = z.object({
   id: z.uuid({ error: "Invalid task ID" }),
 });
 
 // — Response schemas — documentation only ——————————————————————————————————
+
+const PartUsedSchema = z.object({
+  id: z.uuid(),
+  inventoryItemId: z.uuid(),
+  quantity: z.number().int(),
+  inventoryItem: z.object({ name: z.string(), serialNumber: z.string() }),
+});
 
 export const TaskSchema = z
   .object({
@@ -63,6 +100,7 @@ export const TaskSchema = z
     description: z.string().nullable(),
     status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]),
     priority: z.enum(["LOW", "MEDIUM", "HIGH"]),
+    category: TaskCategoryEnum.nullable(),
     assignedTo: z.uuid().nullable(),
     assignee: z
       .object({
@@ -72,6 +110,9 @@ export const TaskSchema = z
       })
       .nullable(),
     dueDate: z.iso.datetime().nullable(),
+    beforePhotoUrl: z.url().nullable(),
+    afterPhotoUrl: z.url().nullable(),
+    partsUsed: z.array(PartUsedSchema),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })
@@ -100,4 +141,5 @@ export const TasksListResponseSchema = z
 export type TasksQuery = z.infer<typeof TasksQuerySchema>;
 export type CreateTask = z.infer<typeof CreateTaskSchema>;
 export type UpdateTask = z.infer<typeof UpdateTaskSchema>;
+export type CompleteTask = z.infer<typeof CompleteTaskSchema>;
 export type TaskIdParam = z.infer<typeof TaskIdParamSchema>;

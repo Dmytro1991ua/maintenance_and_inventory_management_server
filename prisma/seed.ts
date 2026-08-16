@@ -6,6 +6,81 @@ import { prisma } from "../src/config/prisma";
 import { Role } from "../src/generated/prisma/client";
 import type { InventoryCategory } from "../src/generated/prisma/client";
 
+type ChecklistTemplateSeed = { category: InventoryCategory; items: string[] };
+
+const checklistTemplates: ChecklistTemplateSeed[] = [
+  {
+    category: "ELECTRICAL",
+    items: [
+      "Power isolated / breaker off?",
+      "Repair completed and connections secured?",
+      "Power restored and tested?",
+      "Area left safe and tidy?",
+    ],
+  },
+  {
+    category: "PLUMBING",
+    items: [
+      "Water supply shut off?",
+      "Repair completed and fittings secured?",
+      "Water supply restored and tested for leaks?",
+      "Area dried and left tidy?",
+    ],
+  },
+  {
+    category: "HVAC",
+    items: [
+      "Unit powered off before work?",
+      "Filter/component replaced or repaired?",
+      "Unit powered on and tested?",
+      "Airflow verified normal?",
+      "Area left tidy?",
+    ],
+  },
+  {
+    category: "TOOLS",
+    items: [
+      "Tool tested and operational?",
+      "Tool cleaned and stored correctly?",
+    ],
+  },
+  {
+    category: "FASTENERS",
+    items: [
+      "Correct fastener specification used?",
+      "Torque applied to spec?",
+      "Area inspected for loose fasteners?",
+    ],
+  },
+  {
+    category: "CHEMICALS",
+    items: [
+      "PPE worn throughout task?",
+      "Chemical applied per safety data sheet?",
+      "Area ventilated after application?",
+      "Waste disposed of correctly?",
+    ],
+  },
+  {
+    category: "SAFETY",
+    items: [
+      "Hazard identified and contained?",
+      "Corrective action completed?",
+      "Area inspected and cleared?",
+      "Incident logged if required?",
+    ],
+  },
+  {
+    category: "BUILDING_MATERIALS",
+    items: [
+      "Materials correctly installed?",
+      "Structural integrity verified?",
+      "Area cleaned and debris removed?",
+      "Work meets building standards?",
+    ],
+  },
+];
+
 // quantity > minStockLevel  → in stock (healthy)
 // quantity > 0 && quantity <= minStockLevel → low stock (triggers alert)
 // quantity === 0 → out of stock
@@ -721,6 +796,16 @@ const seed = async (): Promise<void> => {
   console.log(
     `✅ Seeded inventory: ${count} new items added (${inventoryItems.length - count} already existed)`,
   );
+
+  for (const template of checklistTemplates) {
+    await prisma.checklistTemplate.upsert({
+      where: { category: template.category },
+      update: { items: template.items },
+      create: template,
+    });
+  }
+
+  console.log(`✅ Seeded checklist templates: ${checklistTemplates.length} categories`);
 };
 
 seed()

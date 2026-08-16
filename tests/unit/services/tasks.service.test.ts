@@ -1,5 +1,5 @@
 import { Role } from "../../../src/generated/prisma/client";
-import { ForbiddenError, NotFoundError } from "../../../src/errors";
+import { BadRequestError, ForbiddenError, NotFoundError } from "../../../src/errors";
 import { buildTask, buildUser, tasksRepositoryMock, usersRepositoryMock } from "../../mocks";
 import { tasksService } from "../../../src/modules/tasks/tasks.service";
 
@@ -149,15 +149,15 @@ describe("tasksService", () => {
       const mockTask = buildTask({ assignedTo: "someone-else" });
 
       tasksRepositoryMock.findById.mockResolvedValue(mockTask);
-      tasksRepositoryMock.update.mockResolvedValue({ ...mockTask, status: "DONE" });
+      tasksRepositoryMock.update.mockResolvedValue({ ...mockTask, status: "IN_PROGRESS" });
 
       const result = await tasksService.update(
         mockTask.id,
-        { status: "DONE" },
+        { status: "IN_PROGRESS" },
         { id: "user-manager", roles: [Role.MANAGER] },
       );
 
-      expect(result.status).toBe("DONE");
+      expect(result.status).toBe("IN_PROGRESS");
     });
   });
 
@@ -185,7 +185,7 @@ describe("tasksService", () => {
       await expect(
         tasksService.update(
           mockTask.id,
-          { status: "DONE" },
+          { status: "IN_PROGRESS" },
           { id: "different-tech", roles: [Role.TECHNICIAN] },
         ),
       ).rejects.toThrow(ForbiddenError);
@@ -201,10 +201,26 @@ describe("tasksService", () => {
       await expect(
         tasksService.update(
           mockTask.id,
-          { title: "Trying to change title", status: "DONE" },
+          { title: "Trying to change title", status: "IN_PROGRESS" },
           { id: "user-tech", roles: [Role.TECHNICIAN] },
         ),
       ).rejects.toThrow(ForbiddenError);
+
+      expect(tasksRepositoryMock.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("status DONE guard", () => {
+    it("should throw BadRequestError when any role tries to set status to DONE via update", async () => {
+      const mockTask = buildTask();
+
+      tasksRepositoryMock.findById.mockResolvedValue(mockTask);
+
+      for (const roles of [[Role.ADMIN], [Role.MANAGER], [Role.TECHNICIAN]]) {
+        await expect(
+          tasksService.update(mockTask.id, { status: "DONE" }, { id: "any-user", roles }),
+        ).rejects.toThrow(BadRequestError);
+      }
 
       expect(tasksRepositoryMock.update).not.toHaveBeenCalled();
     });

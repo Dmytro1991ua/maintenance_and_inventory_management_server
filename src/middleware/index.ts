@@ -6,4 +6,5 @@ export { notFoundHandler } from "./notFoundHandler";
 export { authApiLimiter as authLimiter, generalApiLimiter as generalLimiter } from "./rateLimiter";
 export { requestLogger } from "./requestLogger";
 export { corsMiddleware, helmetMiddleware, jsonSizeLimit, urlencodedSizeLimit } from "./security";
+export { uploadAvatarMiddleware, uploadPhotoMiddleware } from "./upload";
 export { validateBody, validateParams, validateQuery } from "./validate";
