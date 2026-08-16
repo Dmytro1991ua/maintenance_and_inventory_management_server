@@ -1,6 +1,7 @@
 import request from "supertest";
 
 import app from "../../../src/app";
+import { prisma } from "../../../src/config";
 import { checkOverdueTasks } from "../../../src/jobs/cron/tasks";
 import { authHeader, createManagerUser, createTechnicianUser, signTestAccessToken } from "../../integration/helpers";
 
@@ -40,11 +41,14 @@ describe("task overdue notification flow", () => {
       }),
     );
 
-    // Technician marks the task done
+    // Set afterPhotoUrl directly — photo upload is tested separately, not the focus here
+    await prisma.task.update({ where: { id: taskId }, data: { afterPhotoUrl: "https://example.com/after.jpg" } });
+
+    // Technician completes the task via the proper endpoint
     const updateResponse = await request(app)
-      .patch(`/api/v1/tasks/${taskId}`)
+      .post(`/api/v1/tasks/${taskId}/complete`)
       .set(authHeader(signTestAccessToken(technician)))
-      .send({ status: "DONE" });
+      .send({ checklist: [], partsUsed: [] });
 
     expect(updateResponse.status).toBe(200);
 

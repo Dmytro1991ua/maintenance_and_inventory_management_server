@@ -5,12 +5,14 @@ import {
   asyncHandler,
   authenticate,
   authorize,
+  uploadPhotoMiddleware,
   validateBody,
   validateParams,
   validateQuery,
 } from "../../middleware";
 import { tasksController } from "./tasks.controller";
 import {
+  CompleteTaskSchema,
   CreateTaskSchema,
   TaskIdParamSchema,
   TasksQuerySchema,
@@ -19,10 +21,6 @@ import {
 
 const router = Router();
 
-/**
- * GET /api/v1/tasks
- * All authenticated users — paginated, filtered by status or assignee
- */
 router.get(
   "/",
   authenticate,
@@ -30,10 +28,6 @@ router.get(
   asyncHandler(tasksController.findAll),
 );
 
-/**
- * GET /api/v1/tasks/:id
- * All authenticated users
- */
 router.get(
   "/:id",
   authenticate,
@@ -41,10 +35,6 @@ router.get(
   asyncHandler(tasksController.findById),
 );
 
-/**
- * POST /api/v1/tasks
- * ADMIN + MANAGER only — create and optionally assign a task
- */
 router.post(
   "/",
   authenticate,
@@ -53,11 +43,6 @@ router.post(
   asyncHandler(tasksController.create),
 );
 
-/**
- * PATCH /api/v1/tasks/:id
- * ADMIN + MANAGER → full update (title, description, status, assignee)
- * TECHNICIAN      → status only, on tasks assigned to them
- */
 router.patch(
   "/:id",
   authenticate,
@@ -67,9 +52,44 @@ router.patch(
 );
 
 /**
- * DELETE /api/v1/tasks/:id
- * ADMIN only
+ * POST /api/v1/tasks/:id/before-photo
+ * Upload a "before" photo for a task. Multipart field: photo.
+ * TECHNICIAN (assigned to task) or ADMIN/MANAGER.
  */
+router.post(
+  "/:id/before-photo",
+  authenticate,
+  validateParams(TaskIdParamSchema),
+  uploadPhotoMiddleware,
+  asyncHandler(tasksController.uploadBeforePhoto),
+);
+
+/**
+ * POST /api/v1/tasks/:id/after-photo
+ * Upload an "after" photo for a task. Multipart field: photo.
+ * TECHNICIAN (assigned to task) or ADMIN/MANAGER.
+ */
+router.post(
+  "/:id/after-photo",
+  authenticate,
+  validateParams(TaskIdParamSchema),
+  uploadPhotoMiddleware,
+  asyncHandler(tasksController.uploadAfterPhoto),
+);
+
+/**
+ * POST /api/v1/tasks/:id/complete
+ * Complete a task — validates after photo, checklist, and records parts used.
+ * TECHNICIAN (assigned to task) or ADMIN/MANAGER.
+ */
+router.post(
+  "/:id/complete",
+  authenticate,
+  validateParams(TaskIdParamSchema),
+  validateBody(CompleteTaskSchema),
+  asyncHandler(tasksController.complete),
+);
+
 router.delete(
   "/:id",
   authenticate,

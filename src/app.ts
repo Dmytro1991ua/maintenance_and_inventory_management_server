@@ -3,6 +3,7 @@
 // Side-effect imports — register each module's paths with the OpenAPI registry.
 // Must run after openapi config (above) and before generateOpenApiDocument().
 import "./modules/auth/auth.openapi";
+import "./modules/checklist-templates/checklist-templates.openapi";
 import "./modules/inventory/inventory.openapi";
 import "./modules/notifications/notifications.openapi";
 import "./modules/tasks/tasks.openapi";
@@ -26,6 +27,7 @@ import {
   urlencodedSizeLimit,
 } from "./middleware";
 import authRouter from "./modules/auth/auth.routes";
+import checklistTemplatesRouter from "./modules/checklist-templates/checklist-templates.routes";
 import inventoryRouter from "./modules/inventory/inventory.routes";
 import notificationsRouter from "./modules/notifications/notifications.routes";
 import tasksRouter from "./modules/tasks/tasks.routes";
@@ -61,6 +63,7 @@ app.use(`${API_PREFIX}/auth`, authRouter);
 app.use(`${API_PREFIX}/users`, usersRouter);
 app.use(`${API_PREFIX}/inventory`, inventoryRouter);
 app.use(`${API_PREFIX}/tasks`, tasksRouter);
+app.use(`${API_PREFIX}/checklist-templates`, checklistTemplatesRouter);
 app.use(`${API_PREFIX}/notifications`, notificationsRouter);
 
 app.use(notFoundHandler);

@@ -7,7 +7,7 @@ import {
   TASK_ENTITY_DEFAULT_SORT_FIELD,
   TASK_SELECT,
 } from "./tasks.constants";
-import type { CreateTask, TasksQuery, UpdateTask } from "./tasks.schemas";
+import type { CompleteTask, CreateTask, TasksQuery, UpdateTask } from "./tasks.schemas";
 import { buildTasksWhere } from "./tasks.utils";
 
 export const tasksRepository = {
@@ -20,6 +20,7 @@ export const tasksRepository = {
       search,
       status,
       priority,
+      category,
       assignedTo,
       overdue,
       dueDateFrom,
@@ -32,15 +33,16 @@ export const tasksRepository = {
       TASK_ENTITY_DEFAULT_SORT_FIELD,
     );
     const skip = getSkipValue(page, limit);
-    const where = buildTasksWhere(
+    const where = buildTasksWhere({
       search,
       status,
       priority,
+      category,
       assignedTo,
       overdue,
       dueDateFrom,
       dueDateTo,
-    );
+    });
 
     const [total, tasks] = await Promise.all([
       prisma.task.count({ where }),
@@ -63,9 +65,6 @@ export const tasksRepository = {
       where: { id },
       select: TASK_SELECT,
     }),
-  // Unpaginated — used by the overdue-task notification job, which needs
-  // every matching task in one pass rather than a UI page at a time.
-  // "Overdue" = past its due date and not yet completed.
   findOverdue: async () =>
     prisma.task.findMany({
       where: {
@@ -84,6 +83,46 @@ export const tasksRepository = {
       where: { id },
       data,
       select: TASK_SELECT,
+    }),
+  setBeforePhoto: async (id: string, beforePhotoUrl: string) =>
+    prisma.task.update({
+      where: { id },
+      data: { beforePhotoUrl },
+      select: TASK_SELECT,
+    }),
+  setAfterPhoto: async (id: string, afterPhotoUrl: string) =>
+    prisma.task.update({
+      where: { id },
+      data: { afterPhotoUrl },
+      select: TASK_SELECT,
+    }),
+  complete: async (id: string, { partsUsed }: CompleteTask) =>
+    prisma.$transaction(async (tx) => {
+      if (partsUsed.length > 0) {
+        // Decrement all inventory quantities atomically
+        await Promise.all(
+          partsUsed.map(({ inventoryItemId, quantity }) =>
+            tx.inventoryItem.update({
+              where: { id: inventoryItemId },
+              data: { quantity: { decrement: quantity } },
+            }),
+          ),
+        );
+
+        await tx.taskPartUsage.createMany({
+          data: partsUsed.map(({ inventoryItemId, quantity }) => ({
+            taskId: id,
+            inventoryItemId,
+            quantity,
+          })),
+        });
+      }
+
+      return tx.task.update({
+        where: { id },
+        data: { status: TaskStatus.DONE },
+        select: TASK_SELECT,
+      });
     }),
   findActiveForUser: async (userId: string, excludeTaskId?: string) =>
     prisma.task.findFirst({

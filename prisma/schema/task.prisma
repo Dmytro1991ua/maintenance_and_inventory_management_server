@@ -12,17 +12,33 @@ enum TaskPriority {
 }
 
 model Task {
-  id          String       @id @default(uuid())
-  title       String
-  description String?
-  status      TaskStatus   @default(OPEN)
-  priority    TaskPriority @default(MEDIUM)
-  assignedTo  String?
-  assignee    User?        @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
-  dueDate     DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  id             String             @id @default(uuid())
+  title          String
+  description    String?
+  status         TaskStatus         @default(OPEN)
+  priority       TaskPriority       @default(MEDIUM)
+  category       InventoryCategory?
+  assignedTo     String?
+  assignee       User?              @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
+  dueDate        DateTime?
+  beforePhotoUrl String?
+  afterPhotoUrl  String?
+  partsUsed      TaskPartUsage[]
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
 
   @@map("tasks")
+}
+
+model TaskPartUsage {
+  id              String        @id @default(uuid())
+  taskId          String
+  inventoryItemId String
+  quantity        Int
+  task            Task          @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  createdAt       DateTime      @default(now())
+
+  @@map("task_part_usages")
 }
 

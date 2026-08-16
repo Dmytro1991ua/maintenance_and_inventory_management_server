@@ -16,6 +16,7 @@ model InventoryItem {
   category      InventoryCategory
   quantity      Int
   minStockLevel Int
+  taskUsages    TaskPartUsage[]
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
