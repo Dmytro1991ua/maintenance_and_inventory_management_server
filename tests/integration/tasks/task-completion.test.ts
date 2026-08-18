@@ -13,6 +13,7 @@ jest.mock("../../../src/shared/storage.service", () => ({
       .mockResolvedValue("https://storage.example.com/tasks/task-1/before-123.jpg"),
     uploadAvatar: jest.fn(),
     deleteAvatar: jest.fn(),
+    deleteTaskPhoto: jest.fn().mockResolvedValue(undefined),
   },
 }));
 

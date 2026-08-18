@@ -65,6 +65,9 @@ export const tasksRepository = {
       where: { id },
       select: TASK_SELECT,
     }),
+  // Unpaginated — used by the overdue-task notification job, which needs
+  // every matching task in one pass rather than a UI page at a time.
+  // "Overdue" = past its due date and not yet completed.
   findOverdue: async () =>
     prisma.task.findMany({
       where: {

@@ -14,6 +14,7 @@ beforeEach(async () => {
   await prisma.inventoryItem.deleteMany();
   await prisma.userInvite.deleteMany();
   await prisma.user.deleteMany();
+  await prisma.checklistTemplate.deleteMany();
 });
 
 afterAll(async () => {

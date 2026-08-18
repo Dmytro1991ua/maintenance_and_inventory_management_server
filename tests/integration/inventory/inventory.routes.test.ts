@@ -1,12 +1,14 @@
 import request from "supertest";
 
 import app from "../../../src/app";
+import { prisma } from "../../../src/config";
 import {
   authHeader,
   createAdminUser,
   createManagerUser,
   createTechnicianUser,
   createTestInventoryItem,
+  createTestTask,
   signTestAccessToken,
 } from "../helpers";
 
@@ -321,6 +323,22 @@ describe("DELETE /api/v1/inventory/:id", () => {
       .set(authHeader(signTestAccessToken(admin)));
 
     expect(response.status).toBe(404);
+  });
+
+  it("should return 409 when the item has been recorded as used in a completed task", async () => {
+    const admin = await createAdminUser();
+    const item = await createTestInventoryItem();
+    const task = await createTestTask();
+
+    await prisma.taskPartUsage.create({
+      data: { taskId: task.id, inventoryItemId: item.id, quantity: 1 },
+    });
+
+    const response = await request(app)
+      .delete(`/api/v1/inventory/${item.id}`)
+      .set(authHeader(signTestAccessToken(admin)));
+
+    expect(response.status).toBe(409);
   });
 });
 
