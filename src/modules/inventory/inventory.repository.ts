@@ -143,6 +143,10 @@ export const inventoryRepository = {
       data: { quantity: { increment: quantityToAdd } },
       select: INVENTORY_SELECT,
     }),
+  hasPartUsages: async (id: string): Promise<boolean> => {
+    const count = await prisma.taskPartUsage.count({ where: { inventoryItemId: id } });
+    return count > 0;
+  },
   delete: async (id: string): Promise<void> => {
     await prisma.inventoryItem.delete({ where: { id } });
   },

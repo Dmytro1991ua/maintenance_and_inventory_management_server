@@ -32,6 +32,27 @@ const uploadFile = async (filePath: string, buffer: Buffer, mimetype: string): P
   return `${url}/storage/v1/object/public/${bucket}/${filePath}`;
 };
 
+const deleteFile = async (fileUrl: string): Promise<void> => {
+  const { url, key, bucket } = getConfig();
+
+  const prefix = `/storage/v1/object/public/${bucket}/`;
+  const idx = fileUrl.indexOf(prefix);
+
+  if (idx === -1) return;
+
+  const filePath = fileUrl.slice(idx + prefix.length);
+
+  await fetch(`${url}/storage/v1/object/${bucket}`, {
+    method: "DELETE",
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ prefixes: [filePath] }),
+  });
+};
+
 export const storageService = {
   uploadAvatar: (userId: string, buffer: Buffer, mimetype: string): Promise<string> => {
     const ext = mimetype.split("/")[1] ?? "jpg";
@@ -48,21 +69,6 @@ export const storageService = {
     return uploadFile(`tasks/${taskId}/${type}-${Date.now()}.${ext}`, buffer, mimetype);
   },
 
-  deleteAvatar: async (avatarUrl: string): Promise<void> => {
-    const { url, key, bucket } = getConfig();
-    const prefix = `/storage/v1/object/public/${bucket}/`;
-    const idx = avatarUrl.indexOf(prefix);
-    if (idx === -1) return;
-    const filePath = avatarUrl.slice(idx + prefix.length);
-
-    await fetch(`${url}/storage/v1/object/${bucket}`, {
-      method: "DELETE",
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ prefixes: [filePath] }),
-    });
-  },
+  deleteAvatar: (avatarUrl: string): Promise<void> => deleteFile(avatarUrl),
+  deleteTaskPhoto: (photoUrl: string): Promise<void> => deleteFile(photoUrl),
 };

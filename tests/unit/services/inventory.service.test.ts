@@ -102,15 +102,27 @@ describe("inventoryService", () => {
     expect(inventoryRepositoryMock.restock).not.toHaveBeenCalled();
   });
 
-  it("should delete an existing item", async () => {
+  it("should delete an existing item when it has no part usages", async () => {
     const mockInventoryItem = buildInventoryItem();
 
     inventoryRepositoryMock.findById.mockResolvedValue(mockInventoryItem);
+    inventoryRepositoryMock.hasPartUsages.mockResolvedValue(false);
     inventoryRepositoryMock.delete.mockResolvedValue(undefined);
 
     await inventoryService.delete(mockInventoryItem.id);
 
     expect(inventoryRepositoryMock.delete).toHaveBeenCalledWith(mockInventoryItem.id);
+  });
+
+  it("should throw ConflictError when the item has been used in completed tasks", async () => {
+    const mockInventoryItem = buildInventoryItem();
+
+    inventoryRepositoryMock.findById.mockResolvedValue(mockInventoryItem);
+    inventoryRepositoryMock.hasPartUsages.mockResolvedValue(true);
+
+    await expect(inventoryService.delete(mockInventoryItem.id)).rejects.toThrow(ConflictError);
+
+    expect(inventoryRepositoryMock.delete).not.toHaveBeenCalled();
   });
 
   it("should throw NotFoundError when deleting an item that does not exist", async () => {

@@ -45,6 +45,12 @@ export const inventoryService = {
   delete: async (id: string): Promise<void> => {
     await findOrThrow(() => inventoryRepository.findById(id), INVENTORY_ITEM_NOT_FOUND_MESSAGE);
 
+    if (await inventoryRepository.hasPartUsages(id)) {
+      throw new ConflictError(
+        "Cannot delete: this item has been recorded as used in completed tasks",
+      );
+    }
+
     await inventoryRepository.delete(id);
   },
 };

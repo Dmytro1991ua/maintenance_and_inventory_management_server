@@ -203,7 +203,17 @@ export const tasksService = {
     return tasksRepository.complete(id, data);
   },
   delete: async (id: string): Promise<void> => {
-    await findOrThrow(() => tasksRepository.findById(id), "Task not found");
+    const task = await findOrThrow(() => tasksRepository.findById(id), "Task not found");
+
+    const photosToDelete = [task.beforePhotoUrl, task.afterPhotoUrl].filter(Boolean) as string[];
+
+    await Promise.all(
+      photosToDelete.map((url) =>
+        storageService
+          .deleteTaskPhoto(url)
+          .catch((err) => logger.warn({ err }, "Failed to delete task photo from storage")),
+      ),
+    );
 
     await tasksRepository.delete(id);
   },
