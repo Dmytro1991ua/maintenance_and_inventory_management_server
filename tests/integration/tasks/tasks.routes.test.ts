@@ -308,6 +308,96 @@ describe("PATCH /api/v1/tasks/:id", () => {
   });
 });
 
+describe("POST /api/v1/tasks/:id/cancel", () => {
+  it("should allow ADMIN to cancel an OPEN task with a reason", async () => {
+    const admin = await createAdminUser();
+    const task = await createTestTask({ status: "OPEN" });
+
+    const response = await request(app)
+      .post(`/api/v1/tasks/${task.id}/cancel`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({ reason: "Equipment was replaced" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.status).toBe("CANCELLED");
+    expect(response.body.data.cancellationReason).toBe("Equipment was replaced");
+    expect(response.body.data.cancelledBy).toBe(admin.id);
+    expect(response.body.data.cancelledAt).toBeTruthy();
+  });
+
+  it("should allow MANAGER to cancel an IN_PROGRESS task", async () => {
+    const manager = await createManagerUser();
+    const task = await createTestTask({ status: "IN_PROGRESS" });
+
+    const response = await request(app)
+      .post(`/api/v1/tasks/${task.id}/cancel`)
+      .set(authHeader(signTestAccessToken(manager)))
+      .send({ reason: "Work no longer needed" });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.status).toBe("CANCELLED");
+  });
+
+  it("should return 403 for TECHNICIAN", async () => {
+    const technician = await createTechnicianUser();
+    const task = await createTestTask({ assignedTo: technician.id });
+
+    const response = await request(app)
+      .post(`/api/v1/tasks/${task.id}/cancel`)
+      .set(authHeader(signTestAccessToken(technician)))
+      .send({ reason: "I don't want to do it" });
+
+    expect(response.status).toBe(403);
+  });
+
+  it("should return 409 when task is already DONE", async () => {
+    const admin = await createAdminUser();
+    const task = await createTestTask({ status: "DONE" });
+
+    const response = await request(app)
+      .post(`/api/v1/tasks/${task.id}/cancel`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({ reason: "Too late" });
+
+    expect(response.status).toBe(409);
+  });
+
+  it("should return 409 when task is already CANCELLED", async () => {
+    const admin = await createAdminUser();
+    const task = await createTestTask({ status: "CANCELLED" });
+
+    const response = await request(app)
+      .post(`/api/v1/tasks/${task.id}/cancel`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({ reason: "Already cancelled" });
+
+    expect(response.status).toBe(409);
+  });
+
+  it("should return 400 when reason is missing", async () => {
+    const admin = await createAdminUser();
+    const task = await createTestTask();
+
+    const response = await request(app)
+      .post(`/api/v1/tasks/${task.id}/cancel`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({});
+
+    expect(response.status).toBe(400);
+  });
+
+  it("should return 404 when task does not exist", async () => {
+    const admin = await createAdminUser();
+
+    const response = await request(app)
+      .post(`/api/v1/tasks/${NONEXISTENT_ID}/cancel`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({ reason: "Some reason" });
+
+    expect(response.status).toBe(404);
+  });
+});
+
 describe("DELETE /api/v1/tasks/:id", () => {
   it("should delete the task for ADMIN", async () => {
     const admin = await createAdminUser();

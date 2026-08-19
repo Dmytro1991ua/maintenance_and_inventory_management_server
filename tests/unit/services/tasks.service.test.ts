@@ -1,5 +1,5 @@
 import { Role } from "../../../src/generated/prisma/client";
-import { BadRequestError, ForbiddenError, NotFoundError } from "../../../src/errors";
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../../src/errors";
 import { buildTask, buildUser, tasksRepositoryMock, usersRepositoryMock } from "../../mocks";
 import { tasksService } from "../../../src/modules/tasks/tasks.service";
 
@@ -9,6 +9,10 @@ jest.mock("../../../src/modules/tasks/tasks.repository", () => ({
 
 jest.mock("../../../src/modules/users/users.repository", () => ({
   usersRepository: usersRepositoryMock,
+}));
+
+jest.mock("../../../src/modules/notifications/notifications.service", () => ({
+  notificationsService: { createMany: jest.fn().mockResolvedValue({ created: 1, skipped: 0 }) },
 }));
 
 describe("tasksService", () => {
@@ -223,6 +227,96 @@ describe("tasksService", () => {
       }
 
       expect(tasksRepositoryMock.update).not.toHaveBeenCalled();
+    });
+
+    it("should throw BadRequestError when any role tries to set status to CANCELLED via update", async () => {
+      const mockTask = buildTask();
+
+      tasksRepositoryMock.findById.mockResolvedValue(mockTask);
+
+      for (const roles of [[Role.ADMIN], [Role.MANAGER], [Role.TECHNICIAN]]) {
+        await expect(
+          tasksService.update(mockTask.id, { status: "CANCELLED" }, { id: "any-user", roles }),
+        ).rejects.toThrow(BadRequestError);
+      }
+
+      expect(tasksRepositoryMock.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("cancel", () => {
+    it("should cancel an OPEN task and return the updated task", async () => {
+      const mockTask = buildTask({ status: "OPEN" });
+      const cancelledTask = buildTask({ status: "CANCELLED" });
+
+      tasksRepositoryMock.findById.mockResolvedValue(mockTask);
+      tasksRepositoryMock.cancel.mockResolvedValue(cancelledTask);
+
+      const result = await tasksService.cancel(
+        mockTask.id,
+        { id: "user-admin", roles: [Role.ADMIN] },
+        { reason: "Equipment was replaced" },
+      );
+
+      expect(result).toEqual(cancelledTask);
+      expect(tasksRepositoryMock.cancel).toHaveBeenCalledWith(mockTask.id, {
+        reason: "Equipment was replaced",
+        cancelledBy: "user-admin",
+      });
+    });
+
+    it("should cancel an IN_PROGRESS task", async () => {
+      const mockTask = buildTask({ status: "IN_PROGRESS" });
+      const cancelledTask = buildTask({ status: "CANCELLED" });
+
+      tasksRepositoryMock.findById.mockResolvedValue(mockTask);
+      tasksRepositoryMock.cancel.mockResolvedValue(cancelledTask);
+
+      const result = await tasksService.cancel(
+        mockTask.id,
+        { id: "user-manager", roles: [Role.MANAGER] },
+        { reason: "Work no longer needed" },
+      );
+
+      expect(result).toEqual(cancelledTask);
+    });
+
+    it("should throw ConflictError when task is already DONE", async () => {
+      const mockTask = buildTask({ status: "DONE" });
+
+      tasksRepositoryMock.findById.mockResolvedValue(mockTask);
+
+      await expect(
+        tasksService.cancel(mockTask.id, { id: "user-admin", roles: [Role.ADMIN] }, { reason: "Too late" }),
+      ).rejects.toThrow(ConflictError);
+
+      expect(tasksRepositoryMock.cancel).not.toHaveBeenCalled();
+    });
+
+    it("should throw ConflictError when task is already CANCELLED", async () => {
+      const mockTask = buildTask({ status: "CANCELLED" });
+
+      tasksRepositoryMock.findById.mockResolvedValue(mockTask);
+
+      await expect(
+        tasksService.cancel(
+          mockTask.id,
+          { id: "user-admin", roles: [Role.ADMIN] },
+          { reason: "Already cancelled" },
+        ),
+      ).rejects.toThrow(ConflictError);
+
+      expect(tasksRepositoryMock.cancel).not.toHaveBeenCalled();
+    });
+
+    it("should throw NotFoundError when task does not exist", async () => {
+      tasksRepositoryMock.findById.mockResolvedValue(null);
+
+      await expect(
+        tasksService.cancel("nonexistent", { id: "user-admin", roles: [Role.ADMIN] }, { reason: "N/A" }),
+      ).rejects.toThrow(NotFoundError);
+
+      expect(tasksRepositoryMock.cancel).not.toHaveBeenCalled();
     });
   });
 

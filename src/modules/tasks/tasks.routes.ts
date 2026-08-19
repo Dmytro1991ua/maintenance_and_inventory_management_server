@@ -12,6 +12,7 @@ import {
 } from "../../middleware";
 import { tasksController } from "./tasks.controller";
 import {
+  CancelTaskSchema,
   CompleteTaskSchema,
   CreateTaskSchema,
   TaskIdParamSchema,
@@ -75,6 +76,20 @@ router.post(
   validateParams(TaskIdParamSchema),
   uploadPhotoMiddleware,
   asyncHandler(tasksController.uploadAfterPhoto),
+);
+
+/**
+ * POST /api/v1/tasks/:id/cancel
+ * Cancel a task with a required reason. Blocked on DONE and CANCELLED tasks.
+ * ADMIN/MANAGER only.
+ */
+router.post(
+  "/:id/cancel",
+  authenticate,
+  authorize([Role.ADMIN, Role.MANAGER]),
+  validateParams(TaskIdParamSchema),
+  validateBody(CancelTaskSchema),
+  asyncHandler(tasksController.cancel),
 );
 
 /**

@@ -1,15 +1,16 @@
 import { logger } from "../../config";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../errors";
-import { Role } from "../../generated/prisma/client";
+import { NotificationType, Role } from "../../generated/prisma/client";
 import { emailService } from "../../shared/email.service";
 import { storageService } from "../../shared/storage.service";
 import { ensureOwner, findOrThrow } from "../../utils";
 import { checklistTemplatesRepository } from "../checklist-templates/checklist-templates.repository";
 import { inventoryRepository } from "../inventory/inventory.repository";
+import { notificationsService } from "../notifications/notifications.service";
 import { usersRepository } from "../users/users.repository";
 import { ASSIGNEE_NOT_FOUND_MESSAGE } from "./tasks.constants";
 import { tasksRepository } from "./tasks.repository";
-import type { CompleteTask, CreateTask, TasksQuery, UpdateTask } from "./tasks.schemas";
+import type { CancelTask, CompleteTask, CreateTask, TasksQuery, UpdateTask } from "./tasks.schemas";
 
 const assertAssigneeAvailable = async (userId: string, excludeTaskId?: string): Promise<void> => {
   const activeTask = await tasksRepository.findActiveForUser(userId, excludeTaskId);
@@ -90,10 +91,12 @@ export const tasksService = {
   update: async (id: string, data: UpdateTask, requestingUser: { id: string; roles: Role[] }) => {
     const task = await findOrThrow(() => tasksRepository.findById(id), "Task not found");
 
-    // DONE is a terminal state reachable only via POST /tasks/:id/complete,
-    // which validates after photo, checklist, and inventory before marking DONE.
+    // DONE and CANCELLED are terminal states reachable only via their dedicated endpoints.
     if (data.status === "DONE") {
       throw new BadRequestError("Use POST /tasks/:id/complete to mark a task as done");
+    }
+    if (data.status === "CANCELLED") {
+      throw new BadRequestError("Use POST /tasks/:id/cancel to cancel a task");
     }
 
     const isAdminOrManager = requestingUser.roles.some(
@@ -201,6 +204,38 @@ export const tasksService = {
     }
 
     return tasksRepository.complete(id, data);
+  },
+  // ADMIN + MANAGER only — enforced at route level
+  cancel: async (id: string, requestingUser: { id: string; roles: Role[] }, data: CancelTask) => {
+    const task = await findOrThrow(() => tasksRepository.findById(id), "Task not found");
+
+    if (task.status === "DONE") {
+      throw new ConflictError("Cannot cancel a task that is already completed");
+    }
+
+    if (task.status === "CANCELLED") {
+      throw new ConflictError("Task is already cancelled");
+    }
+
+    const cancelledTask = await tasksRepository.cancel(id, {
+      reason: data.reason,
+      cancelledBy: requestingUser.id,
+    });
+
+    if (task.assignedTo) {
+      notificationsService
+        .createMany(NotificationType.TASK_CANCELLED, [
+          {
+            type: NotificationType.TASK_CANCELLED,
+            message: `Task "${task.title}" has been cancelled. Reason: ${data.reason}`,
+            userId: task.assignedTo,
+            relatedEntityId: id,
+          },
+        ])
+        .catch((err) => logger.warn({ err }, "Failed to create task cancellation notification"));
+    }
+
+    return cancelledTask;
   },
   delete: async (id: string): Promise<void> => {
     const task = await findOrThrow(() => tasksRepository.findById(id), "Task not found");

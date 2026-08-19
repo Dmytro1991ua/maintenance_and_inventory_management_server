@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 
 import { BadRequestError, UnauthorizedError } from "../../errors";
 import type {
+  CancelTask,
   CompleteTask,
   CreateTask,
   TaskIdParam,
@@ -80,6 +81,17 @@ export const tasksController = {
     const data = req.body as CompleteTask;
 
     const task = await tasksService.complete(id, { id: req.user.id, roles: req.user.roles }, data);
+
+    res.json({ success: true, data: task });
+  },
+  cancel: async (req: Request, res: Response): Promise<void> => {
+    if (!req.user) throw new UnauthorizedError("Not authenticated");
+
+    const { id } = req.params as TaskIdParam;
+
+    const data = req.body as CancelTask;
+
+    const task = await tasksService.cancel(id, { id: req.user.id, roles: req.user.roles }, data);
 
     res.json({ success: true, data: task });
   },
