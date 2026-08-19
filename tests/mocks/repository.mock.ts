@@ -29,6 +29,7 @@ export const tasksRepositoryMock = {
   findActiveForUser: jest.fn(),
   create: jest.fn(),
   update: jest.fn(),
+  cancel: jest.fn(),
   delete: jest.fn(),
 };
 

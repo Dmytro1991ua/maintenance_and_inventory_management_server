@@ -3,6 +3,7 @@ enum TaskStatus {
   OPEN
   IN_PROGRESS
   DONE
+  CANCELLED
 }
 
 enum TaskPriority {
@@ -21,9 +22,12 @@ model Task {
   assignedTo     String?
   assignee       User?              @relation(fields: [assignedTo], references: [id], onDelete: SetNull)
   dueDate        DateTime?
-  beforePhotoUrl String?
-  afterPhotoUrl  String?
-  partsUsed      TaskPartUsage[]
+  beforePhotoUrl     String?
+  afterPhotoUrl      String?
+  cancellationReason String?
+  cancelledAt        DateTime?
+  cancelledBy        String?
+  partsUsed          TaskPartUsage[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 

@@ -72,7 +72,7 @@ export const tasksRepository = {
     prisma.task.findMany({
       where: {
         dueDate: { lt: new Date() },
-        status: { not: TaskStatus.DONE },
+        status: { notIn: [TaskStatus.DONE, TaskStatus.CANCELLED] },
       },
       select: TASK_SELECT,
     }),
@@ -126,6 +126,17 @@ export const tasksRepository = {
         data: { status: TaskStatus.DONE },
         select: TASK_SELECT,
       });
+    }),
+  cancel: async (id: string, { reason, cancelledBy }: { reason: string; cancelledBy: string }) =>
+    prisma.task.update({
+      where: { id },
+      data: {
+        status: TaskStatus.CANCELLED,
+        cancellationReason: reason,
+        cancelledAt: new Date(),
+        cancelledBy,
+      },
+      select: TASK_SELECT,
     }),
   findActiveForUser: async (userId: string, excludeTaskId?: string) =>
     prisma.task.findFirst({

@@ -2,6 +2,7 @@ enum NotificationType {
   LOW_STOCK
   OUT_OF_STOCK
   TASK_OVERDUE
+  TASK_CANCELLED
 }
 
 model Notification {

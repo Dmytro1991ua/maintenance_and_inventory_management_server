@@ -11,7 +11,10 @@ export const TasksQuerySchema = z
     sortBy: z.enum(["createdAt", "priority", "status", "title"]).default("createdAt"),
     sortOrder: z.enum(["asc", "desc"]).default("desc"),
     search: z.string().optional().openapi({ example: "HVAC" }),
-    status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]).optional().openapi({ example: "OPEN" }),
+    status: z
+      .enum(["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"])
+      .optional()
+      .openapi({ example: "OPEN" }),
     priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional().openapi({ example: "HIGH" }),
     category: TaskCategoryEnum.optional().openapi({ example: "HVAC" }),
     assignedTo: z.uuid().optional().openapi({ example: "f47ac10b-58cc-4372-a567-0e02b2c3d479" }),
@@ -48,7 +51,10 @@ export const UpdateTaskSchema = z
   .object({
     title: z.string().min(1).max(200).optional(),
     description: z.string().max(2000).optional(),
-    status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]).optional().openapi({ example: "IN_PROGRESS" }),
+    status: z
+      .enum(["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"])
+      .optional()
+      .openapi({ example: "IN_PROGRESS" }),
     priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional().openapi({ example: "HIGH" }),
     category: TaskCategoryEnum.nullable().optional(),
     assignedTo: z.uuid({ error: "Invalid user ID" }).nullable().optional(),
@@ -56,6 +62,17 @@ export const UpdateTaskSchema = z
   })
   .strict()
   .openapi("UpdateTaskInput");
+
+export const CancelTaskSchema = z
+  .object({
+    reason: z
+      .string()
+      .min(1, { error: "Cancellation reason is required" })
+      .max(500)
+      .openapi({ example: "Equipment was replaced — work no longer needed." }),
+  })
+  .strict()
+  .openapi("CancelTaskInput");
 
 export const CompleteTaskSchema = z
   .object({
@@ -98,7 +115,7 @@ export const TaskSchema = z
     id: z.uuid(),
     title: z.string(),
     description: z.string().nullable(),
-    status: z.enum(["OPEN", "IN_PROGRESS", "DONE"]),
+    status: z.enum(["OPEN", "IN_PROGRESS", "DONE", "CANCELLED"]),
     priority: z.enum(["LOW", "MEDIUM", "HIGH"]),
     category: TaskCategoryEnum.nullable(),
     assignedTo: z.uuid().nullable(),
@@ -112,6 +129,9 @@ export const TaskSchema = z
     dueDate: z.iso.datetime().nullable(),
     beforePhotoUrl: z.url().nullable(),
     afterPhotoUrl: z.url().nullable(),
+    cancellationReason: z.string().nullable(),
+    cancelledAt: z.iso.datetime().nullable(),
+    cancelledBy: z.uuid().nullable(),
     partsUsed: z.array(PartUsedSchema),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
@@ -142,4 +162,5 @@ export type TasksQuery = z.infer<typeof TasksQuerySchema>;
 export type CreateTask = z.infer<typeof CreateTaskSchema>;
 export type UpdateTask = z.infer<typeof UpdateTaskSchema>;
 export type CompleteTask = z.infer<typeof CompleteTaskSchema>;
+export type CancelTask = z.infer<typeof CancelTaskSchema>;
 export type TaskIdParam = z.infer<typeof TaskIdParamSchema>;

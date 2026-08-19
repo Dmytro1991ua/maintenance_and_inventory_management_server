@@ -21,6 +21,9 @@ export const TASK_SELECT = {
   dueDate: true,
   beforePhotoUrl: true,
   afterPhotoUrl: true,
+  cancellationReason: true,
+  cancelledAt: true,
+  cancelledBy: true,
   assignee: {
     select: {
       id: true,
