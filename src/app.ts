@@ -6,6 +6,7 @@ import "./modules/auth/auth.openapi";
 import "./modules/checklist-templates/checklist-templates.openapi";
 import "./modules/inventory/inventory.openapi";
 import "./modules/notifications/notifications.openapi";
+import "./modules/recurring-tasks/recurring-tasks.openapi";
 import "./modules/tasks/tasks.openapi";
 import "./modules/users/users.openapi";
 
@@ -30,6 +31,7 @@ import authRouter from "./modules/auth/auth.routes";
 import checklistTemplatesRouter from "./modules/checklist-templates/checklist-templates.routes";
 import inventoryRouter from "./modules/inventory/inventory.routes";
 import notificationsRouter from "./modules/notifications/notifications.routes";
+import recurringTasksRouter from "./modules/recurring-tasks/recurring-tasks.routes";
 import tasksRouter from "./modules/tasks/tasks.routes";
 import usersRouter from "./modules/users/users.routes";
 
@@ -62,6 +64,7 @@ app.get("/docs.json", (_req, res) => res.json(openApiDocument));
 app.use(`${API_PREFIX}/auth`, authRouter);
 app.use(`${API_PREFIX}/users`, usersRouter);
 app.use(`${API_PREFIX}/inventory`, inventoryRouter);
+app.use(`${API_PREFIX}/recurring-tasks`, recurringTasksRouter);
 app.use(`${API_PREFIX}/tasks`, tasksRouter);
 app.use(`${API_PREFIX}/checklist-templates`, checklistTemplatesRouter);
 app.use(`${API_PREFIX}/notifications`, notificationsRouter);

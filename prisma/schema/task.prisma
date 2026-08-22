@@ -27,6 +27,8 @@ model Task {
   cancellationReason String?
   cancelledAt        DateTime?
   cancelledBy        String?
+  recurringTaskId    String?
+  recurringTask      RecurringTask?     @relation(fields: [recurringTaskId], references: [id], onDelete: SetNull)
   partsUsed          TaskPartUsage[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt

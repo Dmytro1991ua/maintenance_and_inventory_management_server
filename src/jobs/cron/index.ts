@@ -4,12 +4,13 @@ import { logger } from "../../config";
 import { DAILY_AT_MIDNIGHT, JOB_LOCK_TTL_MS } from "./constants";
 import { checkLowStock } from "./inventory";
 import { runJob } from "./runJob";
-import { checkOverdueTasks } from "./tasks";
+import { checkOverdueTasks, generateRecurringTasks } from "./tasks";
 import { withLock } from "./withLock";
 
 const JOBS = [
   { name: "checkLowStock", task: checkLowStock },
   { name: "checkOverdueTasks", task: checkOverdueTasks },
+  { name: "generateRecurringTasks", task: generateRecurringTasks },
 ];
 
 /**

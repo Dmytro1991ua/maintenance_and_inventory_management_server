@@ -21,6 +21,10 @@ export const TasksQuerySchema = z
     overdue: z.stringbool().optional().openapi({ example: true }),
     dueDateFrom: z.coerce.date().optional().openapi({ example: "2026-07-21T00:00:00.000Z" }),
     dueDateTo: z.coerce.date().optional().openapi({ example: "2026-07-27T23:59:59.999Z" }),
+    recurringTaskId: z
+      .uuid()
+      .optional()
+      .openapi({ example: "f47ac10b-58cc-4372-a567-0e02b2c3d479" }),
   })
   .openapi("TasksQuery");
 
@@ -132,6 +136,7 @@ export const TaskSchema = z
     cancellationReason: z.string().nullable(),
     cancelledAt: z.iso.datetime().nullable(),
     cancelledBy: z.uuid().nullable(),
+    recurringTaskId: z.uuid().nullable(),
     partsUsed: z.array(PartUsedSchema),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),

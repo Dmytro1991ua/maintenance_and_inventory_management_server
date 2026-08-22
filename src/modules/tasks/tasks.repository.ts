@@ -8,6 +8,8 @@ import {
   TASK_SELECT,
 } from "./tasks.constants";
 import type { CompleteTask, CreateTask, TasksQuery, UpdateTask } from "./tasks.schemas";
+
+type CreateTaskInput = CreateTask & { recurringTaskId?: string };
 import { buildTasksWhere } from "./tasks.utils";
 
 export const tasksRepository = {
@@ -25,6 +27,7 @@ export const tasksRepository = {
       overdue,
       dueDateFrom,
       dueDateTo,
+      recurringTaskId,
     } = query;
 
     const field = resolveSortField(
@@ -42,6 +45,7 @@ export const tasksRepository = {
       overdue,
       dueDateFrom,
       dueDateTo,
+      recurringTaskId,
     });
 
     const [total, tasks] = await Promise.all([
@@ -77,6 +81,11 @@ export const tasksRepository = {
       select: TASK_SELECT,
     }),
   create: async (data: CreateTask) =>
+    prisma.task.create({
+      data,
+      select: TASK_SELECT,
+    }),
+  createFromSchedule: async (data: CreateTaskInput) =>
     prisma.task.create({
       data,
       select: TASK_SELECT,
