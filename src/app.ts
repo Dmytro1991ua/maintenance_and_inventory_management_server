@@ -4,6 +4,7 @@
 // Must run after openapi config (above) and before generateOpenApiDocument().
 import "./modules/auth/auth.openapi";
 import "./modules/checklist-templates/checklist-templates.openapi";
+import "./modules/dashboard/dashboard.openapi";
 import "./modules/inventory/inventory.openapi";
 import "./modules/notifications/notifications.openapi";
 import "./modules/recurring-tasks/recurring-tasks.openapi";
@@ -29,6 +30,7 @@ import {
 } from "./middleware";
 import authRouter from "./modules/auth/auth.routes";
 import checklistTemplatesRouter from "./modules/checklist-templates/checklist-templates.routes";
+import dashboardRouter from "./modules/dashboard/dashboard.routes";
 import inventoryRouter from "./modules/inventory/inventory.routes";
 import notificationsRouter from "./modules/notifications/notifications.routes";
 import recurringTasksRouter from "./modules/recurring-tasks/recurring-tasks.routes";
@@ -62,6 +64,7 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
 app.get("/docs.json", (_req, res) => res.json(openApiDocument));
 
 app.use(`${API_PREFIX}/auth`, authRouter);
+app.use(`${API_PREFIX}/dashboard`, dashboardRouter);
 app.use(`${API_PREFIX}/users`, usersRouter);
 app.use(`${API_PREFIX}/inventory`, inventoryRouter);
 app.use(`${API_PREFIX}/recurring-tasks`, recurringTasksRouter);

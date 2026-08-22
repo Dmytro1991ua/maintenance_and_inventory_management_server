@@ -14,12 +14,23 @@ export const generateRecurringTasks = async (): Promise<void> => {
 
   await Promise.all(
     due.map(async (schedule) => {
+      // Respect the single-active-task rule: if the default assignee already
+      // has an active task when the cron fires, create the task unassigned so
+      // a manager can pick it up — never silently drop a PM task.
+      let assignedTo: string | undefined;
+
+      if (schedule.assignedTo) {
+        const activeTask = await tasksRepository.findActiveForUser(schedule.assignedTo);
+
+        assignedTo = activeTask ? undefined : schedule.assignedTo;
+      }
+
       await tasksRepository.createFromSchedule({
         title: schedule.title,
         description: schedule.description ?? undefined,
         priority: schedule.priority,
         category: schedule.category ?? undefined,
-        assignedTo: schedule.assignedTo ?? undefined,
+        assignedTo,
         dueDate: schedule.nextDueAt,
         recurringTaskId: schedule.id,
       });
