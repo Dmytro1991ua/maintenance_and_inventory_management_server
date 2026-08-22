@@ -24,6 +24,7 @@ export const TASK_SELECT = {
   cancellationReason: true,
   cancelledAt: true,
   cancelledBy: true,
+  recurringTaskId: true,
   assignee: {
     select: {
       id: true,

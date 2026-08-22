@@ -1,0 +1,20 @@
+
+model RecurringTask {
+  id           String             @id @default(uuid())
+  title        String
+  description  String?
+  priority     TaskPriority       @default(MEDIUM)
+  category     InventoryCategory?
+  assignedTo   String?
+  assignee     User?              @relation("RecurringTaskAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
+  intervalDays Int
+  nextDueAt    DateTime
+  isActive     Boolean            @default(true)
+  createdBy    String
+  creator      User               @relation("RecurringTaskCreator", fields: [createdBy], references: [id])
+  generatedTasks Task[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+
+  @@map("recurring_tasks")
+}
