@@ -3,6 +3,7 @@ export { createTestInventoryItem } from "./inventory.helpers";
 export { createTestInvite } from "./invite.helpers";
 export { createTestNotification } from "./notification.helpers";
 export { createTestTask } from "./task.helpers";
+export { createTestTaskComment } from "./task-comment.helpers";
 export {
   createAdminUser,
   createManagerUser,

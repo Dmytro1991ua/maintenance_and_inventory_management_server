@@ -10,6 +10,7 @@ jest.setTimeout(15000);
 // Clean tables before every test — order matters (children before parents, FK constraints)
 beforeEach(async () => {
   await prisma.notification.deleteMany();
+  await prisma.taskComment.deleteMany();
   await prisma.task.deleteMany();
   await prisma.inventoryItem.deleteMany();
   await prisma.userInvite.deleteMany();
