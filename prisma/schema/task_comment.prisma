@@ -1,0 +1,12 @@
+model TaskComment {
+  id        String   @id @default(uuid())
+  taskId    String
+  authorId  String
+  body      String
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author    User     @relation("TaskCommentAuthor", fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([taskId, createdAt])
+  @@map("task_comments")
+}

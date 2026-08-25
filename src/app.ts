@@ -8,6 +8,7 @@ import "./modules/dashboard/dashboard.openapi";
 import "./modules/inventory/inventory.openapi";
 import "./modules/notifications/notifications.openapi";
 import "./modules/recurring-tasks/recurring-tasks.openapi";
+import "./modules/task-comments/task-comments.openapi";
 import "./modules/tasks/tasks.openapi";
 import "./modules/users/users.openapi";
 

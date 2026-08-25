@@ -30,6 +30,7 @@ model Task {
   recurringTaskId    String?
   recurringTask      RecurringTask?     @relation(fields: [recurringTaskId], references: [id], onDelete: SetNull)
   partsUsed          TaskPartUsage[]
+  comments           TaskComment[]
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 

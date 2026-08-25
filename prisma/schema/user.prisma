@@ -24,6 +24,7 @@ model User {
   recurringTasksAssigned RecurringTask[] @relation("RecurringTaskAssignee")
   recurringTasksCreated  RecurringTask[] @relation("RecurringTaskCreator")
   notifications          Notification[]
+  taskComments           TaskComment[]   @relation("TaskCommentAuthor")
 
   @@map("users")
 }

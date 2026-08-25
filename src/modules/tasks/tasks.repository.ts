@@ -69,6 +69,9 @@ export const tasksRepository = {
       where: { id },
       select: TASK_SELECT,
     }),
+  // Existence-only lookup for callers that just need to 404 on a missing task
+  // (e.g. the nested comments routes) without pulling the full task payload.
+  findIdById: (id: string) => prisma.task.findUnique({ where: { id }, select: { id: true } }),
   // Unpaginated — used by the overdue-task notification job, which needs
   // every matching task in one pass rather than a UI page at a time.
   // "Overdue" = past its due date and not yet completed.

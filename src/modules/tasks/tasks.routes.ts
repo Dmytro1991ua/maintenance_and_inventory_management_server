@@ -10,6 +10,7 @@ import {
   validateParams,
   validateQuery,
 } from "../../middleware";
+import taskCommentsRouter from "../task-comments/task-comments.routes";
 import { tasksController } from "./tasks.controller";
 import {
   CancelTaskSchema,
@@ -112,5 +113,7 @@ router.delete(
   validateParams(TaskIdParamSchema),
   asyncHandler(tasksController.delete),
 );
+
+router.use("/:id/comments", taskCommentsRouter);
 
 export default router;
