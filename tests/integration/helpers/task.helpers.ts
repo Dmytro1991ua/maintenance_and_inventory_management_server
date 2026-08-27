@@ -10,6 +10,7 @@ type CreateTestTaskOptions = Partial<
     | "priority"
     | "category"
     | "assignedTo"
+    | "assetId"
     | "dueDate"
     | "beforePhotoUrl"
     | "afterPhotoUrl"
@@ -25,6 +26,7 @@ export const createTestTask = (options: CreateTestTaskOptions = {}): Promise<Tas
       priority: options.priority ?? "MEDIUM",
       category: options.category ?? null,
       assignedTo: options.assignedTo ?? null,
+      assetId: options.assetId ?? null,
       dueDate: options.dueDate ?? null,
       beforePhotoUrl: options.beforePhotoUrl ?? null,
       afterPhotoUrl: options.afterPhotoUrl ?? null,

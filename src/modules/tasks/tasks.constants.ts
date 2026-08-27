@@ -25,6 +25,14 @@ export const TASK_SELECT = {
   cancelledAt: true,
   cancelledBy: true,
   recurringTaskId: true,
+  assetId: true,
+  asset: {
+    select: {
+      id: true,
+      name: true,
+      serialNumber: true,
+    },
+  },
   assignee: {
     select: {
       id: true,
@@ -45,3 +53,4 @@ export const TASK_SELECT = {
 } satisfies Prisma.TaskSelect;
 
 export const ASSIGNEE_NOT_FOUND_MESSAGE = "Assignee not found";
+export const ASSET_NOT_FOUND_MESSAGE = "Asset not found";

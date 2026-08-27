@@ -1,0 +1,33 @@
+enum AssetCategory {
+  HVAC
+  ELECTRICAL
+  PLUMBING
+  MECHANICAL
+  VEHICLE
+  IT_EQUIPMENT
+  SAFETY_SYSTEM
+  BUILDING
+}
+
+enum AssetStatus {
+  OPERATIONAL
+  DOWN
+  RETIRED
+}
+
+model Asset {
+  id           String        @id @default(uuid())
+  name         String
+  serialNumber String        @unique
+  category     AssetCategory
+  location     String
+  status       AssetStatus   @default(OPERATIONAL)
+  manufacturer String?
+  model        String?
+  installDate  DateTime?
+  tasks        Task[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("assets")
+}

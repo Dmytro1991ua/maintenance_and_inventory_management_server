@@ -2,6 +2,7 @@
 // before any schema file (which calls .openapi()) is imported below.
 // Side-effect imports — register each module's paths with the OpenAPI registry.
 // Must run after openapi config (above) and before generateOpenApiDocument().
+import "./modules/assets/assets.openapi";
 import "./modules/auth/auth.openapi";
 import "./modules/checklist-templates/checklist-templates.openapi";
 import "./modules/dashboard/dashboard.openapi";
@@ -29,6 +30,7 @@ import {
   requestLogger,
   urlencodedSizeLimit,
 } from "./middleware";
+import assetsRouter from "./modules/assets/assets.routes";
 import authRouter from "./modules/auth/auth.routes";
 import checklistTemplatesRouter from "./modules/checklist-templates/checklist-templates.routes";
 import dashboardRouter from "./modules/dashboard/dashboard.routes";
@@ -65,6 +67,7 @@ app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiDocument));
 app.get("/docs.json", (_req, res) => res.json(openApiDocument));
 
 app.use(`${API_PREFIX}/auth`, authRouter);
+app.use(`${API_PREFIX}/assets`, assetsRouter);
 app.use(`${API_PREFIX}/dashboard`, dashboardRouter);
 app.use(`${API_PREFIX}/users`, usersRouter);
 app.use(`${API_PREFIX}/inventory`, inventoryRouter);

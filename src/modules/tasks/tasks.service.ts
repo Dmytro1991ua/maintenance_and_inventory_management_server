@@ -4,11 +4,12 @@ import { NotificationType, Role } from "../../generated/prisma/client";
 import { emailService } from "../../shared/email.service";
 import { storageService } from "../../shared/storage.service";
 import { ensureOwner, findOrThrow } from "../../utils";
+import { assetsRepository } from "../assets/assets.repository";
 import { checklistTemplatesRepository } from "../checklist-templates/checklist-templates.repository";
 import { inventoryRepository } from "../inventory/inventory.repository";
 import { notificationsService } from "../notifications/notifications.service";
 import { usersRepository } from "../users/users.repository";
-import { ASSIGNEE_NOT_FOUND_MESSAGE } from "./tasks.constants";
+import { ASSET_NOT_FOUND_MESSAGE, ASSIGNEE_NOT_FOUND_MESSAGE } from "./tasks.constants";
 import { tasksRepository } from "./tasks.repository";
 import type { CancelTask, CompleteTask, CreateTask, TasksQuery, UpdateTask } from "./tasks.schemas";
 
@@ -64,12 +65,18 @@ export const tasksService = {
     // assignedTo is a foreign key — a syntactically valid but nonexistent user
     // ID would otherwise hit Postgres as a raw FK violation (P2003) and
     // surface as an unhandled 500. Verify existence so it 404s cleanly instead.
-    const { assignedTo } = data;
+    const { assignedTo, assetId } = data;
 
     if (assignedTo) {
       await findOrThrow(() => usersRepository.findById(assignedTo), ASSIGNEE_NOT_FOUND_MESSAGE);
 
       await assertAssigneeAvailable(assignedTo);
+    }
+
+    // assetId is also a foreign key — verify existence so a bad id 404s cleanly
+    // rather than surfacing as a raw Postgres FK violation (P2003).
+    if (assetId) {
+      await findOrThrow(() => assetsRepository.findById(assetId), ASSET_NOT_FOUND_MESSAGE);
     }
 
     const task = await tasksRepository.create(data);
@@ -105,7 +112,7 @@ export const tasksService = {
 
     // ADMIN / MANAGER → full access
     if (isAdminOrManager) {
-      const { assignedTo } = data;
+      const { assignedTo, assetId } = data;
 
       if (assignedTo) {
         await findOrThrow(() => usersRepository.findById(assignedTo), ASSIGNEE_NOT_FOUND_MESSAGE);
@@ -113,6 +120,11 @@ export const tasksService = {
         if (assignedTo !== task.assignedTo) {
           await assertAssigneeAvailable(assignedTo, id);
         }
+      }
+
+      // assetId may be a new link (verify it exists) or null to unlink (skip).
+      if (assetId) {
+        await findOrThrow(() => assetsRepository.findById(assetId), ASSET_NOT_FOUND_MESSAGE);
       }
 
       const updatedTask = await tasksRepository.update(id, data);

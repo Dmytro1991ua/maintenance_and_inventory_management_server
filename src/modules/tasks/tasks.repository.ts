@@ -28,6 +28,7 @@ export const tasksRepository = {
       dueDateFrom,
       dueDateTo,
       recurringTaskId,
+      assetId,
     } = query;
 
     const field = resolveSortField(
@@ -46,6 +47,7 @@ export const tasksRepository = {
       dueDateFrom,
       dueDateTo,
       recurringTaskId,
+      assetId,
     });
 
     const [total, tasks] = await Promise.all([
