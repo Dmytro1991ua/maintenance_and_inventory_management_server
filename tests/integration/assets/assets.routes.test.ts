@@ -77,6 +77,21 @@ describe("GET /api/v1/assets", () => {
     expect(response.body.meta).toMatchObject({ total: 2, page: 1, limit: 20 });
   });
 
+  it("should paginate — page 2 returns the next slice", async () => {
+    const user = await createTechnicianUser();
+    await createTestAsset();
+    await createTestAsset();
+    await createTestAsset();
+
+    const response = await request(app)
+      .get("/api/v1/assets?limit=2&page=2")
+      .set(authHeader(signTestAccessToken(user)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.meta).toMatchObject({ total: 3, page: 2, limit: 2, pages: 2 });
+  });
+
   it("should filter by category", async () => {
     const user = await createTechnicianUser();
     await createTestAsset({ category: "HVAC" });
@@ -105,7 +120,7 @@ describe("GET /api/v1/assets", () => {
     expect(response.body.data[0].status).toBe("DOWN");
   });
 
-  it("should search by name, serial, or location", async () => {
+  it("should search by name", async () => {
     const user = await createTechnicianUser();
     await createTestAsset({ name: "Forklift — Warehouse", serialNumber: "VEH-FRK-100" });
     await createTestAsset({ name: "Boiler", serialNumber: "HVAC-BLR-100" });
@@ -117,6 +132,34 @@ describe("GET /api/v1/assets", () => {
     expect(response.status).toBe(200);
     expect(response.body.data).toHaveLength(1);
     expect(response.body.data[0].serialNumber).toBe("VEH-FRK-100");
+  });
+
+  it("should search by serial number", async () => {
+    const user = await createTechnicianUser();
+    await createTestAsset({ name: "Forklift", serialNumber: "VEH-FRK-100" });
+    await createTestAsset({ name: "Boiler", serialNumber: "HVAC-BLR-100" });
+
+    const response = await request(app)
+      .get("/api/v1/assets?search=HVAC-BLR")
+      .set(authHeader(signTestAccessToken(user)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].serialNumber).toBe("HVAC-BLR-100");
+  });
+
+  it("should search by location", async () => {
+    const user = await createTechnicianUser();
+    await createTestAsset({ serialNumber: "AST-LOC-1", location: "Building A — Roof" });
+    await createTestAsset({ serialNumber: "AST-LOC-2", location: "Basement Mechanical Room" });
+
+    const response = await request(app)
+      .get("/api/v1/assets?search=basement")
+      .set(authHeader(signTestAccessToken(user)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].serialNumber).toBe("AST-LOC-2");
   });
 
   it("should return 400 for an invalid status filter", async () => {
@@ -302,6 +345,19 @@ describe("PATCH /api/v1/assets/:id", () => {
     expect(response.body.data.status).toBe("DOWN");
   });
 
+  it("should clear installDate when updated with null", async () => {
+    const admin = await createAdminUser();
+    const asset = await createTestAsset({ installDate: new Date("2020-01-01T00:00:00.000Z") });
+
+    const response = await request(app)
+      .patch(`/api/v1/assets/${asset.id}`)
+      .set(authHeader(signTestAccessToken(admin)))
+      .send({ installDate: null });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.installDate).toBeNull();
+  });
+
   it("should reject an attempt to change the serial number", async () => {
     const admin = await createAdminUser();
     const asset = await createTestAsset();
@@ -460,6 +516,24 @@ describe("Task ↔ Asset link", () => {
       .send({ assetId: NONEXISTENT_ID });
 
     expect(response.status).toBe(404);
+  });
+
+  it("should filter the tasks list by assetId", async () => {
+    const user = await createTechnicianUser();
+    const asset = await createTestAsset();
+    const otherAsset = await createTestAsset();
+
+    await createTestTask({ title: "On asset", assetId: asset.id });
+    await createTestTask({ title: "On other asset", assetId: otherAsset.id });
+    await createTestTask({ title: "No asset" });
+
+    const response = await request(app)
+      .get(`/api/v1/tasks?assetId=${asset.id}`)
+      .set(authHeader(signTestAccessToken(user)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].title).toBe("On asset");
   });
 
   it("should forbid a TECHNICIAN from setting a task's assetId", async () => {

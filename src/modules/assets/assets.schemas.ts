@@ -117,7 +117,9 @@ export const AssetStatsResponseSchema = z
   .object({
     success: z.literal(true),
     data: StatusStatsSchema.extend({
-      byCategory: z.record(AssetCategoryEnum, StatusStatsSchema),
+      // Partial: getStats groups by category, so only categories with at least
+      // one asset appear as keys — not all AssetCategory values.
+      byCategory: z.partialRecord(AssetCategoryEnum, StatusStatsSchema),
     }),
   })
   .openapi("AssetStatsResponse");
