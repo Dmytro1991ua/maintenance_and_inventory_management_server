@@ -137,7 +137,9 @@ export const InventoryStatsResponseSchema = z
   .object({
     success: z.literal(true),
     data: CategoryStatsSchema.extend({
-      byCategory: z.record(InventoryCategoryEnum, CategoryStatsSchema),
+      // Partial: getStats groups by category, so only categories with at least
+      // one item appear as keys — not all InventoryCategory values.
+      byCategory: z.partialRecord(InventoryCategoryEnum, CategoryStatsSchema),
     }),
   })
   .openapi("InventoryStatsResponse");

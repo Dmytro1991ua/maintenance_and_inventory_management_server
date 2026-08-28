@@ -43,6 +43,7 @@ export const generateOpenApiDocument = () => {
     tags: [
       { name: "Auth", description: "Registration, login, token rotation" },
       { name: "Users", description: "User profiles and role management" },
+      { name: "Assets", description: "Physical equipment registry and maintenance history" },
       { name: "Inventory", description: "Equipment and stock management" },
       { name: "Tasks", description: "Maintenance task assignment and tracking" },
       { name: "Notifications", description: "User notifications" },

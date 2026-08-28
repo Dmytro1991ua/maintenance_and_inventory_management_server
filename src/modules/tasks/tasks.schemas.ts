@@ -25,6 +25,7 @@ export const TasksQuerySchema = z
       .uuid()
       .optional()
       .openapi({ example: "f47ac10b-58cc-4372-a567-0e02b2c3d479" }),
+    assetId: z.uuid().optional().openapi({ example: "f47ac10b-58cc-4372-a567-0e02b2c3d479" }),
   })
   .openapi("TasksQuery");
 
@@ -46,6 +47,10 @@ export const CreateTaskSchema = z
       .uuid({ error: "Invalid user ID" })
       .optional()
       .openapi({ example: "f47ac10b-58cc-4372-a567-0e02b2c3d479" }),
+    assetId: z
+      .uuid({ error: "Invalid asset ID" })
+      .optional()
+      .openapi({ example: "f47ac10b-58cc-4372-a567-0e02b2c3d479" }),
     dueDate: z.coerce.date().optional().openapi({ example: "2026-07-01T00:00:00.000Z" }),
   })
   .strict()
@@ -62,6 +67,7 @@ export const UpdateTaskSchema = z
     priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional().openapi({ example: "HIGH" }),
     category: TaskCategoryEnum.nullable().optional(),
     assignedTo: z.uuid({ error: "Invalid user ID" }).nullable().optional(),
+    assetId: z.uuid({ error: "Invalid asset ID" }).nullable().optional(),
     dueDate: z.coerce.date().nullable().optional(),
   })
   .strict()
@@ -137,6 +143,14 @@ export const TaskSchema = z
     cancelledAt: z.iso.datetime().nullable(),
     cancelledBy: z.uuid().nullable(),
     recurringTaskId: z.uuid().nullable(),
+    assetId: z.uuid().nullable(),
+    asset: z
+      .object({
+        id: z.uuid(),
+        name: z.string(),
+        serialNumber: z.string(),
+      })
+      .nullable(),
     partsUsed: z.array(PartUsedSchema),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),

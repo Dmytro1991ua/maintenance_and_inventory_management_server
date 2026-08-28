@@ -10,6 +10,7 @@ type TasksWhereOptions = {
   dueDateFrom?: Date;
   dueDateTo?: Date;
   recurringTaskId?: string;
+  assetId?: string;
 };
 
 export const buildTasksWhere = ({
@@ -22,6 +23,7 @@ export const buildTasksWhere = ({
   dueDateFrom,
   dueDateTo,
   recurringTaskId,
+  assetId,
 }: TasksWhereOptions): Prisma.TaskWhereInput => {
   const normalizedSearch = search?.trim() || undefined;
 
@@ -48,5 +50,6 @@ export const buildTasksWhere = ({
     ...(dueDateFilter && { dueDate: dueDateFilter }),
     ...(overdue && { status: { not: TaskStatus.DONE } }),
     ...(recurringTaskId && { recurringTaskId }),
+    ...(assetId && { assetId }),
   };
 };

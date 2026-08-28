@@ -4,7 +4,13 @@ import bcrypt from "bcrypt";
 
 import { prisma } from "../src/config/prisma";
 import { Role } from "../src/generated/prisma/client";
-import type { InventoryCategory } from "../src/generated/prisma/client";
+import type {
+  AssetCategory,
+  AssetStatus,
+  InventoryCategory,
+  TaskPriority,
+  TaskStatus,
+} from "../src/generated/prisma/client";
 
 type ChecklistTemplateSeed = { category: InventoryCategory; items: string[] };
 
@@ -39,10 +45,7 @@ const checklistTemplates: ChecklistTemplateSeed[] = [
   },
   {
     category: "TOOLS",
-    items: [
-      "Tool tested and operational?",
-      "Tool cleaned and stored correctly?",
-    ],
+    items: ["Tool tested and operational?", "Tool cleaned and stored correctly?"],
   },
   {
     category: "FASTENERS",
@@ -752,6 +755,501 @@ const demoUsers: DemoUser[] = [
   { userName: "alex_novak", email: "alex.novak@example.com", roles: [Role.MANAGER] },
 ];
 
+type SeedAsset = {
+  name: string;
+  serialNumber: string;
+  category: AssetCategory;
+  location: string;
+  status: AssetStatus;
+  manufacturer?: string;
+  model?: string;
+  installDate?: Date;
+};
+
+// A small fleet of real-world equipment spread across buildings, categories,
+// and statuses — enough to exercise the list filters, the stats breakdown,
+// and the per-asset maintenance history.
+const assets: SeedAsset[] = [
+  {
+    name: "Rooftop HVAC Unit #1",
+    serialNumber: "HVAC-RTU-001",
+    category: "HVAC",
+    location: "Building A — Roof",
+    status: "OPERATIONAL",
+    manufacturer: "Carrier",
+    model: "48TCED12",
+    installDate: new Date("2019-05-12"),
+  },
+  {
+    name: "Rooftop HVAC Unit #2",
+    serialNumber: "HVAC-RTU-002",
+    category: "HVAC",
+    location: "Building A — Roof",
+    status: "DOWN",
+    manufacturer: "Carrier",
+    model: "48TCED12",
+    installDate: new Date("2019-05-12"),
+  },
+  {
+    name: "Boiler — East Wing",
+    serialNumber: "HVAC-BLR-001",
+    category: "HVAC",
+    location: "Building B — Basement Mechanical Room",
+    status: "OPERATIONAL",
+    manufacturer: "Weil-McLain",
+    model: "SGO-5",
+    installDate: new Date("2016-11-03"),
+  },
+  {
+    name: "Domestic Water Booster Pump",
+    serialNumber: "PUMP-DWB-001",
+    category: "PLUMBING",
+    location: "Building B — Basement Mechanical Room",
+    status: "OPERATIONAL",
+    manufacturer: "Grundfos",
+    model: "CR 10-6",
+    installDate: new Date("2020-02-20"),
+  },
+  {
+    name: "Sump Pump — Parking Level",
+    serialNumber: "PUMP-SMP-002",
+    category: "PLUMBING",
+    location: "Building A — Parking Level P2",
+    status: "DOWN",
+    manufacturer: "Zoeller",
+    model: "M267",
+    installDate: new Date("2018-07-14"),
+  },
+  {
+    name: "Main Distribution Panel",
+    serialNumber: "ELEC-MDP-001",
+    category: "ELECTRICAL",
+    location: "Building A — Electrical Room 1",
+    status: "OPERATIONAL",
+    manufacturer: "Square D",
+    model: "QED-2",
+    installDate: new Date("2015-09-01"),
+  },
+  {
+    name: "Standby Diesel Generator",
+    serialNumber: "ELEC-GEN-001",
+    category: "ELECTRICAL",
+    location: "Building A — Exterior Enclosure",
+    status: "OPERATIONAL",
+    manufacturer: "Generac",
+    model: "SD100",
+    installDate: new Date("2017-03-28"),
+  },
+  {
+    name: "Passenger Elevator — Car 1",
+    serialNumber: "MECH-ELV-001",
+    category: "MECHANICAL",
+    location: "Building A — Core",
+    status: "OPERATIONAL",
+    manufacturer: "Otis",
+    model: "Gen2",
+    installDate: new Date("2014-06-10"),
+  },
+  {
+    name: "Loading Dock Leveler",
+    serialNumber: "MECH-DCK-001",
+    category: "MECHANICAL",
+    location: "Building B — Loading Dock",
+    status: "RETIRED",
+    manufacturer: "Rite-Hite",
+    model: "RHH-4000",
+    installDate: new Date("2008-04-22"),
+  },
+  {
+    name: "Forklift — Warehouse",
+    serialNumber: "VEH-FRK-001",
+    category: "VEHICLE",
+    location: "Building B — Warehouse",
+    status: "OPERATIONAL",
+    manufacturer: "Toyota",
+    model: "8FGCU25",
+    installDate: new Date("2021-01-18"),
+  },
+  {
+    name: "Facilities Pickup Truck",
+    serialNumber: "VEH-TRK-002",
+    category: "VEHICLE",
+    location: "Site — Motor Pool",
+    status: "OPERATIONAL",
+    manufacturer: "Ford",
+    model: "F-250",
+    installDate: new Date("2022-08-05"),
+  },
+  {
+    name: "Server Room CRAC Unit",
+    serialNumber: "IT-CRAC-001",
+    category: "IT_EQUIPMENT",
+    location: "Building A — Data Center",
+    status: "OPERATIONAL",
+    manufacturer: "Liebert",
+    model: "CRV CR035RA",
+    installDate: new Date("2020-10-30"),
+  },
+  {
+    name: "Core Network UPS",
+    serialNumber: "IT-UPS-001",
+    category: "IT_EQUIPMENT",
+    location: "Building A — Data Center",
+    status: "DOWN",
+    manufacturer: "APC",
+    model: "Smart-UPS SRT 10kVA",
+    installDate: new Date("2019-12-15"),
+  },
+  {
+    name: "Fire Alarm Control Panel",
+    serialNumber: "SAFE-FACP-001",
+    category: "SAFETY_SYSTEM",
+    location: "Building A — Lobby",
+    status: "OPERATIONAL",
+    manufacturer: "Notifier",
+    model: "NFS2-3030",
+    installDate: new Date("2018-02-11"),
+  },
+  {
+    name: "Wet Sprinkler Riser — Building B",
+    serialNumber: "SAFE-SPR-002",
+    category: "SAFETY_SYSTEM",
+    location: "Building B — Riser Room",
+    status: "OPERATIONAL",
+    manufacturer: "Viking",
+    model: "VK-300",
+    installDate: new Date("2016-08-19"),
+  },
+  {
+    name: "Overhead Sectional Door — Bay 3",
+    serialNumber: "BLDG-DOOR-003",
+    category: "BUILDING",
+    location: "Building B — Loading Dock",
+    status: "OPERATIONAL",
+    manufacturer: "Overhead Door",
+    model: "Model 470",
+    installDate: new Date("2017-05-06"),
+  },
+];
+
+// The maintenance layer — tasks recorded against seeded assets, some drawing
+// the parts that would realistically be consumed (HVAC filters/belts on the
+// rooftop units, a breaker on the panel, etc.). This is what ties assets,
+// tasks, and inventory together into one coherent history rather than three
+// unrelated lists. Parts reference inventory by serial; assets by serial.
+//
+// Story built into the data:
+//   • DOWN assets each have a recent OPEN/IN_PROGRESS repair — the reason
+//     they're down.
+//   • OPERATIONAL assets have completed preventive-maintenance history plus
+//     upcoming scheduled work; a few are overdue.
+//   • The RETIRED dock leveler has only old, closed history.
+type SeedTaskPart = { inventorySerial: string; quantity: number };
+
+type SeedTask = {
+  title: string;
+  description: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  category: InventoryCategory;
+  assetSerial: string;
+  // Round-robin index into the seeded technicians (resolved at seed time).
+  assigneeIndex: number;
+  // Days from "now": negative = past (overdue if not DONE), positive = upcoming.
+  dueOffsetDays: number;
+  parts?: SeedTaskPart[];
+};
+
+const maintenanceTasks: SeedTask[] = [
+  // — DOWN assets: active repairs that explain the outage ——————————————————
+  {
+    title: "Compressor fault — rooftop unit not cooling",
+    description: "Unit tripping on high-pressure fault. Replacing run capacitor and retesting.",
+    status: "IN_PROGRESS",
+    priority: "HIGH",
+    category: "HVAC",
+    assetSerial: "HVAC-RTU-002",
+    assigneeIndex: 0,
+    dueOffsetDays: -1,
+    parts: [{ inventorySerial: "HVAC-00010", quantity: 1 }],
+  },
+  {
+    title: "Sump pump not activating on float switch",
+    description: "Parking-level sump not keeping up. Float switch suspected — inspect and replace.",
+    status: "OPEN",
+    priority: "HIGH",
+    category: "PLUMBING",
+    assetSerial: "PUMP-SMP-002",
+    assigneeIndex: 1,
+    dueOffsetDays: -2,
+  },
+  {
+    title: "UPS battery module failure alarm",
+    description: "Core network UPS reporting battery module fault. Awaiting replacement modules.",
+    status: "IN_PROGRESS",
+    priority: "HIGH",
+    category: "ELECTRICAL",
+    assetSerial: "IT-UPS-001",
+    assigneeIndex: 2,
+    dueOffsetDays: 1,
+  },
+
+  // — Rooftop HVAC Unit #1: healthy unit with PM history ————————————————————
+  {
+    title: "Quarterly filter replacement",
+    description: "Replaced return-air filters and dosed condensate pan.",
+    status: "DONE",
+    priority: "MEDIUM",
+    category: "HVAC",
+    assetSerial: "HVAC-RTU-001",
+    assigneeIndex: 3,
+    dueOffsetDays: -28,
+    parts: [
+      { inventorySerial: "HVAC-00002", quantity: 2 },
+      { inventorySerial: "HVAC-00007", quantity: 1 },
+    ],
+  },
+  {
+    title: "Replace worn drive belt",
+    description: "Supply-fan belt showing cracks. Replaced with A33.",
+    status: "DONE",
+    priority: "MEDIUM",
+    category: "HVAC",
+    assetSerial: "HVAC-RTU-001",
+    assigneeIndex: 4,
+    dueOffsetDays: -60,
+    parts: [{ inventorySerial: "HVAC-00005", quantity: 1 }],
+  },
+  {
+    title: "Annual refrigerant charge check",
+    description: "Scheduled check of R-410A charge and superheat.",
+    status: "OPEN",
+    priority: "LOW",
+    category: "HVAC",
+    assetSerial: "HVAC-RTU-001",
+    assigneeIndex: 5,
+    dueOffsetDays: 14,
+  },
+
+  // — Boiler ————————————————————————————————————————————————————————————————
+  {
+    title: "Annual boiler inspection and flush",
+    description: "Full inspection, low-water cutoff test, and system flush.",
+    status: "DONE",
+    priority: "HIGH",
+    category: "HVAC",
+    assetSerial: "HVAC-BLR-001",
+    assigneeIndex: 6,
+    dueOffsetDays: -20,
+  },
+  {
+    title: "Replace pressure-relief valve",
+    description: "PRV weeping at rated pressure. Scheduled replacement.",
+    status: "OPEN",
+    priority: "MEDIUM",
+    category: "PLUMBING",
+    assetSerial: "HVAC-BLR-001",
+    assigneeIndex: 7,
+    dueOffsetDays: 7,
+  },
+
+  // — Domestic Water Booster Pump ——————————————————————————————————————————
+  {
+    title: "Replace faucet cartridge on test loop",
+    description: "Test-loop faucet dripping. Cartridge swapped.",
+    status: "DONE",
+    priority: "LOW",
+    category: "PLUMBING",
+    assetSerial: "PUMP-DWB-001",
+    assigneeIndex: 0,
+    dueOffsetDays: -45,
+    parts: [{ inventorySerial: "PLMB-00006", quantity: 1 }],
+  },
+  {
+    title: "Inspect pump mechanical seals",
+    description: "Routine seal inspection for weeping or wear.",
+    status: "OPEN",
+    priority: "MEDIUM",
+    category: "PLUMBING",
+    assetSerial: "PUMP-DWB-001",
+    assigneeIndex: 1,
+    dueOffsetDays: 10,
+  },
+
+  // — Main Distribution Panel ——————————————————————————————————————————————
+  {
+    title: "Thermal scan of distribution panel",
+    description: "Infrared scan of all breakers and lugs under load. No hotspots found.",
+    status: "DONE",
+    priority: "MEDIUM",
+    category: "ELECTRICAL",
+    assetSerial: "ELEC-MDP-001",
+    assigneeIndex: 2,
+    dueOffsetDays: -25,
+  },
+  {
+    title: "Replace 20A breaker on circuit 14",
+    description: "Breaker on circuit 14 nuisance-tripping. Replaced and re-terminated.",
+    status: "DONE",
+    priority: "HIGH",
+    category: "ELECTRICAL",
+    assetSerial: "ELEC-MDP-001",
+    assigneeIndex: 3,
+    dueOffsetDays: -12,
+    parts: [
+      { inventorySerial: "ELEC-00003", quantity: 1 },
+      { inventorySerial: "ELEC-00007", quantity: 1 },
+    ],
+  },
+
+  // — Standby Generator ————————————————————————————————————————————————————
+  {
+    title: "Monthly generator load test",
+    description: "30-minute load-bank test. Voltage and frequency within spec.",
+    status: "DONE",
+    priority: "MEDIUM",
+    category: "ELECTRICAL",
+    assetSerial: "ELEC-GEN-001",
+    assigneeIndex: 4,
+    dueOffsetDays: -8,
+  },
+  {
+    title: "Replace starting batteries",
+    description: "Starting batteries at end of service life. Scheduled replacement.",
+    status: "OPEN",
+    priority: "MEDIUM",
+    category: "ELECTRICAL",
+    assetSerial: "ELEC-GEN-001",
+    assigneeIndex: 5,
+    dueOffsetDays: 5,
+  },
+
+  // — Passenger Elevator ———————————————————————————————————————————————————
+  {
+    title: "Annual elevator safety inspection",
+    description: "Third-party safety inspection and certification.",
+    status: "DONE",
+    priority: "HIGH",
+    category: "SAFETY",
+    assetSerial: "MECH-ELV-001",
+    assigneeIndex: 6,
+    dueOffsetDays: -15,
+  },
+  {
+    title: "Lubricate guide rails",
+    description: "Routine guide-rail lubrication and roller inspection.",
+    status: "OPEN",
+    priority: "LOW",
+    category: "TOOLS",
+    assetSerial: "MECH-ELV-001",
+    assigneeIndex: 7,
+    dueOffsetDays: 21,
+  },
+
+  // — Vehicles —————————————————————————————————————————————————————————————
+  {
+    title: "250-hour forklift service",
+    description: "Oil, hydraulic filter, and mast chain inspection.",
+    status: "DONE",
+    priority: "MEDIUM",
+    category: "TOOLS",
+    assetSerial: "VEH-FRK-001",
+    assigneeIndex: 0,
+    dueOffsetDays: -18,
+  },
+  {
+    title: "Hydraulic leak inspection",
+    description: "Small drip reported under mast. Inspect and trace source.",
+    status: "OPEN",
+    priority: "MEDIUM",
+    category: "TOOLS",
+    assetSerial: "VEH-FRK-001",
+    assigneeIndex: 1,
+    dueOffsetDays: 3,
+  },
+  {
+    title: "Oil change and tire rotation",
+    description: "Routine service for facilities pickup.",
+    status: "DONE",
+    priority: "LOW",
+    category: "TOOLS",
+    assetSerial: "VEH-TRK-002",
+    assigneeIndex: 2,
+    dueOffsetDays: -22,
+  },
+
+  // — Data-center cooling ——————————————————————————————————————————————————
+  {
+    title: "Replace CRAC air filters",
+    description: "Replaced pre-filters on server-room CRAC unit.",
+    status: "DONE",
+    priority: "MEDIUM",
+    category: "HVAC",
+    assetSerial: "IT-CRAC-001",
+    assigneeIndex: 3,
+    dueOffsetDays: -10,
+    parts: [{ inventorySerial: "HVAC-00003", quantity: 2 }],
+  },
+  {
+    title: "Check CRAC refrigerant charge",
+    description: "Scheduled refrigerant and superheat check.",
+    status: "OPEN",
+    priority: "LOW",
+    category: "HVAC",
+    assetSerial: "IT-CRAC-001",
+    assigneeIndex: 4,
+    dueOffsetDays: 30,
+  },
+
+  // — Life-safety systems ——————————————————————————————————————————————————
+  {
+    title: "Monthly fire-alarm panel test",
+    description: "Tested notification circuits and battery backup. All zones reporting.",
+    status: "DONE",
+    priority: "HIGH",
+    category: "SAFETY",
+    assetSerial: "SAFE-FACP-001",
+    assigneeIndex: 5,
+    dueOffsetDays: -5,
+  },
+  {
+    title: "Annual sprinkler flow test",
+    description: "Main-drain and flow-switch test on Building B riser.",
+    status: "OPEN",
+    priority: "HIGH",
+    category: "SAFETY",
+    assetSerial: "SAFE-SPR-002",
+    assigneeIndex: 6,
+    dueOffsetDays: -3,
+  },
+
+  // — Building envelope ————————————————————————————————————————————————————
+  {
+    title: "Adjust dock-door tension spring",
+    description: "Bay 3 sectional door slow to rise. Adjusted spring tension.",
+    status: "DONE",
+    priority: "LOW",
+    category: "BUILDING_MATERIALS",
+    assetSerial: "BLDG-DOOR-003",
+    assigneeIndex: 7,
+    dueOffsetDays: -14,
+  },
+
+  // — Retired asset: closed historical record only —————————————————————————
+  {
+    title: "Decommission inspection — dock leveler",
+    description: "Final inspection and lockout prior to retirement.",
+    status: "DONE",
+    priority: "LOW",
+    category: "SAFETY",
+    assetSerial: "MECH-DCK-001",
+    assigneeIndex: 0,
+    dueOffsetDays: -90,
+  },
+];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const seed = async (): Promise<void> => {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD;
 
@@ -797,6 +1295,15 @@ const seed = async (): Promise<void> => {
     `✅ Seeded inventory: ${count} new items added (${inventoryItems.length - count} already existed)`,
   );
 
+  const { count: assetCount } = await prisma.asset.createMany({
+    data: assets,
+    skipDuplicates: true, // re-runs won't overwrite live status changes
+  });
+
+  console.log(
+    `✅ Seeded assets: ${assetCount} new assets added (${assets.length - assetCount} already existed)`,
+  );
+
   for (const template of checklistTemplates) {
     await prisma.checklistTemplate.upsert({
       where: { category: template.category },
@@ -806,6 +1313,85 @@ const seed = async (): Promise<void> => {
   }
 
   console.log(`✅ Seeded checklist templates: ${checklistTemplates.length} categories`);
+
+  // — Maintenance layer: tasks linking assets → work → parts consumed ————————
+  // Guarded so re-runs don't stack duplicate history (tasks have no natural
+  // unique key to dedupe on the way inventory/assets do via serialNumber).
+  const existingTaskCount = await prisma.task.count();
+
+  if (existingTaskCount > 0) {
+    console.log(`ℹ️  Skipped maintenance tasks: ${existingTaskCount} task(s) already exist`);
+  } else {
+    // Resolve serials → ids for the FK links.
+    const assetRows = await prisma.asset.findMany({ select: { id: true, serialNumber: true } });
+    const assetIdBySerial = new Map(assetRows.map((a) => [a.serialNumber, a.id]));
+
+    const inventoryRows = await prisma.inventoryItem.findMany({
+      select: { id: true, serialNumber: true },
+    });
+    const inventoryIdBySerial = new Map(inventoryRows.map((i) => [i.serialNumber, i.id]));
+
+    // Round-robin assignees from the seeded technicians.
+    const technicians = await prisma.user.findMany({
+      where: { roles: { has: Role.TECHNICIAN } },
+      select: { id: true },
+      orderBy: { createdAt: "asc" },
+    });
+
+    const now = Date.now();
+    let createdTasks = 0;
+    let createdParts = 0;
+
+    for (const task of maintenanceTasks) {
+      const assetId = assetIdBySerial.get(task.assetSerial);
+
+      if (!assetId) {
+        console.warn(`⚠️  Skipping task "${task.title}" — asset ${task.assetSerial} not found`);
+        continue;
+      }
+
+      const assignedTo = technicians.length
+        ? technicians[task.assigneeIndex % technicians.length].id
+        : null;
+
+      const parts = (task.parts ?? [])
+        .map((part) => ({
+          inventoryItemId: inventoryIdBySerial.get(part.inventorySerial),
+          quantity: part.quantity,
+        }))
+        .filter((part): part is { inventoryItemId: string; quantity: number } =>
+          Boolean(part.inventoryItemId),
+        );
+
+      // DONE tasks carry before/after photos so the completed state looks real
+      // in the UI. The URLs are placeholders — the demo doesn't serve the files.
+      const isDone = task.status === "DONE";
+      const photoBase = `https://demo.storage.local/task-photos/${task.assetSerial}`;
+
+      await prisma.task.create({
+        data: {
+          title: task.title,
+          description: task.description,
+          status: task.status,
+          priority: task.priority,
+          category: task.category,
+          assignedTo,
+          assetId,
+          dueDate: new Date(now + task.dueOffsetDays * DAY_MS),
+          beforePhotoUrl: isDone ? `${photoBase}-before.jpg` : null,
+          afterPhotoUrl: isDone ? `${photoBase}-after.jpg` : null,
+          ...(parts.length && { partsUsed: { create: parts } }),
+        },
+      });
+
+      createdTasks += 1;
+      createdParts += parts.length;
+    }
+
+    console.log(
+      `✅ Seeded maintenance: ${createdTasks} tasks across ${assetRows.length} assets, ${createdParts} part-usage records`,
+    );
+  }
 };
 
 seed()
