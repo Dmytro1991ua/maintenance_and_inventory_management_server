@@ -1,5 +1,6 @@
 import { ErrorResponseSchema, registry } from "../../config/openapi";
 import {
+  CancelTaskSchema,
   CompleteTaskSchema,
   CreateTaskSchema,
   TaskIdParamSchema,
@@ -180,6 +181,41 @@ registry.registerPath({
     },
     409: {
       description: "Task already completed or insufficient inventory stock",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/tasks/{id}/cancel",
+  description:
+    "Cancel a task with a required reason. ADMIN/MANAGER only. This is the only way to cancel — PATCH /tasks/{id} with status CANCELLED is rejected. Blocked on tasks that are already DONE or CANCELLED.",
+  tags: ["Tasks"],
+  security: bearerAuth,
+  request: {
+    params: TaskIdParamSchema,
+    body: { content: { "application/json": { schema: CancelTaskSchema } } },
+  },
+  responses: {
+    200: {
+      description: "Task cancelled",
+      content: { "application/json": { schema: TaskResponseSchema } },
+    },
+    400: {
+      description: "Missing or empty cancellation reason",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    403: {
+      description: "ADMIN or MANAGER role required",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "Task not found",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    409: {
+      description: "Task is already completed or already cancelled",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },
