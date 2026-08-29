@@ -4,6 +4,7 @@ import { mock } from "jest-mock-extended";
 import { ZodError, z } from "zod";
 
 import { NotFoundError } from "../../../src/errors";
+import { Prisma } from "../../../src/generated/prisma/client";
 import { loggerMock } from "../../mocks";
 import { errorHandler } from "../../../src/middleware/errorHandler";
 
@@ -145,6 +146,55 @@ describe("errorHandler", () => {
           error: expect.objectContaining({ code: "INTERNAL_SERVER_ERROR" }),
         }),
       );
+    });
+  });
+
+  describe("when the error is a Prisma unique-constraint violation (P2002)", () => {
+    const buildP2002 = () =>
+      new Prisma.PrismaClientKnownRequestError("Unique constraint failed", {
+        code: "P2002",
+        clientVersion: "7.8.0",
+        meta: { target: ["serialNumber"] },
+      });
+
+    it("should respond with status 409", () => {
+      const mockRes = buildRes();
+
+      errorHandler(buildP2002(), buildReq(), mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(409);
+    });
+
+    it("should respond with a CONFLICT code and not leak the raw Prisma message", () => {
+      const mockRes = buildRes();
+
+      errorHandler(buildP2002(), buildReq(), mockRes, next);
+
+      expect(mockRes.json).toHaveBeenCalledWith({
+        success: false,
+        error: { code: "CONFLICT", message: "A record with these details already exists" },
+      });
+    });
+
+    it("should log as a warning, not an error", () => {
+      const mockRes = buildRes();
+
+      errorHandler(buildP2002(), buildReq(), mockRes, next);
+
+      expect(loggerMock.warn).toHaveBeenCalled();
+      expect(loggerMock.error).not.toHaveBeenCalled();
+    });
+
+    it("should not map other Prisma error codes to 409", () => {
+      const mockRes = buildRes();
+      const notFound = new Prisma.PrismaClientKnownRequestError("Record not found", {
+        code: "P2025",
+        clientVersion: "7.8.0",
+      });
+
+      errorHandler(notFound, buildReq(), mockRes, next);
+
+      expect(mockRes.status).toHaveBeenCalledWith(500);
     });
   });
 
