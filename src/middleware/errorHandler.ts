@@ -4,6 +4,7 @@ import { z, ZodError } from "zod";
 
 import { env, logger } from "../config";
 import { AppError } from "../errors";
+import { Prisma } from "../generated/prisma/client";
 
 /**
  * Global error handler
@@ -14,7 +15,10 @@ import { AppError } from "../errors";
  *   3. HttpError  — operational errors from Express/body-parser internals
  *                   (e.g. PayloadTooLargeError) — not ours, but still an
  *                   expected 4xx condition, not a bug
- *   4. Unknown    — unexpected crashes, bugs, third-party failures
+ *   4. Prisma     — known DB constraint errors (e.g. P2002 unique violation)
+ *                   that map to a 4xx, e.g. a serial-number race that slips
+ *                   past a service-level pre-check
+ *   5. Unknown    — unexpected crashes, bugs, third-party failures
  */
 export const errorHandler = (
   err: unknown,
@@ -79,6 +83,26 @@ export const errorHandler = (
       error: {
         code: "REQUEST_ERROR",
         message: err.message,
+      },
+    });
+    return;
+  }
+
+  // Known Prisma constraint error. The one we map today is P2002 (unique
+  // constraint): services pre-check uniqueness for a clean 409, but two
+  // concurrent creates can both pass that check and race to the INSERT — the
+  // loser surfaces here. Map it to the same 409 rather than a misleading 500.
+  if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+    logger.warn(
+      { code: err.code, target: err.meta?.target, method: req.method, path: req.path },
+      "Unique constraint violation",
+    );
+
+    res.status(409).json({
+      success: false,
+      error: {
+        code: "CONFLICT",
+        message: "A record with these details already exists",
       },
     });
     return;

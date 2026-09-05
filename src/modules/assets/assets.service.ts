@@ -41,10 +41,18 @@ export const assetsService = {
 
     return assetsRepository.update(id, data);
   },
-  // Deleting an asset nulls assetId on its tasks (onDelete: SetNull) — the
-  // maintenance work itself is preserved, only the asset link is severed.
+  // Deleting an asset nulls assetId on its terminal tasks (onDelete: SetNull) —
+  // that history is preserved, only the asset link is severed. But an asset with
+  // OPEN/IN_PROGRESS tasks is mid-maintenance; deleting it is almost certainly a
+  // mistake, so refuse (409) and steer the caller toward RETIRED instead.
   delete: async (id: string): Promise<void> => {
     await findOrThrow(() => assetsRepository.findById(id), ASSET_NOT_FOUND_MESSAGE);
+
+    if (await assetsRepository.hasActiveTasks(id)) {
+      throw new ConflictError(
+        "Cannot delete an asset with active (open or in-progress) tasks. Close those tasks or set the asset to RETIRED instead.",
+      );
+    }
 
     await assetsRepository.delete(id);
   },
