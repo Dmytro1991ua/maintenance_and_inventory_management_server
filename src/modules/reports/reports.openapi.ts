@@ -1,6 +1,7 @@
 import { ErrorResponseSchema, registry } from "../../config/openapi";
 import {
   AssetReliabilityResponseSchema,
+  AssetReportQuerySchema,
   ThroughputQuerySchema,
   ThroughputResponseSchema,
 } from "./reports.schemas";
@@ -11,9 +12,10 @@ registry.registerPath({
   method: "get",
   path: "/reports/assets",
   description:
-    "Lifetime reliability report, one row per asset: total/open/overdue/completed task counts, total parts consumed, and average completion time in days. Ordered by most-worked assets first. ADMIN/MANAGER only.",
+    "Lifetime reliability report, one row per asset: total/open/overdue/completed task counts, total parts consumed, and average completion time in days. Paginated; searchable by name/serial/location; filterable by category and status; sortable by any computed metric (defaults to most-worked first). ADMIN/MANAGER only.",
   tags: ["Reports"],
   security: bearerAuth,
+  request: { query: AssetReportQuerySchema },
   responses: {
     200: {
       description: "Per-asset reliability rows",

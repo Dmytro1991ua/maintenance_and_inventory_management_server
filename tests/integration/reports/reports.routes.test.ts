@@ -95,6 +95,116 @@ describe("GET /api/v1/reports/assets", () => {
   });
 });
 
+describe("GET /api/v1/reports/assets — pagination, search, filters, sort", () => {
+  it("should paginate with meta", async () => {
+    const admin = await createAdminUser();
+    await createTestAsset();
+    await createTestAsset();
+    await createTestAsset();
+
+    const page1 = await request(app)
+      .get("/api/v1/reports/assets?limit=2&page=1")
+      .set(authHeader(signTestAccessToken(admin)));
+
+    expect(page1.status).toBe(200);
+    expect(page1.body.data).toHaveLength(2);
+    expect(page1.body.meta).toMatchObject({ total: 3, page: 1, limit: 2, pages: 2 });
+
+    const page2 = await request(app)
+      .get("/api/v1/reports/assets?limit=2&page=2")
+      .set(authHeader(signTestAccessToken(admin)));
+
+    expect(page2.body.data).toHaveLength(1);
+    expect(page2.body.meta.page).toBe(2);
+  });
+
+  it("should not overlap rows across pages when the sort metric ties", async () => {
+    const admin = await createAdminUser();
+    // All three have zero tasks → totalTasks all tie at 0; the id/name
+    // tiebreaker must keep paging stable (no row appears on both pages).
+    await createTestAsset();
+    await createTestAsset();
+    await createTestAsset();
+
+    const p1 = await request(app)
+      .get("/api/v1/reports/assets?limit=2&page=1&sortBy=totalTasks")
+      .set(authHeader(signTestAccessToken(admin)));
+    const p2 = await request(app)
+      .get("/api/v1/reports/assets?limit=2&page=2&sortBy=totalTasks")
+      .set(authHeader(signTestAccessToken(admin)));
+
+    const ids = [...p1.body.data, ...p2.body.data].map((r: { id: string }) => r.id);
+    expect(new Set(ids).size).toBe(3);
+  });
+
+  it("should search by name, serial, or location", async () => {
+    const admin = await createAdminUser();
+    await createTestAsset({ name: "Forklift", serialNumber: "RPT-VEH-1" });
+    await createTestAsset({ name: "Boiler", serialNumber: "RPT-HVAC-1" });
+
+    const response = await request(app)
+      .get("/api/v1/reports/assets?search=forklift")
+      .set(authHeader(signTestAccessToken(admin)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toHaveLength(1);
+    expect(response.body.data[0].serialNumber).toBe("RPT-VEH-1");
+  });
+
+  it("should filter by category and status", async () => {
+    const admin = await createAdminUser();
+    await createTestAsset({ category: "HVAC", status: "OPERATIONAL", serialNumber: "RPT-1" });
+    await createTestAsset({ category: "VEHICLE", status: "DOWN", serialNumber: "RPT-2" });
+
+    const byCategory = await request(app)
+      .get("/api/v1/reports/assets?category=VEHICLE")
+      .set(authHeader(signTestAccessToken(admin)));
+    expect(byCategory.body.data).toHaveLength(1);
+    expect(byCategory.body.data[0].serialNumber).toBe("RPT-2");
+
+    const byStatus = await request(app)
+      .get("/api/v1/reports/assets?status=OPERATIONAL")
+      .set(authHeader(signTestAccessToken(admin)));
+    expect(byStatus.body.data).toHaveLength(1);
+    expect(byStatus.body.data[0].serialNumber).toBe("RPT-1");
+  });
+
+  it("should sort by a computed metric (overdueTasks) independent of totalTasks", async () => {
+    const admin = await createAdminUser();
+    const overdueAsset = await createTestAsset({ serialNumber: "RPT-OVERDUE" });
+    const busyAsset = await createTestAsset({ serialNumber: "RPT-BUSY" });
+
+    // overdueAsset: 1 overdue task. busyAsset: 2 completed (not overdue) tasks.
+    await createTestTask({
+      assetId: overdueAsset.id,
+      status: "OPEN",
+      dueDate: new Date("2020-01-01T00:00:00.000Z"),
+    });
+    await createTestTask({ assetId: busyAsset.id, status: "DONE" });
+    await createTestTask({ assetId: busyAsset.id, status: "DONE" });
+
+    const byOverdue = await request(app)
+      .get("/api/v1/reports/assets?sortBy=overdueTasks&sortOrder=desc")
+      .set(authHeader(signTestAccessToken(admin)));
+    expect(byOverdue.body.data[0].id).toBe(overdueAsset.id);
+
+    const byTotal = await request(app)
+      .get("/api/v1/reports/assets?sortBy=totalTasks&sortOrder=desc")
+      .set(authHeader(signTestAccessToken(admin)));
+    expect(byTotal.body.data[0].id).toBe(busyAsset.id);
+  });
+
+  it("should return 400 for an invalid sortBy", async () => {
+    const admin = await createAdminUser();
+
+    const response = await request(app)
+      .get("/api/v1/reports/assets?sortBy=nonsense")
+      .set(authHeader(signTestAccessToken(admin)));
+
+    expect(response.status).toBe(400);
+  });
+});
+
 describe("GET /api/v1/reports/throughput", () => {
   const seedThroughputTasks = async () => {
     // Created + completed inside June
