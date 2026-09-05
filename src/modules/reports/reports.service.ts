@@ -1,6 +1,7 @@
 import { BadRequestError } from "../../errors";
+import { getTotalPages } from "../../utils";
 import { reportsRepository } from "./reports.repository";
-import type { ThroughputGranularity, ThroughputQuery } from "./reports.schemas";
+import type { AssetReportQuery, ThroughputGranularity, ThroughputQuery } from "./reports.schemas";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_RANGE_DAYS = 84; // 12 weeks
@@ -8,10 +9,21 @@ const DEFAULT_RANGE_DAYS = 84; // 12 weeks
 const round1 = (n: number | null): number | null => (n == null ? null : Math.round(n * 10) / 10);
 
 export const reportsService = {
-  getAssetReliability: async () => {
-    const rows = await reportsRepository.getAssetReliability();
+  getAssetReliability: async (query: AssetReportQuery) => {
+    const [rows, total] = await Promise.all([
+      reportsRepository.getAssetReliability(query),
+      reportsRepository.countAssetReliability(query),
+    ]);
 
-    return rows.map((row) => ({ ...row, avgCompletionDays: round1(row.avgCompletionDays) }));
+    return {
+      data: rows.map((row) => ({ ...row, avgCompletionDays: round1(row.avgCompletionDays) })),
+      meta: {
+        total,
+        page: query.page,
+        limit: query.limit,
+        pages: getTotalPages(total, query.limit),
+      },
+    };
   },
 
   getThroughput: async (query: ThroughputQuery) => {
