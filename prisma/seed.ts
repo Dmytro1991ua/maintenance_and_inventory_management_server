@@ -1342,7 +1342,7 @@ const seed = async (): Promise<void> => {
     let createdTasks = 0;
     let createdParts = 0;
 
-    for (const task of maintenanceTasks) {
+    for (const [index, task] of maintenanceTasks.entries()) {
       const assetId = assetIdBySerial.get(task.assetSerial);
 
       if (!assetId) {
@@ -1368,6 +1368,19 @@ const seed = async (): Promise<void> => {
       const isDone = task.status === "DONE";
       const photoBase = `https://demo.storage.local/task-photos/${task.assetSerial}`;
 
+      const dueDate = new Date(now + task.dueOffsetDays * DAY_MS);
+
+      // Backdate createdAt so completed work has a realistic, positive cycle
+      // time and the throughput report spreads across weeks instead of piling
+      // onto seed day. DONE tasks: created a handful of days before due and
+      // completed on the due date (cycle time 5–10 days, varied by index).
+      // Everything else: created recently.
+      const cycleDays = 5 + (index % 6);
+      const createdAt = isDone
+        ? new Date(now + (task.dueOffsetDays - cycleDays) * DAY_MS)
+        : new Date(now - (2 + (index % 5)) * DAY_MS);
+      const completedAt = isDone ? dueDate : null;
+
       await prisma.task.create({
         data: {
           title: task.title,
@@ -1377,7 +1390,9 @@ const seed = async (): Promise<void> => {
           category: task.category,
           assignedTo,
           assetId,
-          dueDate: new Date(now + task.dueOffsetDays * DAY_MS),
+          dueDate,
+          createdAt,
+          completedAt,
           beforePhotoUrl: isDone ? `${photoBase}-before.jpg` : null,
           afterPhotoUrl: isDone ? `${photoBase}-after.jpg` : null,
           ...(parts.length && { partsUsed: { create: parts } }),
