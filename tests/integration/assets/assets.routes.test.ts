@@ -408,10 +408,10 @@ describe("DELETE /api/v1/assets/:id", () => {
     expect(await prisma.asset.findUnique({ where: { id: asset.id } })).toBeNull();
   });
 
-  it("should preserve tasks but null their assetId when the asset is deleted", async () => {
+  it("should preserve terminal tasks but null their assetId when the asset is deleted", async () => {
     const admin = await createAdminUser();
     const asset = await createTestAsset();
-    const task = await createTestTask({ assetId: asset.id });
+    const task = await createTestTask({ assetId: asset.id, status: "DONE" });
 
     const response = await request(app)
       .delete(`/api/v1/assets/${asset.id}`)
@@ -422,6 +422,45 @@ describe("DELETE /api/v1/assets/:id", () => {
     const survivingTask = await prisma.task.findUnique({ where: { id: task.id } });
     expect(survivingTask).not.toBeNull();
     expect(survivingTask?.assetId).toBeNull();
+  });
+
+  it("should refuse to delete an asset with an OPEN task", async () => {
+    const admin = await createAdminUser();
+    const asset = await createTestAsset();
+    await createTestTask({ assetId: asset.id, status: "OPEN" });
+
+    const response = await request(app)
+      .delete(`/api/v1/assets/${asset.id}`)
+      .set(authHeader(signTestAccessToken(admin)));
+
+    expect(response.status).toBe(409);
+    expect(await prisma.asset.findUnique({ where: { id: asset.id } })).not.toBeNull();
+  });
+
+  it("should refuse to delete an asset with an IN_PROGRESS task", async () => {
+    const admin = await createAdminUser();
+    const asset = await createTestAsset();
+    await createTestTask({ assetId: asset.id, status: "IN_PROGRESS" });
+
+    const response = await request(app)
+      .delete(`/api/v1/assets/${asset.id}`)
+      .set(authHeader(signTestAccessToken(admin)));
+
+    expect(response.status).toBe(409);
+  });
+
+  it("should allow deleting an asset whose only tasks are terminal (DONE/CANCELLED)", async () => {
+    const admin = await createAdminUser();
+    const asset = await createTestAsset();
+    await createTestTask({ assetId: asset.id, status: "DONE" });
+    await createTestTask({ assetId: asset.id, status: "CANCELLED" });
+
+    const response = await request(app)
+      .delete(`/api/v1/assets/${asset.id}`)
+      .set(authHeader(signTestAccessToken(admin)));
+
+    expect(response.status).toBe(204);
+    expect(await prisma.asset.findUnique({ where: { id: asset.id } })).toBeNull();
   });
 
   it("should forbid a MANAGER from deleting an asset", async () => {

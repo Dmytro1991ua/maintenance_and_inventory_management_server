@@ -1,4 +1,5 @@
 import { prisma } from "../../config";
+import { TaskStatus } from "../../generated/prisma/client";
 import { getSkipValue, getTotalPages, resolveSortField } from "../../utils";
 import {
   ASSET_ENTITY_ALLOWED_SORT_FIELDS,
@@ -89,6 +90,15 @@ export const assetsRepository = {
       data,
       select: ASSET_SELECT,
     }),
+  // Non-terminal tasks (OPEN / IN_PROGRESS) still represent live work on the
+  // asset. Used to block deletion of an asset that's mid-maintenance.
+  hasActiveTasks: async (id: string): Promise<boolean> => {
+    const count = await prisma.task.count({
+      where: { assetId: id, status: { in: [TaskStatus.OPEN, TaskStatus.IN_PROGRESS] } },
+    });
+
+    return count > 0;
+  },
   delete: async (id: string): Promise<void> => {
     await prisma.asset.delete({ where: { id } });
   },
