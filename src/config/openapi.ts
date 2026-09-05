@@ -47,6 +47,7 @@ export const generateOpenApiDocument = () => {
       { name: "Inventory", description: "Equipment and stock management" },
       { name: "Tasks", description: "Maintenance task assignment and tracking" },
       { name: "Notifications", description: "User notifications" },
+      { name: "Reports", description: "Operational analytics across assets, tasks, and inventory" },
     ],
   });
 };

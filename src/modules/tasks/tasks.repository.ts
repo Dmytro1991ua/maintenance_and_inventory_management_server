@@ -137,7 +137,7 @@ export const tasksRepository = {
 
       return tx.task.update({
         where: { id },
-        data: { status: TaskStatus.DONE },
+        data: { status: TaskStatus.DONE, completedAt: new Date() },
         select: TASK_SELECT,
       });
     }),

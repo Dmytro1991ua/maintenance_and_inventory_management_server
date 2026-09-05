@@ -14,6 +14,8 @@ type CreateTestTaskOptions = Partial<
     | "dueDate"
     | "beforePhotoUrl"
     | "afterPhotoUrl"
+    | "completedAt"
+    | "createdAt"
   >
 >;
 
@@ -30,6 +32,8 @@ export const createTestTask = (options: CreateTestTaskOptions = {}): Promise<Tas
       dueDate: options.dueDate ?? null,
       beforePhotoUrl: options.beforePhotoUrl ?? null,
       afterPhotoUrl: options.afterPhotoUrl ?? null,
+      ...(options.completedAt !== undefined ? { completedAt: options.completedAt } : {}),
+      ...(options.createdAt !== undefined ? { createdAt: options.createdAt } : {}),
     },
   });
 
