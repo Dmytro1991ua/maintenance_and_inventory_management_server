@@ -26,6 +26,7 @@ model Asset {
   model        String?
   installDate  DateTime?
   tasks        Task[]
+  workOrderRequests WorkOrderRequest[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 

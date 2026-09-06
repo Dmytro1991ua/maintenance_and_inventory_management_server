@@ -34,6 +34,7 @@ model Task {
   asset              Asset?             @relation(fields: [assetId], references: [id], onDelete: SetNull)
   partsUsed          TaskPartUsage[]
   comments           TaskComment[]
+  workOrderRequest   WorkOrderRequest?
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
 

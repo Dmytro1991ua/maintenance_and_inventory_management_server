@@ -25,6 +25,8 @@ model User {
   recurringTasksCreated  RecurringTask[] @relation("RecurringTaskCreator")
   notifications          Notification[]
   taskComments           TaskComment[]   @relation("TaskCommentAuthor")
+  workOrderRequests      WorkOrderRequest[] @relation("WorkOrderRequester")
+  workOrderReviews       WorkOrderRequest[] @relation("WorkOrderReviewer")
 
   @@map("users")
 }

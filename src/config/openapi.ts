@@ -48,6 +48,10 @@ export const generateOpenApiDocument = () => {
       { name: "Tasks", description: "Maintenance task assignment and tracking" },
       { name: "Notifications", description: "User notifications" },
       { name: "Reports", description: "Operational analytics across assets, tasks, and inventory" },
+      {
+        name: "Work Order Requests",
+        description: "Maintenance requests submitted for manager triage into tasks",
+      },
     ],
   });
 };
