@@ -59,7 +59,6 @@ router.get(
 /**
  * POST /api/v1/work-order-requests/:id/approve
  * ADMIN/MANAGER — creates a task from the request and marks it APPROVED.
- * Must be registered before /:id-only routes so "approve" isn't read as an id.
  */
 router.post(
   "/:id/approve",
