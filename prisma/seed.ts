@@ -1407,6 +1407,74 @@ const seed = async (): Promise<void> => {
       `✅ Seeded maintenance: ${createdTasks} tasks across ${assetRows.length} assets, ${createdParts} part-usage records`,
     );
   }
+
+  // — Work order requests: a small triage queue ————————————————————————————
+  const existingRequestCount = await prisma.workOrderRequest.count();
+
+  if (existingRequestCount > 0) {
+    console.log(
+      `ℹ️  Skipped work order requests: ${existingRequestCount} request(s) already exist`,
+    );
+  } else {
+    const requesters = await prisma.user.findMany({
+      where: { roles: { has: Role.TECHNICIAN } },
+      select: { id: true },
+      orderBy: { createdAt: "asc" },
+      take: 5,
+    });
+
+    const reviewer = await prisma.user.findFirst({
+      where: { roles: { has: Role.MANAGER } },
+      select: { id: true },
+    });
+
+    if (requesters.length > 0) {
+      const pick = (i: number) => requesters[i % requesters.length].id;
+
+      const requests = [
+        {
+          title: "Flickering lights in the 2nd-floor corridor",
+          description:
+            "Several fixtures flicker intermittently — possible ballast or wiring issue.",
+          category: "ELECTRICAL" as InventoryCategory,
+          priority: "MEDIUM" as TaskPriority,
+          status: "PENDING" as const,
+          requestedBy: pick(0),
+        },
+        {
+          title: "Leaking faucet in the break room",
+          description: "Steady drip from the hot tap; needs a new cartridge.",
+          category: "PLUMBING" as InventoryCategory,
+          priority: "LOW" as TaskPriority,
+          status: "PENDING" as const,
+          requestedBy: pick(1),
+        },
+        {
+          title: "Loading dock door won't fully close",
+          description: "Bay 2 door stops a few inches short — security and weather concern.",
+          category: "BUILDING_MATERIALS" as InventoryCategory,
+          priority: "HIGH" as TaskPriority,
+          status: "PENDING" as const,
+          requestedBy: pick(2),
+        },
+        {
+          title: "Request a second monitor for the maintenance office",
+          description: "Not a maintenance issue — routed to IT procurement instead.",
+          category: null,
+          priority: "LOW" as TaskPriority,
+          status: "REJECTED" as const,
+          rejectionReason: "Out of scope for maintenance; submit via IT procurement.",
+          reviewedBy: reviewer?.id ?? null,
+          reviewedAt: new Date(),
+          requestedBy: pick(3),
+        },
+      ];
+
+      const { count: requestCount } = await prisma.workOrderRequest.createMany({ data: requests });
+
+      console.log(`✅ Seeded work order requests: ${requestCount} requests`);
+    }
+  }
 };
 
 seed()

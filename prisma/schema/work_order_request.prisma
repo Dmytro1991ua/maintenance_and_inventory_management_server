@@ -1,0 +1,35 @@
+enum WorkOrderRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model WorkOrderRequest {
+  id              String                  @id @default(uuid())
+  title           String
+  description     String?
+  category        InventoryCategory?
+  priority        TaskPriority            @default(MEDIUM)
+  status          WorkOrderRequestStatus  @default(PENDING)
+  assetId         String?
+  asset           Asset?                  @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  // Who filed the request. RESTRICT preserves attribution — a requester
+  // account can't be deleted out from under their requests silently.
+  requestedBy     String
+  requester       User                    @relation("WorkOrderRequester", fields: [requestedBy], references: [id])
+  // Manager/admin who triaged it, set on approve or reject.
+  reviewedBy      String?
+  reviewer        User?                   @relation("WorkOrderReviewer", fields: [reviewedBy], references: [id], onDelete: SetNull)
+  reviewedAt      DateTime?
+  rejectionReason String?
+  // The task spawned on approval. SetNull so deleting that task doesn't erase
+  // the request's record of having been approved.
+  taskId          String?                 @unique
+  task            Task?                   @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  @@index([status, createdAt])
+  @@index([requestedBy])
+  @@map("work_order_requests")
+}

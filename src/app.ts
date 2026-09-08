@@ -13,6 +13,7 @@ import "./modules/reports/reports.openapi";
 import "./modules/task-comments/task-comments.openapi";
 import "./modules/tasks/tasks.openapi";
 import "./modules/users/users.openapi";
+import "./modules/work-order-requests/work-order-requests.openapi";
 
 import cookieParser from "cookie-parser";
 import express, { Application } from "express";
@@ -41,6 +42,7 @@ import recurringTasksRouter from "./modules/recurring-tasks/recurring-tasks.rout
 import reportsRouter from "./modules/reports/reports.routes";
 import tasksRouter from "./modules/tasks/tasks.routes";
 import usersRouter from "./modules/users/users.routes";
+import workOrderRequestsRouter from "./modules/work-order-requests/work-order-requests.routes";
 
 const app: Application = express();
 
@@ -72,6 +74,7 @@ app.use(`${API_PREFIX}/auth`, authRouter);
 app.use(`${API_PREFIX}/assets`, assetsRouter);
 app.use(`${API_PREFIX}/dashboard`, dashboardRouter);
 app.use(`${API_PREFIX}/users`, usersRouter);
+app.use(`${API_PREFIX}/work-order-requests`, workOrderRequestsRouter);
 app.use(`${API_PREFIX}/inventory`, inventoryRouter);
 app.use(`${API_PREFIX}/recurring-tasks`, recurringTasksRouter);
 app.use(`${API_PREFIX}/reports`, reportsRouter);

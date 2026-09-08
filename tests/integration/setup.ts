@@ -11,6 +11,7 @@ jest.setTimeout(15000);
 beforeEach(async () => {
   await prisma.notification.deleteMany();
   await prisma.taskComment.deleteMany();
+  await prisma.workOrderRequest.deleteMany();
   await prisma.task.deleteMany();
   await prisma.asset.deleteMany();
   await prisma.inventoryItem.deleteMany();

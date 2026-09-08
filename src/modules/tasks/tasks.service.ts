@@ -3,7 +3,7 @@ import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from ".
 import { NotificationType, Role } from "../../generated/prisma/client";
 import { emailService } from "../../shared/email.service";
 import { storageService } from "../../shared/storage.service";
-import { ensureOwner, findOrThrow } from "../../utils";
+import { ensureOwner, findOrThrow, isAdminOrManager } from "../../utils";
 import { assetsRepository } from "../assets/assets.repository";
 import { checklistTemplatesRepository } from "../checklist-templates/checklist-templates.repository";
 import { inventoryRepository } from "../inventory/inventory.repository";
@@ -28,9 +28,7 @@ const resolveTaskForCaller = async (
 ) => {
   const task = await findOrThrow(() => tasksRepository.findById(id), "Task not found");
 
-  const isAdminOrManager = requestingUser.roles.some((r) => r === Role.ADMIN || r === Role.MANAGER);
-
-  if (!isAdminOrManager) {
+  if (!isAdminOrManager(requestingUser.roles)) {
     ensureOwner(task.assignedTo ?? "", requestingUser.id, forbiddenMessage);
   }
 
@@ -106,12 +104,8 @@ export const tasksService = {
       throw new BadRequestError("Use POST /tasks/:id/cancel to cancel a task");
     }
 
-    const isAdminOrManager = requestingUser.roles.some(
-      (role) => role === Role.ADMIN || role === Role.MANAGER,
-    );
-
     // ADMIN / MANAGER → full access
-    if (isAdminOrManager) {
+    if (isAdminOrManager(requestingUser.roles)) {
       const { assignedTo, assetId } = data;
 
       if (assignedTo) {
