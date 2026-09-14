@@ -7,6 +7,7 @@ export const usersRepositoryMock = {
   updateStatus: jest.fn(),
   delete: jest.fn(),
   findByRoles: jest.fn(),
+  findPreferencesByIds: jest.fn(),
 };
 
 export const inventoryRepositoryMock = {
@@ -26,6 +27,8 @@ export const tasksRepositoryMock = {
   findAll: jest.fn(),
   findById: jest.fn(),
   findOverdue: jest.fn(),
+  findDueSoon: jest.fn(),
+  markReminded: jest.fn(),
   findActiveForUser: jest.fn(),
   create: jest.fn(),
   update: jest.fn(),

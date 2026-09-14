@@ -77,6 +77,32 @@ export const emailService = {
     });
   },
 
+  sendTaskDueReminder: async (to: string, task: TaskAssignmentDetails): Promise<void> => {
+    const resend = getResend();
+    const taskUrl = `${env.APP_URL}/tasks/${task.id}`;
+    const dueDateLine = task.dueDate
+      ? `<p><strong>Due:</strong> ${task.dueDate.toLocaleDateString("en-US", { dateStyle: "long" })}</p>`
+      : "";
+
+    await resend.emails.send({
+      from: "Mainstay <onboarding@resend.dev>",
+      to,
+      subject: `Reminder: "${task.title}" is due soon`,
+      html: `
+        <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
+          <h2>A task assigned to you is due soon</h2>
+          <p><strong>${task.title}</strong></p>
+          ${dueDateLine}
+          <p>
+            <a href="${taskUrl}" style="display:inline-block;padding:12px 24px;background:#3b82f6;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">
+              View Task
+            </a>
+          </p>
+        </div>
+      `,
+    });
+  },
+
   sendInvite: async (to: string, inviteUrl: string, role: Role): Promise<void> => {
     const resend = getResend();
 
