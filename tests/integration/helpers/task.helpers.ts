@@ -16,6 +16,7 @@ type CreateTestTaskOptions = Partial<
     | "afterPhotoUrl"
     | "completedAt"
     | "createdAt"
+    | "reminderSentAt"
   >
 >;
 
@@ -34,6 +35,7 @@ export const createTestTask = (options: CreateTestTaskOptions = {}): Promise<Tas
       afterPhotoUrl: options.afterPhotoUrl ?? null,
       ...(options.completedAt !== undefined ? { completedAt: options.completedAt } : {}),
       ...(options.createdAt !== undefined ? { createdAt: options.createdAt } : {}),
+      ...(options.reminderSentAt !== undefined ? { reminderSentAt: options.reminderSentAt } : {}),
     },
   });
 

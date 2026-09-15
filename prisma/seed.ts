@@ -3,6 +3,7 @@ import "dotenv/config";
 import bcrypt from "bcrypt";
 
 import { prisma } from "../src/config/prisma";
+import { MS_PER_DAY } from "../src/utils";
 import { Role } from "../src/generated/prisma/client";
 import type {
   AssetCategory,
@@ -1248,7 +1249,6 @@ const maintenanceTasks: SeedTask[] = [
   },
 ];
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 
 const seed = async (): Promise<void> => {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD;
@@ -1368,7 +1368,7 @@ const seed = async (): Promise<void> => {
       const isDone = task.status === "DONE";
       const photoBase = `https://demo.storage.local/task-photos/${task.assetSerial}`;
 
-      const dueDate = new Date(now + task.dueOffsetDays * DAY_MS);
+      const dueDate = new Date(now + task.dueOffsetDays * MS_PER_DAY);
 
       // Backdate createdAt so completed work has a realistic, positive cycle
       // time and the throughput report spreads across weeks instead of piling
@@ -1377,8 +1377,8 @@ const seed = async (): Promise<void> => {
       // Everything else: created recently.
       const cycleDays = 5 + (index % 6);
       const createdAt = isDone
-        ? new Date(now + (task.dueOffsetDays - cycleDays) * DAY_MS)
-        : new Date(now - (2 + (index % 5)) * DAY_MS);
+        ? new Date(now + (task.dueOffsetDays - cycleDays) * MS_PER_DAY)
+        : new Date(now - (2 + (index % 5)) * MS_PER_DAY);
       const completedAt = isDone ? dueDate : null;
 
       await prisma.task.create({

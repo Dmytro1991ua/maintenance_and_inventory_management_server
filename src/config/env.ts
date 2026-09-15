@@ -14,6 +14,7 @@ const envSchema = z.object({
   ALLOWED_ORIGINS: z.string().default("http://localhost:3000"),
   APP_URL: z.url().default("http://localhost:5173"),
   RESEND_API_KEY: z.string().optional(),
+  TASK_REMINDER_LEAD_DAYS: z.coerce.number().int().min(1).max(30).default(3),
   SEED_DEMO_PASSWORD: z.string().default("Demo@Mainstay1"),
   SUPABASE_URL: z.url().optional(),
   SUPABASE_SERVICE_KEY: z.string().optional(),

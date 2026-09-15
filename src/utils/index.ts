@@ -1,3 +1,4 @@
+export * from "./date";
 export * from "./ensureOwner";
 export * from "./findOrThrow";
 export * from "./getLogLevel";

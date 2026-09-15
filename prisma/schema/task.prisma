@@ -28,6 +28,10 @@ model Task {
   cancelledAt        DateTime?
   cancelledBy        String?
   completedAt        DateTime?
+  // Set when a due-soon reminder has been sent, so the daily job doesn't
+  // re-notify the assignee every day until the due date. Cleared when the task
+  // is rescheduled to a later due date, re-arming a fresh reminder.
+  reminderSentAt     DateTime?
   recurringTaskId    String?
   recurringTask      RecurringTask?     @relation(fields: [recurringTaskId], references: [id], onDelete: SetNull)
   assetId            String?

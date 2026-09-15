@@ -1,6 +1,6 @@
 import { prisma } from "../../config";
 import { TaskStatus } from "../../generated/prisma/client";
-import { getSkipValue, getTotalPages, resolveSortField } from "../../utils";
+import { addDays, getSkipValue, getTotalPages, resolveSortField } from "../../utils";
 import {
   ACTIVE_TASK_STATUSES,
   TASK_ENTITY_ALLOWED_SORT_FIELDS,
@@ -71,12 +71,7 @@ export const tasksRepository = {
       where: { id },
       select: TASK_SELECT,
     }),
-  // Existence-only lookup for callers that just need to 404 on a missing task
-  // (e.g. the nested comments routes) without pulling the full task payload.
   findIdById: (id: string) => prisma.task.findUnique({ where: { id }, select: { id: true } }),
-  // Unpaginated — used by the overdue-task notification job, which needs
-  // every matching task in one pass rather than a UI page at a time.
-  // "Overdue" = past its due date and not yet completed.
   findOverdue: async () =>
     prisma.task.findMany({
       where: {
@@ -85,6 +80,29 @@ export const tasksRepository = {
       },
       select: TASK_SELECT,
     }),
+  // Tasks coming due within the lead window that haven't been reminded yet.
+  // "Due soon" = due between now and now+leadDays, still open, has an assignee,
+  // and no reminder sent yet (reminderSentAt guards against daily re-sends).
+  findDueSoon: async (leadDays: number) => {
+    const now = new Date();
+    const windowEnd = addDays(now, leadDays);
+
+    return prisma.task.findMany({
+      where: {
+        dueDate: { gte: now, lte: windowEnd },
+        status: { notIn: [TaskStatus.DONE, TaskStatus.CANCELLED] },
+        assignedTo: { not: null },
+        reminderSentAt: null,
+      },
+      select: TASK_SELECT,
+    });
+  },
+  markReminded: async (ids: string[]): Promise<void> => {
+    await prisma.task.updateMany({
+      where: { id: { in: ids } },
+      data: { reminderSentAt: new Date() },
+    });
+  },
   create: async (data: CreateTask) =>
     prisma.task.create({
       data,
@@ -95,7 +113,9 @@ export const tasksRepository = {
       data,
       select: TASK_SELECT,
     }),
-  update: async (id: string, data: UpdateTask) =>
+  // `reminderSentAt` is an internal field (not part of UpdateTask): the service
+  // resets it to null when a task is rescheduled, re-arming the due-soon reminder.
+  update: async (id: string, data: UpdateTask & { reminderSentAt?: Date | null }) =>
     prisma.task.update({
       where: { id },
       data,
