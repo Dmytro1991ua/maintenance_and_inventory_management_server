@@ -46,10 +46,10 @@ export const dashboardRepository = {
       }),
       prisma.$queryRaw<[{ avg_days: number | null }]>`
         SELECT AVG(
-          EXTRACT(EPOCH FROM ("updatedAt" - "createdAt")) / 86400.0
+          EXTRACT(EPOCH FROM ("completedAt" - "createdAt")) / 86400.0
         )::float AS avg_days
         FROM tasks
-        WHERE status = 'DONE'
+        WHERE status = 'DONE' AND "completedAt" IS NOT NULL
       `,
       prisma.$queryRaw<
         [
