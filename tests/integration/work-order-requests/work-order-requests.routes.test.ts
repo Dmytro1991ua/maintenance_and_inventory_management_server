@@ -189,6 +189,25 @@ describe("GET /api/v1/work-order-requests/:id", () => {
 });
 
 describe("POST /api/v1/work-order-requests/:id/approve", () => {
+  it("should notify the requester that their request was approved", async () => {
+    const manager = await createManagerUser();
+    const tech = await createTechnicianUser();
+    const req = await createTestWorkOrderRequest({ requestedBy: tech.id, title: "Fix the pump" });
+
+    await request(app)
+      .post(`/api/v1/work-order-requests/${req.id}/approve`)
+      .set(authHeader(signTestAccessToken(manager)))
+      .send({});
+
+    const notifications = await prisma.notification.findMany({ where: { userId: tech.id } });
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0]).toMatchObject({
+      type: "WORK_ORDER_APPROVED",
+      relatedEntityId: req.id,
+    });
+    expect(notifications[0].message).toContain("Fix the pump");
+  });
+
   it("should create a task, link it, and mark the request APPROVED", async () => {
     const manager = await createManagerUser();
     const tech = await createTechnicianUser();
@@ -287,6 +306,25 @@ describe("POST /api/v1/work-order-requests/:id/approve", () => {
 });
 
 describe("POST /api/v1/work-order-requests/:id/reject", () => {
+  it("should notify the requester that their request was rejected, with the reason", async () => {
+    const manager = await createManagerUser();
+    const tech = await createTechnicianUser();
+    const req = await createTestWorkOrderRequest({ requestedBy: tech.id, title: "New monitor" });
+
+    await request(app)
+      .post(`/api/v1/work-order-requests/${req.id}/reject`)
+      .set(authHeader(signTestAccessToken(manager)))
+      .send({ reason: "Out of scope for maintenance" });
+
+    const notifications = await prisma.notification.findMany({ where: { userId: tech.id } });
+    expect(notifications).toHaveLength(1);
+    expect(notifications[0]).toMatchObject({
+      type: "WORK_ORDER_REJECTED",
+      relatedEntityId: req.id,
+    });
+    expect(notifications[0].message).toContain("Out of scope for maintenance");
+  });
+
   it("should mark the request REJECTED with a reason", async () => {
     const manager = await createManagerUser();
     const tech = await createTechnicianUser();
