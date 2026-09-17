@@ -1,7 +1,9 @@
+import { logger } from "../../config";
 import { ConflictError, ForbiddenError } from "../../errors";
-import { Role } from "../../generated/prisma/client";
+import { NotificationType, Role } from "../../generated/prisma/client";
 import { findOrThrow, isAdminOrManager } from "../../utils";
 import { assetsRepository } from "../assets/assets.repository";
+import { notificationsService } from "../notifications/notifications.service";
 import type { CreateTask } from "../tasks/tasks.schemas";
 import { tasksService } from "../tasks/tasks.service";
 import {
@@ -17,6 +19,21 @@ import type {
 } from "./work-order-requests.schemas";
 
 type RequestingUser = { id: string; roles: Role[] };
+
+const notifyRequester = async (
+  requestedBy: string,
+  requestId: string,
+  type: NotificationType,
+  message: string,
+): Promise<void> => {
+  try {
+    await notificationsService.createMany(type, [
+      { type, message, userId: requestedBy, relatedEntityId: requestId },
+    ]);
+  } catch (err) {
+    logger.warn({ err, requestId }, "Failed to create work order request notification");
+  }
+};
 
 export const workOrderRequestsService = {
   create: async (data: CreateWorkOrderRequest, requestedBy: string) => {
@@ -74,10 +91,19 @@ export const workOrderRequestsService = {
 
     const task = await tasksService.create(createTaskData);
 
-    return workOrderRequestsRepository.approve(id, {
+    const updated = await workOrderRequestsRepository.approve(id, {
       taskId: task.id,
       reviewedBy: requestingUser.id,
     });
+
+    await notifyRequester(
+      request.requestedBy,
+      request.id,
+      NotificationType.WORK_ORDER_APPROVED,
+      `Your work order request "${request.title}" was approved.`,
+    );
+
+    return updated;
   },
 
   reject: async (id: string, requestingUser: RequestingUser, body: RejectWorkOrderRequest) => {
@@ -90,9 +116,18 @@ export const workOrderRequestsService = {
       throw new ConflictError(ALREADY_REVIEWED_MESSAGE);
     }
 
-    return workOrderRequestsRepository.reject(id, {
+    const updated = await workOrderRequestsRepository.reject(id, {
       reason: body.reason,
       reviewedBy: requestingUser.id,
     });
+
+    await notifyRequester(
+      request.requestedBy,
+      request.id,
+      NotificationType.WORK_ORDER_REJECTED,
+      `Your work order request "${request.title}" was rejected: ${body.reason}`,
+    );
+
+    return updated;
   },
 };

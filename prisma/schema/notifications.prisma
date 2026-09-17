@@ -4,6 +4,8 @@ enum NotificationType {
   TASK_OVERDUE
   TASK_CANCELLED
   TASK_DUE_SOON
+  WORK_ORDER_APPROVED
+  WORK_ORDER_REJECTED
 }
 
 model Notification {
