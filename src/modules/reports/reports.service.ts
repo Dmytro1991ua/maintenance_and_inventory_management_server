@@ -1,7 +1,12 @@
 import { BadRequestError } from "../../errors";
 import { getTotalPages, MS_PER_DAY } from "../../utils";
 import { reportsRepository } from "./reports.repository";
-import type { AssetReportQuery, ThroughputGranularity, ThroughputQuery } from "./reports.schemas";
+import type {
+  AssetReportQuery,
+  TechnicianWorkloadQuery,
+  ThroughputGranularity,
+  ThroughputQuery,
+} from "./reports.schemas";
 
 const DEFAULT_RANGE_DAYS = 84; // 12 weeks
 
@@ -16,6 +21,23 @@ export const reportsService = {
 
     return {
       data: rows.map((row) => ({ ...row, avgCompletionDays: round1(row.avgCompletionDays) })),
+      meta: {
+        total,
+        page: query.page,
+        limit: query.limit,
+        pages: getTotalPages(total, query.limit),
+      },
+    };
+  },
+
+  getTechnicianWorkload: async (query: TechnicianWorkloadQuery) => {
+    const [data, total] = await Promise.all([
+      reportsRepository.getTechnicianWorkload(query),
+      reportsRepository.countTechnicianWorkload(query),
+    ]);
+
+    return {
+      data,
       meta: {
         total,
         page: query.page,

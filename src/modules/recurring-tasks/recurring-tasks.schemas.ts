@@ -71,7 +71,7 @@ export const RecurringTaskSchema = z
       .object({
         id: z.uuid(),
         userName: z.string(),
-        email: z.string(),
+        email: z.email(),
       })
       .nullable(),
     intervalDays: z.number().int(),

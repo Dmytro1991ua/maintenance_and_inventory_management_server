@@ -2,6 +2,8 @@ import { ErrorResponseSchema, registry } from "../../config/openapi";
 import {
   AssetReliabilityResponseSchema,
   AssetReportQuerySchema,
+  TechnicianWorkloadQuerySchema,
+  TechnicianWorkloadResponseSchema,
   ThroughputQuerySchema,
   ThroughputResponseSchema,
 } from "./reports.schemas";
@@ -20,6 +22,26 @@ registry.registerPath({
     200: {
       description: "Per-asset reliability rows",
       content: { "application/json": { schema: AssetReliabilityResponseSchema } },
+    },
+    403: {
+      description: "ADMIN or MANAGER role required",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/reports/technicians",
+  description:
+    "Current workload per technician: open/in-progress/overdue/completed task counts and the next upcoming due date. One row per technician (idle ones show zeros). Paginated; searchable by userName/email; sortable by any count, nextDueAt, or userName (defaults to busiest first). ADMIN/MANAGER only.",
+  tags: ["Reports"],
+  security: bearerAuth,
+  request: { query: TechnicianWorkloadQuerySchema },
+  responses: {
+    200: {
+      description: "Per-technician workload rows",
+      content: { "application/json": { schema: TechnicianWorkloadResponseSchema } },
     },
     403: {
       description: "ADMIN or MANAGER role required",

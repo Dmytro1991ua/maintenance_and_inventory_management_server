@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 
-import type { AssetReportQuery, ThroughputQuery } from "./reports.schemas";
+import type { AssetReportQuery, TechnicianWorkloadQuery, ThroughputQuery } from "./reports.schemas";
 import { reportsService } from "./reports.service";
 
 /**
@@ -11,6 +11,13 @@ export const reportsController = {
     const query = req.query as unknown as AssetReportQuery;
 
     const result = await reportsService.getAssetReliability(query);
+
+    res.json({ success: true, ...result });
+  },
+  getTechnicianWorkload: async (req: Request, res: Response): Promise<void> => {
+    const query = req.query as unknown as TechnicianWorkloadQuery;
+
+    const result = await reportsService.getTechnicianWorkload(query);
 
     res.json({ success: true, ...result });
   },

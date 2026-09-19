@@ -17,7 +17,7 @@ export const InviteResponseSchema = z
     success: z.literal(true),
     data: z.object({
       id: z.uuid(),
-      email: z.string(),
+      email: z.email(),
       role: z.enum(["MANAGER", "TECHNICIAN"]),
       expiresAt: z.iso.datetime(),
     }),
@@ -27,7 +27,7 @@ export const InviteResponseSchema = z
 export const PendingInviteSchema = z
   .object({
     id: z.uuid(),
-    email: z.string(),
+    email: z.email(),
     role: z.enum(["ADMIN", "MANAGER", "TECHNICIAN"]),
     expiresAt: z.iso.datetime(),
     isExpired: z.boolean(),

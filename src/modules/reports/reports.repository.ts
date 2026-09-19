@@ -4,6 +4,8 @@ import { getSkipValue } from "../../utils";
 import type {
   AssetReportQuery,
   AssetReportSortField,
+  TechnicianWorkloadQuery,
+  TechnicianWorkloadSortField,
   ThroughputGranularity,
 } from "./reports.schemas";
 
@@ -55,6 +57,33 @@ const buildAssetReportWhere = (query: AssetReportQuery): Prisma.Sql => {
   return conditions.length ? Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}` : Prisma.empty;
 };
 
+const TECHNICIAN_WORKLOAD_SORT_COLUMNS: Record<TechnicianWorkloadSortField, string> = {
+  openTasks: '"openTasks"',
+  inProgressTasks: '"inProgressTasks"',
+  overdueTasks: '"overdueTasks"',
+  completedTasks: '"completedTasks"',
+  nextDueAt: '"nextDueAt"',
+  userName: 'u."userName"',
+};
+
+const buildTechnicianWorkloadWhere = (query: TechnicianWorkloadQuery): Prisma.Sql => {
+  // Active technicians only — a deactivated user can't take work, so including
+  // them in a "current workload" view would read as spare capacity.
+  const conditions: Prisma.Sql[] = [
+    Prisma.sql`'TECHNICIAN'::"Role" = ANY(u.roles)`,
+    Prisma.sql`u.status = 'ACTIVE'::"UserStatus"`,
+  ];
+
+  const search = query.search?.trim();
+
+  if (search) {
+    const like = `%${search}%`;
+    conditions.push(Prisma.sql`(u."userName" ILIKE ${like} OR u.email ILIKE ${like})`);
+  }
+
+  return Prisma.sql`WHERE ${Prisma.join(conditions, " AND ")}`;
+};
+
 type AssetReliabilityRow = {
   id: string;
   name: string;
@@ -75,6 +104,17 @@ type ThroughputSummaryRow = {
   totalCreated: number;
   totalCompleted: number;
   avgCompletionDays: number | null;
+};
+
+type TechnicianWorkloadRow = {
+  id: string;
+  userName: string;
+  email: string;
+  openTasks: number;
+  inProgressTasks: number;
+  overdueTasks: number;
+  completedTasks: number;
+  nextDueAt: Date | null;
 };
 
 export const reportsRepository = {
@@ -189,5 +229,49 @@ export const reportsRepository = {
     `;
 
     return rows[0];
+  },
+
+  // Number of technicians matching the report filter — for pagination meta.
+  countTechnicianWorkload: async (query: TechnicianWorkloadQuery): Promise<number> => {
+    const where = buildTechnicianWorkloadWhere(query);
+
+    const rows = await prisma.$queryRaw<[{ count: number }]>`
+      SELECT COUNT(*)::int AS count FROM users u ${where}
+    `;
+
+    return rows[0].count;
+  },
+
+  // Current workload per technician — one row per technician (including those
+  // with no assigned tasks). nextDueAt is the earliest *upcoming* due date among
+  // their non-terminal tasks; overdue work is surfaced separately in overdueTasks.
+  getTechnicianWorkload: (query: TechnicianWorkloadQuery): Promise<TechnicianWorkloadRow[]> => {
+    const where = buildTechnicianWorkloadWhere(query);
+    const skip = getSkipValue(query.page, query.limit);
+    const orderColumn = Prisma.raw(TECHNICIAN_WORKLOAD_SORT_COLUMNS[query.sortBy]);
+    const orderDir = Prisma.raw(query.sortOrder === "asc" ? "ASC" : "DESC");
+
+    return prisma.$queryRaw<TechnicianWorkloadRow[]>`
+      SELECT
+        u.id,
+        u."userName",
+        u.email,
+        COUNT(t.id) FILTER (WHERE t.status = 'OPEN')::int                                 AS "openTasks",
+        COUNT(t.id) FILTER (WHERE t.status = 'IN_PROGRESS')::int                          AS "inProgressTasks",
+        COUNT(t.id) FILTER (
+          WHERE t."dueDate" < NOW() AND t.status NOT IN ('DONE', 'CANCELLED')
+        )::int                                                                            AS "overdueTasks",
+        COUNT(t.id) FILTER (WHERE t.status = 'DONE')::int                                 AS "completedTasks",
+        MIN(t."dueDate") FILTER (
+          WHERE t.status NOT IN ('DONE', 'CANCELLED') AND t."dueDate" >= NOW()
+        )                                                                                 AS "nextDueAt"
+      FROM users u
+      LEFT JOIN tasks t ON t."assignedTo" = u.id
+      ${where}
+      GROUP BY u.id
+      ORDER BY ${orderColumn} ${orderDir} NULLS LAST, u."userName" ASC, u.id ASC
+      LIMIT ${query.limit}
+      OFFSET ${skip}
+    `;
   },
 };

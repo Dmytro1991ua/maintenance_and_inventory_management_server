@@ -84,7 +84,7 @@ export const UserSchema = z
   .object({
     id: z.uuid(),
     userName: z.string().openapi({ example: "johndoe" }),
-    email: z.string().openapi({ example: "john@example.com" }),
+    email: z.email().openapi({ example: "john@example.com" }),
     roles: z.array(z.enum(["ADMIN", "MANAGER", "TECHNICIAN"])),
     status: z.enum(["ACTIVE", "INACTIVE"]).openapi({ example: "ACTIVE" }),
     availability: z

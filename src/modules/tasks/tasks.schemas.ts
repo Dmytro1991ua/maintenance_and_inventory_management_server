@@ -133,7 +133,7 @@ export const TaskSchema = z
       .object({
         id: z.uuid(),
         userName: z.string(),
-        email: z.string(),
+        email: z.email(),
       })
       .nullable(),
     dueDate: z.iso.datetime().nullable(),

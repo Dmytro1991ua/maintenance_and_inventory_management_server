@@ -3,7 +3,11 @@ import { Router } from "express";
 import { Role } from "../../generated/prisma/client";
 import { asyncHandler, authenticate, authorize, validateQuery } from "../../middleware";
 import { reportsController } from "./reports.controller";
-import { AssetReportQuerySchema, ThroughputQuerySchema } from "./reports.schemas";
+import {
+  AssetReportQuerySchema,
+  TechnicianWorkloadQuerySchema,
+  ThroughputQuerySchema,
+} from "./reports.schemas";
 
 const router = Router();
 
@@ -22,6 +26,19 @@ router.get(
   managers,
   validateQuery(AssetReportQuerySchema),
   asyncHandler(reportsController.getAssetReliability),
+);
+
+/**
+ * GET /api/v1/reports/technicians
+ * ADMIN + MANAGER — current workload per technician (open/in-progress/overdue/
+ * completed counts and next upcoming due date). Paginated, searchable, sortable.
+ */
+router.get(
+  "/technicians",
+  authenticate,
+  managers,
+  validateQuery(TechnicianWorkloadQuerySchema),
+  asyncHandler(reportsController.getTechnicianWorkload),
 );
 
 /**
