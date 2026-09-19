@@ -43,6 +43,7 @@ model Task {
   updatedAt      DateTime           @updatedAt
 
   @@index([assetId])
+  @@index([assignedTo])
   @@map("tasks")
 }
 

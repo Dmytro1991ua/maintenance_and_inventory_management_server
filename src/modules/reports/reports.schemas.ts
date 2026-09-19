@@ -88,7 +88,7 @@ export const TechnicianWorkloadRowSchema = z
   .object({
     id: z.uuid(),
     userName: z.string(),
-    email: z.string(),
+    email: z.email(),
     openTasks: z.number().int(),
     inProgressTasks: z.number().int(),
     overdueTasks: z.number().int(),

@@ -72,6 +72,20 @@ describe("GET /api/v1/reports/technicians", () => {
     expect(ids).not.toContain(manager.id);
   });
 
+  it("should exclude deactivated (INACTIVE) technicians", async () => {
+    const admin = await createAdminUser();
+    const active = await createTechnicianUser();
+    const inactive = await createTechnicianUser({ status: "INACTIVE" });
+
+    const response = await request(app)
+      .get("/api/v1/reports/technicians")
+      .set(authHeader(signTestAccessToken(admin)));
+
+    const ids = response.body.data.map((r: { id: string }) => r.id);
+    expect(ids).toContain(active.id);
+    expect(ids).not.toContain(inactive.id);
+  });
+
   it("should sort by a chosen metric (overdueTasks desc)", async () => {
     const admin = await createAdminUser();
     const busy = await createTechnicianUser();

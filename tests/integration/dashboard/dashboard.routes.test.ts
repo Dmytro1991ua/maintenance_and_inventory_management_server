@@ -53,6 +53,21 @@ describe("GET /api/v1/dashboard/stats — manager cycle time", () => {
     expect(response.body.data.tasks.avgCompletionDays).toBe(2);
   });
 
+  it("should exclude deactivated technicians from the manager technicians list", async () => {
+    const admin = await createAdminUser();
+    const active = await createTechnicianUser();
+    const inactive = await createTechnicianUser({ status: "INACTIVE" });
+
+    const response = await request(app)
+      .get("/api/v1/dashboard/stats")
+      .set(authHeader(signTestAccessToken(admin)));
+
+    expect(response.status).toBe(200);
+    const ids = response.body.data.technicians.map((t: { id: string }) => t.id);
+    expect(ids).toContain(active.id);
+    expect(ids).not.toContain(inactive.id);
+  });
+
   it("should return the technician view for a technician (no manager stats)", async () => {
     const tech = await createTechnicianUser();
 

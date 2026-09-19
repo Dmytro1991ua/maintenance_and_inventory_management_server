@@ -83,7 +83,7 @@ export const RegisterResponseSchema = z
     data: z.object({
       id: z.uuid(),
       userName: z.string(),
-      email: z.string(),
+      email: z.email(),
     }),
   })
   .openapi("RegisterResponse");

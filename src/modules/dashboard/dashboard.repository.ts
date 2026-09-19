@@ -1,5 +1,5 @@
 import { prisma } from "../../config";
-import { Role, TaskStatus } from "../../generated/prisma/client";
+import { Role, TaskStatus, UserStatus } from "../../generated/prisma/client";
 
 const startOfCurrentMonth = (): Date => {
   const now = new Date();
@@ -86,7 +86,7 @@ export const dashboardRepository = {
         _count: { id: true },
       }),
       prisma.user.findMany({
-        where: { roles: { has: Role.TECHNICIAN } },
+        where: { roles: { has: Role.TECHNICIAN }, status: UserStatus.ACTIVE },
         select: { id: true, userName: true },
         orderBy: { userName: "asc" },
       }),

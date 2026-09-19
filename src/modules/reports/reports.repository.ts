@@ -67,7 +67,12 @@ const TECHNICIAN_WORKLOAD_SORT_COLUMNS: Record<TechnicianWorkloadSortField, stri
 };
 
 const buildTechnicianWorkloadWhere = (query: TechnicianWorkloadQuery): Prisma.Sql => {
-  const conditions: Prisma.Sql[] = [Prisma.sql`'TECHNICIAN'::"Role" = ANY(u.roles)`];
+  // Active technicians only — a deactivated user can't take work, so including
+  // them in a "current workload" view would read as spare capacity.
+  const conditions: Prisma.Sql[] = [
+    Prisma.sql`'TECHNICIAN'::"Role" = ANY(u.roles)`,
+    Prisma.sql`u.status = 'ACTIVE'::"UserStatus"`,
+  ];
 
   const search = query.search?.trim();
 

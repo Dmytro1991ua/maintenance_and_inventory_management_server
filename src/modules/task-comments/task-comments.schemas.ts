@@ -28,7 +28,7 @@ export const TaskCommentSchema = z
     author: z.object({
       id: z.uuid(),
       userName: z.string(),
-      email: z.string(),
+      email: z.email(),
     }),
     createdAt: z.iso.datetime(),
   })
