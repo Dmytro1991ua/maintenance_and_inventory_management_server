@@ -24,6 +24,25 @@ export const AssetReportQuerySchema = z
   })
   .openapi("AssetReportQuery");
 
+export const TECHNICIAN_WORKLOAD_SORT_FIELDS = [
+  "openTasks",
+  "inProgressTasks",
+  "overdueTasks",
+  "completedTasks",
+  "nextDueAt",
+  "userName",
+] as const;
+
+export const TechnicianWorkloadQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).default(1).openapi({ example: 1 }),
+    limit: z.coerce.number().int().min(1).max(100).default(20).openapi({ example: 20 }),
+    search: z.string().optional().openapi({ example: "sarah" }),
+    sortBy: z.enum(TECHNICIAN_WORKLOAD_SORT_FIELDS).default("openTasks"),
+    sortOrder: z.enum(["asc", "desc"]).default("desc"),
+  })
+  .openapi("TechnicianWorkloadQuery");
+
 export const THROUGHPUT_GRANULARITIES = ["day", "week", "month"] as const;
 
 export const ThroughputQuerySchema = z
@@ -65,6 +84,32 @@ export const AssetReliabilityResponseSchema = z
   })
   .openapi("AssetReliabilityResponse");
 
+export const TechnicianWorkloadRowSchema = z
+  .object({
+    id: z.uuid(),
+    userName: z.string(),
+    email: z.string(),
+    openTasks: z.number().int(),
+    inProgressTasks: z.number().int(),
+    overdueTasks: z.number().int(),
+    completedTasks: z.number().int(),
+    nextDueAt: z.iso.datetime().nullable(),
+  })
+  .openapi("TechnicianWorkloadRow");
+
+export const TechnicianWorkloadResponseSchema = z
+  .object({
+    success: z.literal(true),
+    data: z.array(TechnicianWorkloadRowSchema),
+    meta: z.object({
+      total: z.number(),
+      page: z.number(),
+      limit: z.number(),
+      pages: z.number(),
+    }),
+  })
+  .openapi("TechnicianWorkloadResponse");
+
 export const ThroughputBucketSchema = z
   .object({
     bucket: z.iso.datetime(),
@@ -93,5 +138,7 @@ export const ThroughputResponseSchema = z
 
 export type AssetReportSortField = (typeof ASSET_REPORT_SORT_FIELDS)[number];
 export type AssetReportQuery = z.infer<typeof AssetReportQuerySchema>;
+export type TechnicianWorkloadSortField = (typeof TECHNICIAN_WORKLOAD_SORT_FIELDS)[number];
+export type TechnicianWorkloadQuery = z.infer<typeof TechnicianWorkloadQuerySchema>;
 export type ThroughputGranularity = (typeof THROUGHPUT_GRANULARITIES)[number];
 export type ThroughputQuery = z.infer<typeof ThroughputQuerySchema>;
