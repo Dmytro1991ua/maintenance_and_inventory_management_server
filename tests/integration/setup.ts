@@ -14,6 +14,7 @@ beforeEach(async () => {
   await prisma.workOrderRequest.deleteMany();
   await prisma.task.deleteMany();
   await prisma.asset.deleteMany();
+  await prisma.reorder.deleteMany();
   await prisma.inventoryItem.deleteMany();
   await prisma.userInvite.deleteMany();
   await prisma.user.deleteMany();
