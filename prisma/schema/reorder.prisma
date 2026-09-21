@@ -1,0 +1,27 @@
+enum ReorderStatus {
+  PENDING // auto-raised by the daily job (or a manual raise), awaiting an order
+  ORDERED // a manager has placed the order with the supplier
+  RECEIVED // stock arrived — the item quantity has been incremented
+  CANCELLED // abandoned; reopens the low-stock/reorder loop for the item
+}
+
+model Reorder {
+  id              String        @id @default(uuid())
+  inventoryItemId String
+  // A reorder is meaningless once its item is gone, so it cascades with the
+  // item (unlike a work order, which preserves its record via SetNull).
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  status          ReorderStatus @default(PENDING)
+  // Units to order — snapshotted from the item's reorderQuantity at raise time
+  // so later config changes don't rewrite history.
+  quantity        Int
+  // Audit only (no FK), like task.cancelledBy. null raisedBy = system/cron.
+  raisedBy        String?
+  reviewedBy      String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([inventoryItemId])
+  @@index([status, createdAt])
+  @@map("reorders")
+}

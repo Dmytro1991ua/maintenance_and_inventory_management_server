@@ -49,6 +49,11 @@ export const generateOpenApiDocument = () => {
       { name: "Notifications", description: "User notifications" },
       { name: "Reports", description: "Operational analytics across assets, tasks, and inventory" },
       {
+        name: "Reorders",
+        description:
+          "Inventory replenishment orders, auto-raised when stock hits the reorder point",
+      },
+      {
         name: "Work Order Requests",
         description: "Maintenance requests submitted for manager triage into tasks",
       },

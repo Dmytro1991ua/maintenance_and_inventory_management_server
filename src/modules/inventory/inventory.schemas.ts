@@ -42,6 +42,19 @@ export const CreateInventoryItemSchema = z
       .int()
       .min(0, { error: "Min stock level cannot be negative" })
       .openapi({ example: 5 }),
+    reorderPoint: z.coerce
+      .number()
+      .int()
+      .min(0, { error: "Reorder point cannot be negative" })
+      .optional()
+      .openapi({ example: 5 }),
+    reorderQuantity: z.coerce
+      .number()
+      .int()
+      .min(1, { error: "Reorder quantity must be at least 1" })
+      .optional()
+      .openapi({ example: 20 }),
+    supplier: z.string().max(200).optional().openapi({ example: "Acme Supplies" }),
   })
   .openapi("CreateInventoryItemInput");
 
@@ -66,6 +79,21 @@ export const UpdateInventoryItemSchema = z
       .min(0, { error: "Min stock level cannot be negative" })
       .optional()
       .openapi({ example: 5 }),
+    reorderPoint: z.coerce
+      .number()
+      .int()
+      .min(0, { error: "Reorder point cannot be negative" })
+      .nullable()
+      .optional()
+      .openapi({ example: 5 }),
+    reorderQuantity: z.coerce
+      .number()
+      .int()
+      .min(1, { error: "Reorder quantity must be at least 1" })
+      .nullable()
+      .optional()
+      .openapi({ example: 20 }),
+    supplier: z.string().max(200).nullable().optional().openapi({ example: "Acme Supplies" }),
   })
   .strict()
   .openapi("UpdateInventoryItemInput");
@@ -94,6 +122,9 @@ export const InventoryItemSchema = z
     category: InventoryCategoryEnum,
     quantity: z.number(),
     minStockLevel: z.number(),
+    reorderPoint: z.number().nullable(),
+    reorderQuantity: z.number().nullable(),
+    supplier: z.string().nullable(),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })

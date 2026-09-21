@@ -10,6 +10,9 @@ export type InventoryItemDTO = {
   category: InventoryCategory;
   quantity: number;
   minStockLevel: number;
+  reorderPoint: number | null;
+  reorderQuantity: number | null;
+  supplier: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
