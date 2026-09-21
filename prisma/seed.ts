@@ -97,6 +97,11 @@ type SeedItem = {
   serialNumber: string;
   quantity: number;
   minStockLevel: number;
+  // Optional auto-reorder config. When omitted, reorderPoint falls back to
+  // minStockLevel and the daily job orders a minStockLevel top-up.
+  reorderPoint?: number;
+  reorderQuantity?: number;
+  supplier?: string;
 };
 
 const inventoryItems: SeedItem[] = [
@@ -107,6 +112,9 @@ const inventoryItems: SeedItem[] = [
     serialNumber: "ELEC-00001",
     quantity: 48,
     minStockLevel: 10,
+    reorderPoint: 15,
+    reorderQuantity: 50,
+    supplier: "Grainger Industrial Supply",
   },
   {
     category: "PLUMBING",
@@ -121,6 +129,9 @@ const inventoryItems: SeedItem[] = [
     serialNumber: "HVAC-00001",
     quantity: 60,
     minStockLevel: 12,
+    reorderPoint: 20,
+    reorderQuantity: 60,
+    supplier: "HVAC Depot",
   },
   {
     category: "TOOLS",
@@ -206,7 +217,9 @@ const inventoryItems: SeedItem[] = [
     serialNumber: "SAFE-00002",
     quantity: 2,
     minStockLevel: 3,
-  }, // low stock
+    reorderQuantity: 10,
+    supplier: "SafetyFirst Co.",
+  }, // low stock — will auto-reorder on the next daily run
   {
     category: "BUILDING_MATERIALS",
     name: "Joint Compound (1-gallon)",
@@ -221,7 +234,9 @@ const inventoryItems: SeedItem[] = [
     serialNumber: "ELEC-00003",
     quantity: 4,
     minStockLevel: 5,
-  }, // low stock
+    reorderQuantity: 12,
+    supplier: "Grainger Industrial Supply",
+  }, // low stock — will auto-reorder on the next daily run
   {
     category: "PLUMBING",
     name: 'PVC Coupling (2")',

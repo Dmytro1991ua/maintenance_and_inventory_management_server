@@ -6,6 +6,7 @@ enum NotificationType {
   TASK_DUE_SOON
   WORK_ORDER_APPROVED
   WORK_ORDER_REJECTED
+  REORDER_RAISED
 }
 
 model Notification {

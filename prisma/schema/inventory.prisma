@@ -16,9 +16,17 @@ model InventoryItem {
   category      InventoryCategory
   quantity      Int
   minStockLevel Int
-  taskUsages    TaskPartUsage[]
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  // Auto-reorder configuration. reorderPoint is the quantity at or below which
+  // the daily job raises a reorder; when null it falls back to minStockLevel.
+  // reorderQuantity is how many units to order; when null the service falls
+  // back to a top-up default. Both nullable so existing/seed rows stay valid.
+  reorderPoint    Int?
+  reorderQuantity Int?
+  supplier        String?
+  taskUsages      TaskPartUsage[]
+  reorders        Reorder[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   @@map("inventory_items")
 }

@@ -28,6 +28,9 @@ export const INVENTORY_SELECT = {
   category: true,
   quantity: true,
   minStockLevel: true,
+  reorderPoint: true,
+  reorderQuantity: true,
+  supplier: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.InventoryItemSelect;
@@ -43,6 +46,9 @@ export const INVENTORY_SQL_SELECT = Prisma.sql`
   category,
   quantity,
   "minStockLevel",
+  "reorderPoint",
+  "reorderQuantity",
+  supplier,
   "createdAt",
   "updatedAt"
 `;

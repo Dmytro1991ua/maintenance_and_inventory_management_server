@@ -4,7 +4,17 @@ import { prisma } from "../../../src/config";
 import type { InventoryItem } from "../../../src/generated/prisma/client";
 
 type CreateTestInventoryItemOptions = Partial<
-  Pick<InventoryItem, "name" | "serialNumber" | "category" | "quantity" | "minStockLevel">
+  Pick<
+    InventoryItem,
+    | "name"
+    | "serialNumber"
+    | "category"
+    | "quantity"
+    | "minStockLevel"
+    | "reorderPoint"
+    | "reorderQuantity"
+    | "supplier"
+  >
 >;
 
 export const createTestInventoryItem = (
@@ -17,5 +27,8 @@ export const createTestInventoryItem = (
       category: options.category ?? "TOOLS",
       quantity: options.quantity ?? 12,
       minStockLevel: options.minStockLevel ?? 5,
+      ...(options.reorderPoint !== undefined && { reorderPoint: options.reorderPoint }),
+      ...(options.reorderQuantity !== undefined && { reorderQuantity: options.reorderQuantity }),
+      ...(options.supplier !== undefined && { supplier: options.supplier }),
     },
   });
