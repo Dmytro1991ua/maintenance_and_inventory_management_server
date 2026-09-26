@@ -40,6 +40,26 @@ describe("Reorders routes", () => {
       expect(response.body.data.quantity).toBe(7);
     });
 
+    it("should expose the item's reorder point and supplier on the reorder row", async () => {
+      const admin = await createAdminUser();
+      const item = await createTestInventoryItem({
+        quantity: 2,
+        reorderPoint: 5,
+        reorderQuantity: 10,
+        supplier: "Acme Supplies",
+      });
+
+      const response = await raise(signTestAccessToken(admin), item.id);
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.inventoryItem).toMatchObject({
+        quantity: 2,
+        minStockLevel: 5,
+        reorderPoint: 5,
+        supplier: "Acme Supplies",
+      });
+    });
+
     it("should reject a second open reorder for the same item with 409", async () => {
       const admin = await createAdminUser();
       const item = await createTestInventoryItem({ quantity: 2, reorderQuantity: 10 });

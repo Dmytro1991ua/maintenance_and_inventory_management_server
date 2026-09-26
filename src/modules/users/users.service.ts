@@ -36,6 +36,8 @@ const normalizePreferences = (raw: unknown) => {
     LOW_STOCK: stored.LOW_STOCK !== false,
     OUT_OF_STOCK: stored.OUT_OF_STOCK !== false,
     TASK_OVERDUE: stored.TASK_OVERDUE !== false,
+    TASK_DUE_SOON: stored.TASK_DUE_SOON !== false,
+    REORDER_RAISED: stored.REORDER_RAISED !== false,
   };
 };
 

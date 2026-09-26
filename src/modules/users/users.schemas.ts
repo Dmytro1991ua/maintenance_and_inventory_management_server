@@ -74,6 +74,8 @@ export const NotificationPreferencesSchema = z
     LOW_STOCK: z.boolean().optional().openapi({ example: true }),
     OUT_OF_STOCK: z.boolean().optional().openapi({ example: true }),
     TASK_OVERDUE: z.boolean().optional().openapi({ example: false }),
+    TASK_DUE_SOON: z.boolean().optional().openapi({ example: true }),
+    REORDER_RAISED: z.boolean().optional().openapi({ example: true }),
   })
   .strict()
   .openapi("NotificationPreferencesInput");
@@ -123,6 +125,8 @@ export const NotificationPreferencesResponseSchema = z
       LOW_STOCK: z.boolean(),
       OUT_OF_STOCK: z.boolean(),
       TASK_OVERDUE: z.boolean(),
+      TASK_DUE_SOON: z.boolean(),
+      REORDER_RAISED: z.boolean(),
     }),
   })
   .openapi("NotificationPreferencesResponse");
