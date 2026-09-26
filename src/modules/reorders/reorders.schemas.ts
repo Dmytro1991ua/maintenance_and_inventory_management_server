@@ -44,6 +44,8 @@ export const ReorderSchema = z
       serialNumber: z.string(),
       quantity: z.number().int(),
       minStockLevel: z.number().int(),
+      reorderPoint: z.number().int().nullable(),
+      supplier: z.string().nullable(),
     }),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),

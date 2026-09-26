@@ -12,7 +12,15 @@ export const REORDER_SELECT = {
   createdAt: true,
   updatedAt: true,
   inventoryItem: {
-    select: { id: true, name: true, serialNumber: true, quantity: true, minStockLevel: true },
+    select: {
+      id: true,
+      name: true,
+      serialNumber: true,
+      quantity: true,
+      minStockLevel: true,
+      reorderPoint: true,
+      supplier: true,
+    },
   },
 } satisfies Prisma.ReorderSelect;
 

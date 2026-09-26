@@ -18,7 +18,13 @@ describe("GET /api/v1/users/me/notification-preferences", () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       success: true,
-      data: { LOW_STOCK: true, OUT_OF_STOCK: true, TASK_OVERDUE: true },
+      data: {
+        LOW_STOCK: true,
+        OUT_OF_STOCK: true,
+        TASK_OVERDUE: true,
+        TASK_DUE_SOON: true,
+        REORDER_RAISED: true,
+      },
     });
   });
 
@@ -41,7 +47,13 @@ describe("PATCH /api/v1/users/me/notification-preferences", () => {
     expect(response.status).toBe(200);
     expect(response.body).toEqual({
       success: true,
-      data: { LOW_STOCK: true, OUT_OF_STOCK: true, TASK_OVERDUE: false },
+      data: {
+        LOW_STOCK: true,
+        OUT_OF_STOCK: true,
+        TASK_OVERDUE: false,
+        TASK_DUE_SOON: true,
+        REORDER_RAISED: true,
+      },
     });
   });
 
@@ -69,6 +81,8 @@ describe("PATCH /api/v1/users/me/notification-preferences", () => {
       LOW_STOCK: false,
       OUT_OF_STOCK: false,
       TASK_OVERDUE: true,
+      TASK_DUE_SOON: true,
+      REORDER_RAISED: true,
     });
   });
 
@@ -134,7 +148,12 @@ describe("Notification preference guard in createMany", () => {
       .send({ TASK_OVERDUE: false });
 
     const result = await notificationsService.createMany(NotificationType.TASK_OVERDUE, [
-      { type: NotificationType.TASK_OVERDUE, message: "Task overdue", userId: user.id, relatedEntityId: "task-1" },
+      {
+        type: NotificationType.TASK_OVERDUE,
+        message: "Task overdue",
+        userId: user.id,
+        relatedEntityId: "task-1",
+      },
     ]);
 
     expect(result.created).toBe(0);
@@ -144,12 +163,39 @@ describe("Notification preference guard in createMany", () => {
     expect(saved).toBeNull();
   });
 
+  it("should not create REORDER_RAISED notifications for users who opted out", async () => {
+    const user = await createTestUser();
+    const token = signTestAccessToken(user);
+
+    await request(app)
+      .patch("/api/v1/users/me/notification-preferences")
+      .set(authHeader(token))
+      .send({ REORDER_RAISED: false });
+
+    const result = await notificationsService.createMany(NotificationType.REORDER_RAISED, [
+      {
+        type: NotificationType.REORDER_RAISED,
+        message: "Reorder raised",
+        userId: user.id,
+        relatedEntityId: "reorder-1",
+      },
+    ]);
+
+    expect(result.created).toBe(0);
+    expect(result.skipped).toBe(1);
+  });
+
   it("should create TASK_OVERDUE notifications for users who have it enabled", async () => {
     const user = await createTestUser();
 
     // Default — all types enabled
     const result = await notificationsService.createMany(NotificationType.TASK_OVERDUE, [
-      { type: NotificationType.TASK_OVERDUE, message: "Task overdue", userId: user.id, relatedEntityId: "task-2" },
+      {
+        type: NotificationType.TASK_OVERDUE,
+        message: "Task overdue",
+        userId: user.id,
+        relatedEntityId: "task-2",
+      },
     ]);
 
     expect(result.created).toBe(1);
@@ -169,8 +215,18 @@ describe("Notification preference guard in createMany", () => {
       .send({ LOW_STOCK: false });
 
     await notificationsService.createMany(NotificationType.LOW_STOCK, [
-      { type: NotificationType.LOW_STOCK, message: "Low stock alert", userId: manager1.id, relatedEntityId: "item-1" },
-      { type: NotificationType.LOW_STOCK, message: "Low stock alert", userId: manager2.id, relatedEntityId: "item-1" },
+      {
+        type: NotificationType.LOW_STOCK,
+        message: "Low stock alert",
+        userId: manager1.id,
+        relatedEntityId: "item-1",
+      },
+      {
+        type: NotificationType.LOW_STOCK,
+        message: "Low stock alert",
+        userId: manager2.id,
+        relatedEntityId: "item-1",
+      },
     ]);
 
     const [n1, n2] = await Promise.all([
@@ -187,12 +243,22 @@ describe("Notification preference guard in createMany", () => {
 
     // First notification — should be created
     await notificationsService.createMany(NotificationType.OUT_OF_STOCK, [
-      { type: NotificationType.OUT_OF_STOCK, message: "Out of stock", userId: admin.id, relatedEntityId: "item-2" },
+      {
+        type: NotificationType.OUT_OF_STOCK,
+        message: "Out of stock",
+        userId: admin.id,
+        relatedEntityId: "item-2",
+      },
     ]);
 
     // Second call with same entity — should be deduplicated (not duplicated)
     const result = await notificationsService.createMany(NotificationType.OUT_OF_STOCK, [
-      { type: NotificationType.OUT_OF_STOCK, message: "Out of stock", userId: admin.id, relatedEntityId: "item-2" },
+      {
+        type: NotificationType.OUT_OF_STOCK,
+        message: "Out of stock",
+        userId: admin.id,
+        relatedEntityId: "item-2",
+      },
     ]);
 
     expect(result.created).toBe(0);
