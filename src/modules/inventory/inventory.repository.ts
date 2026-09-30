@@ -95,18 +95,33 @@ export const inventoryRepository = {
       inStock: number;
       lowStock: number;
       outOfStock: number;
+      stockValue: string;
+      unvaluedItems: number;
     };
 
-    const rows = await prisma.$queryRaw<CategoryRow[]>`
-      SELECT
-        category::text,
-        (COUNT(*))::int                                                                        AS total,
-        (COUNT(*) FILTER (WHERE quantity >= "minStockLevel"))::int                             AS "inStock",
-        (COUNT(*) FILTER (WHERE quantity > 0 AND quantity < "minStockLevel"))::int             AS "lowStock",
-        (COUNT(*) FILTER (WHERE quantity = 0))::int                                            AS "outOfStock"
-      FROM inventory_items
-      GROUP BY category
-    `;
+    // stockValue: SUM(quantity × unitCost) over priced items only, kept exact in
+    // NUMERIC and returned as a fixed 2-decimal string. The grand total is summed
+    // in SQL (not JS) so money never passes through a float. unvaluedItems counts
+    // items with no price, so the value is never silently understated.
+    const [rows, [totals]] = await Promise.all([
+      prisma.$queryRaw<CategoryRow[]>`
+        SELECT
+          category::text,
+          (COUNT(*))::int                                                             AS total,
+          (COUNT(*) FILTER (WHERE quantity >= "minStockLevel"))::int                  AS "inStock",
+          (COUNT(*) FILTER (WHERE quantity > 0 AND quantity < "minStockLevel"))::int  AS "lowStock",
+          (COUNT(*) FILTER (WHERE quantity = 0))::int                                 AS "outOfStock",
+          (COALESCE(SUM(quantity * "unitCost") FILTER (WHERE "unitCost" IS NOT NULL), 0))::numeric(14, 2)::text AS "stockValue",
+          (COUNT(*) FILTER (WHERE "unitCost" IS NULL))::int                           AS "unvaluedItems"
+        FROM inventory_items
+        GROUP BY category
+      `,
+      prisma.$queryRaw<[{ stockValue: string }]>`
+        SELECT
+          (COALESCE(SUM(quantity * "unitCost") FILTER (WHERE "unitCost" IS NOT NULL), 0))::numeric(14, 2)::text AS "stockValue"
+        FROM inventory_items
+      `,
+    ]);
 
     const byCategory = Object.fromEntries(
       rows.map(({ category, ...counts }) => [category, counts]),
@@ -117,6 +132,8 @@ export const inventoryRepository = {
       inStock: rows.reduce((s, r) => s + r.inStock, 0),
       lowStock: rows.reduce((s, r) => s + r.lowStock, 0),
       outOfStock: rows.reduce((s, r) => s + r.outOfStock, 0),
+      stockValue: totals.stockValue,
+      unvaluedItems: rows.reduce((s, r) => s + r.unvaluedItems, 0),
       byCategory,
     };
   },

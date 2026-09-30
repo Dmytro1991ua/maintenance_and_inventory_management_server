@@ -8,6 +8,7 @@ import type {
   RestockInventoryItem,
   UpdateInventoryItem,
 } from "./inventory.schemas";
+import { serializeInventoryItem } from "./inventory.utils";
 
 export const inventoryService = {
   getCategories: () => [...INVENTORY_CATEGORIES],
@@ -16,10 +17,17 @@ export const inventoryService = {
 
   // Supports pagination, search, sorting, lowStock, and category filters.
   findAll: async (query: InventoryQuery) => {
-    return inventoryRepository.findAll(query);
+    const result = await inventoryRepository.findAll(query);
+
+    return { ...result, data: result.data.map(serializeInventoryItem) };
   },
   findById: async (id: string) => {
-    return findOrThrow(() => inventoryRepository.findById(id), INVENTORY_ITEM_NOT_FOUND_MESSAGE);
+    const item = await findOrThrow(
+      () => inventoryRepository.findById(id),
+      INVENTORY_ITEM_NOT_FOUND_MESSAGE,
+    );
+
+    return serializeInventoryItem(item);
   },
   // Serial numbers must be globally unique — enforced at service level (UX)
   // and by DB UNIQUE constraint (race condition safety).
@@ -28,19 +36,19 @@ export const inventoryService = {
 
     if (existingInventoryItem) throw new ConflictError("Serial number already exists");
 
-    return inventoryRepository.create(data);
+    return serializeInventoryItem(await inventoryRepository.create(data));
   },
   // serialNumber is intentionally not updatable —
   // it's a physical identifier that should never change after creation.
   update: async (id: string, data: UpdateInventoryItem) => {
     await findOrThrow(() => inventoryRepository.findById(id), INVENTORY_ITEM_NOT_FOUND_MESSAGE);
 
-    return inventoryRepository.update(id, data);
+    return serializeInventoryItem(await inventoryRepository.update(id, data));
   },
   restock: async (id: string, data: RestockInventoryItem) => {
     await findOrThrow(() => inventoryRepository.findById(id), INVENTORY_ITEM_NOT_FOUND_MESSAGE);
 
-    return inventoryRepository.restock(id, data);
+    return serializeInventoryItem(await inventoryRepository.restock(id, data));
   },
   delete: async (id: string): Promise<void> => {
     await findOrThrow(() => inventoryRepository.findById(id), INVENTORY_ITEM_NOT_FOUND_MESSAGE);

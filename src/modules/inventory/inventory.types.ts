@@ -13,6 +13,8 @@ export type InventoryItemDTO = {
   reorderPoint: number | null;
   reorderQuantity: number | null;
   supplier: string | null;
+  // Cast to text in the raw SELECT, so it arrives as a 2-decimal string ("8.50").
+  unitCost: string | null;
   createdAt: Date;
   updatedAt: Date;
 };

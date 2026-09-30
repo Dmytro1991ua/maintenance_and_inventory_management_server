@@ -37,6 +37,14 @@ export const buildRawWhere = (
   `;
 };
 
+// Normalizes an item's unitCost to a fixed 2-decimal string (or null) at the response edge, so the ORM path (Prisma.Decimal) and the raw-SQL path (text)
+export const serializeInventoryItem = <T extends { unitCost: Prisma.Decimal | string | null }>(
+  item: T,
+): Omit<T, "unitCost"> & { unitCost: string | null } => ({
+  ...item,
+  unitCost: item.unitCost == null ? null : new Prisma.Decimal(item.unitCost).toFixed(2),
+});
+
 export const buildLowStockMessage = (
   name: string,
   quantity: number,

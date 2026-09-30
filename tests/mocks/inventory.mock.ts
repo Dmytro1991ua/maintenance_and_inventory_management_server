@@ -10,6 +10,7 @@ export const buildInventoryItem = (overrides: Partial<InventoryItem> = {}) => ({
   reorderPoint: null,
   reorderQuantity: null,
   supplier: null,
+  unitCost: null,
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   updatedAt: new Date("2026-01-01T00:00:00.000Z"),
   ...overrides,

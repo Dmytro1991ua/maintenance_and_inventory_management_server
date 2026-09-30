@@ -23,6 +23,10 @@ model InventoryItem {
   reorderPoint    Int?
   reorderQuantity Int?
   supplier        String?
+  // Standard purchase cost per unit. Nullable — items are "unpriced" until set;
+  // valuation reports count unpriced items separately rather than treating them
+  // as $0. NUMERIC(12,2) keeps money exact through raw-SQL SUM aggregation.
+  unitCost        Decimal?          @db.Decimal(12, 2)
   taskUsages      TaskPartUsage[]
   reorders        Reorder[]
   createdAt       DateTime          @default(now())

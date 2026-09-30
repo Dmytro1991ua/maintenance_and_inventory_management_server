@@ -7,6 +7,16 @@ export { INVENTORY_CATEGORIES };
 export const InventoryCategoryEnum = z.enum(INVENTORY_CATEGORIES);
 export const InventoryStatusEnum = z.enum(INVENTORY_STATUSES);
 
+// Money is handled as a string end to end (stored as NUMERIC, returned as a
+// string) to stay exact. The regex enforces non-negative with at most 2 decimal
+// places; z.coerce.string() also accepts a JSON number (e.g. 8.5) from clients.
+const UnitCostInput = z.coerce
+  .string()
+  .regex(/^\d{1,10}(\.\d{1,2})?$/, {
+    error: "Unit cost must be a non-negative amount with up to 2 decimal places",
+  })
+  .openapi({ example: "8.50" });
+
 export const InventoryQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1).openapi({ example: 1 }),
@@ -55,6 +65,7 @@ export const CreateInventoryItemSchema = z
       .optional()
       .openapi({ example: 20 }),
     supplier: z.string().max(200).optional().openapi({ example: "Acme Supplies" }),
+    unitCost: UnitCostInput.optional(),
   })
   .openapi("CreateInventoryItemInput");
 
@@ -94,6 +105,8 @@ export const UpdateInventoryItemSchema = z
       .optional()
       .openapi({ example: 20 }),
     supplier: z.string().max(200).nullable().optional().openapi({ example: "Acme Supplies" }),
+    // Nullable so a manager can clear a price back to "unpriced".
+    unitCost: UnitCostInput.nullable().optional(),
   })
   .strict()
   .openapi("UpdateInventoryItemInput");
@@ -125,6 +138,7 @@ export const InventoryItemSchema = z
     reorderPoint: z.number().nullable(),
     reorderQuantity: z.number().nullable(),
     supplier: z.string().nullable(),
+    unitCost: z.string().nullable().openapi({ example: "8.50" }),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })
@@ -162,6 +176,11 @@ const CategoryStatsSchema = z.object({
   inStock: z.number().int(),
   lowStock: z.number().int(),
   outOfStock: z.number().int(),
+  // Total value of priced stock (quantity × unitCost), as an exact money string.
+  stockValue: z.string().openapi({ example: "1250.00" }),
+  // Items with no unitCost set — excluded from stockValue, surfaced so the total
+  // is never silently understated.
+  unvaluedItems: z.number().int(),
 });
 
 export const InventoryStatsResponseSchema = z
