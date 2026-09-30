@@ -102,6 +102,9 @@ type SeedItem = {
   reorderPoint?: number;
   reorderQuantity?: number;
   supplier?: string;
+  // Standard purchase cost per unit, as a money string. Left off most items so
+  // the valuation report's "unpriced items" path is exercised.
+  unitCost?: string;
 };
 
 const inventoryItems: SeedItem[] = [
@@ -115,6 +118,7 @@ const inventoryItems: SeedItem[] = [
     reorderPoint: 15,
     reorderQuantity: 50,
     supplier: "Grainger Industrial Supply",
+    unitCost: "12.50",
   },
   {
     category: "PLUMBING",
@@ -132,6 +136,7 @@ const inventoryItems: SeedItem[] = [
     reorderPoint: 20,
     reorderQuantity: 60,
     supplier: "HVAC Depot",
+    unitCost: "8.50",
   },
   {
     category: "TOOLS",
@@ -219,6 +224,7 @@ const inventoryItems: SeedItem[] = [
     minStockLevel: 3,
     reorderQuantity: 10,
     supplier: "SafetyFirst Co.",
+    unitCost: "34.99",
   }, // low stock — will auto-reorder on the next daily run
   {
     category: "BUILDING_MATERIALS",
@@ -236,6 +242,7 @@ const inventoryItems: SeedItem[] = [
     minStockLevel: 5,
     reorderQuantity: 12,
     supplier: "Grainger Industrial Supply",
+    unitCost: "18.75",
   }, // low stock — will auto-reorder on the next daily run
   {
     category: "PLUMBING",

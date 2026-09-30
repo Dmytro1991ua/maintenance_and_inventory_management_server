@@ -15,7 +15,10 @@ type CreateTestInventoryItemOptions = Partial<
     | "reorderQuantity"
     | "supplier"
   >
->;
+> & {
+  // Accept money as a string for ergonomics; Prisma coerces it to Decimal.
+  unitCost?: string;
+};
 
 export const createTestInventoryItem = (
   options: CreateTestInventoryItemOptions = {},
@@ -30,5 +33,6 @@ export const createTestInventoryItem = (
       ...(options.reorderPoint !== undefined && { reorderPoint: options.reorderPoint }),
       ...(options.reorderQuantity !== undefined && { reorderQuantity: options.reorderQuantity }),
       ...(options.supplier !== undefined && { supplier: options.supplier }),
+      ...(options.unitCost !== undefined && { unitCost: options.unitCost }),
     },
   });

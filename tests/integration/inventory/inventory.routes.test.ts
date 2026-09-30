@@ -103,6 +103,99 @@ describe("GET /api/v1/inventory/stats", () => {
 
     expect(response.status).toBe(401);
   });
+
+  it("should value priced stock and count unpriced items separately", async () => {
+    const technician = await createTechnicianUser();
+    // ELECTRICAL: 10 × 12.50 + 2 × 5.00 = 135.00, all priced.
+    await createTestInventoryItem({ category: "ELECTRICAL", quantity: 10, unitCost: "12.50" });
+    await createTestInventoryItem({ category: "ELECTRICAL", quantity: 2, unitCost: "5.00" });
+    // PLUMBING: one unpriced item — contributes 0 to value, 1 to unvaluedItems.
+    await createTestInventoryItem({ category: "PLUMBING", quantity: 5 });
+
+    const response = await request(app)
+      .get("/api/v1/inventory/stats")
+      .set(authHeader(signTestAccessToken(technician)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.stockValue).toBe("135.00");
+    expect(response.body.data.unvaluedItems).toBe(1);
+    expect(response.body.data.byCategory.ELECTRICAL.stockValue).toBe("135.00");
+    expect(response.body.data.byCategory.ELECTRICAL.unvaluedItems).toBe(0);
+    expect(response.body.data.byCategory.PLUMBING.stockValue).toBe("0.00");
+    expect(response.body.data.byCategory.PLUMBING.unvaluedItems).toBe(1);
+  });
+});
+
+describe("inventory unit cost", () => {
+  it("should persist unitCost on create and return it as a 2-decimal string", async () => {
+    const manager = await createManagerUser();
+
+    const response = await request(app)
+      .post("/api/v1/inventory")
+      .set(authHeader(signTestAccessToken(manager)))
+      .send({
+        name: "Priced Item",
+        serialNumber: "PRICED-001",
+        category: "TOOLS",
+        quantity: 5,
+        minStockLevel: 2,
+        unitCost: "8.5",
+      });
+
+    expect(response.status).toBe(201);
+    expect(response.body.data.unitCost).toBe("8.50");
+  });
+
+  it("should return null unitCost for an unpriced item", async () => {
+    const technician = await createTechnicianUser();
+    const item = await createTestInventoryItem();
+
+    const response = await request(app)
+      .get(`/api/v1/inventory/${item.id}`)
+      .set(authHeader(signTestAccessToken(technician)));
+
+    expect(response.status).toBe(200);
+    expect(response.body.data.unitCost).toBeNull();
+  });
+
+  it("should allow setting and clearing unitCost on update", async () => {
+    const manager = await createManagerUser();
+    const item = await createTestInventoryItem({ unitCost: "10.00" });
+    const token = signTestAccessToken(manager);
+
+    const set = await request(app)
+      .patch(`/api/v1/inventory/${item.id}`)
+      .set(authHeader(token))
+      .send({ unitCost: "3.25" });
+    expect(set.status).toBe(200);
+    expect(set.body.data.unitCost).toBe("3.25");
+
+    const cleared = await request(app)
+      .patch(`/api/v1/inventory/${item.id}`)
+      .set(authHeader(token))
+      .send({ unitCost: null });
+    expect(cleared.status).toBe(200);
+    expect(cleared.body.data.unitCost).toBeNull();
+  });
+
+  it("should reject a unitCost with more than two decimal places", async () => {
+    const manager = await createManagerUser();
+
+    const response = await request(app)
+      .post("/api/v1/inventory")
+      .set(authHeader(signTestAccessToken(manager)))
+      .send({
+        name: "Bad Price",
+        serialNumber: "BADPRICE-001",
+        category: "TOOLS",
+        quantity: 1,
+        minStockLevel: 1,
+        unitCost: "8.999",
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error.code).toBe("VALIDATION_ERROR");
+  });
 });
 
 describe("GET /api/v1/inventory/:id", () => {

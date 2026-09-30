@@ -31,6 +31,7 @@ export const INVENTORY_SELECT = {
   reorderPoint: true,
   reorderQuantity: true,
   supplier: true,
+  unitCost: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.InventoryItemSelect;
@@ -49,6 +50,9 @@ export const INVENTORY_SQL_SELECT = Prisma.sql`
   "reorderPoint",
   "reorderQuantity",
   supplier,
+  -- Cast to text so NUMERIC comes back as a fixed 2-decimal string ("8.50"),
+  -- matching how the ORM path's Decimal is serialized at the edge.
+  "unitCost"::text AS "unitCost",
   "createdAt",
   "updatedAt"
 `;
