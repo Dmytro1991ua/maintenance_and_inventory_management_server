@@ -102,9 +102,105 @@ type SeedItem = {
   reorderPoint?: number;
   reorderQuantity?: number;
   supplier?: string;
-  // Standard purchase cost per unit, as a money string. Left off most items so
-  // the valuation report's "unpriced items" path is exercised.
-  unitCost?: string;
+};
+
+// Standard purchase cost per unit, keyed by serial number, as money strings.
+// A single source for seed pricing — a handful of items are intentionally left
+// out so the valuation report's "unpriced items" path stays exercised.
+const UNIT_COSTS: Record<string, string> = {
+  // Electrical
+  "ELEC-00001": "12.50",
+  "ELEC-00002": "6.25",
+  "ELEC-00003": "18.75",
+  "ELEC-00004": "24.00",
+  "ELEC-00005": "15.00",
+  "ELEC-00006": "1.75",
+  "ELEC-00007": "7.50",
+  "ELEC-00008": "16.50",
+  // ELEC-00009 (Light Switch) left unpriced
+  "ELEC-00010": "9.00",
+  "ELEC-00011": "5.50",
+  "ELEC-00012": "2.75",
+  "ELEC-00013": "28.00",
+  "ELEC-00014": "14.00",
+  "ELEC-00015": "18.00",
+  // Plumbing
+  "PLMB-00001": "11.00",
+  "PLMB-00002": "2.50",
+  "PLMB-00003": "1.95",
+  // PLMB-00004 (Pipe Thread Tape) left unpriced
+  "PLMB-00005": "8.75",
+  "PLMB-00006": "12.00",
+  "PLMB-00007": "6.50",
+  "PLMB-00008": "5.25",
+  "PLMB-00009": "4.50",
+  "PLMB-00010": "3.75",
+  "PLMB-00011": "7.25",
+  "PLMB-00012": "6.00",
+  // HVAC
+  "HVAC-00001": "8.50",
+  "HVAC-00002": "9.25",
+  "HVAC-00003": "6.75",
+  "HVAC-00004": "5.00",
+  "HVAC-00005": "11.50",
+  "HVAC-00006": "12.75",
+  "HVAC-00007": "9.00",
+  "HVAC-00008": "8.25",
+  "HVAC-00009": "185.00",
+  "HVAC-00010": "16.00",
+  // Tools
+  "TOOL-00001": "4.25",
+  "TOOL-00002": "39.99",
+  // TOOL-00003 (Safety Glasses) left unpriced
+  "TOOL-00004": "12.00",
+  "TOOL-00005": "12.00",
+  "TOOL-00006": "14.50",
+  "TOOL-00007": "32.00",
+  "TOOL-00008": "9.75",
+  "TOOL-00009": "26.50",
+  "TOOL-00010": "22.00",
+  // Fasteners
+  "FAST-00001": "6.50",
+  "FAST-00002": "8.00",
+  "FAST-00003": "5.75",
+  "FAST-00004": "7.25",
+  "FAST-00005": "4.00",
+  // FAST-00006 (Flat Washer) left unpriced
+  "FAST-00007": "3.75",
+  "FAST-00008": "6.00",
+  "FAST-00009": "18.50",
+  "FAST-00010": "5.25",
+  "FAST-00011": "6.75",
+  "FAST-00012": "5.50",
+  // Chemicals
+  "CHEM-00001": "9.50",
+  "CHEM-00002": "6.25",
+  "CHEM-00003": "14.00",
+  "CHEM-00004": "7.50",
+  // CHEM-00005 (WD-40) left unpriced
+  "CHEM-00006": "7.00",
+  "CHEM-00007": "11.25",
+  "CHEM-00008": "22.00",
+  "CHEM-00009": "13.50",
+  "CHEM-00010": "8.75",
+  // Safety
+  "SAFE-00001": "45.00",
+  "SAFE-00002": "34.99",
+  "SAFE-00003": "14.50",
+  "SAFE-00004": "9.00",
+  "SAFE-00005": "9.00",
+  "SAFE-00006": "12.00",
+  "SAFE-00007": "16.00",
+  "SAFE-00008": "19.50",
+  // Building materials
+  "BLDG-00001": "13.75",
+  "BLDG-00002": "15.00",
+  "BLDG-00003": "24.50",
+  "BLDG-00004": "8.25",
+  // BLDG-00005 (Painter's Tape) left unpriced
+  "BLDG-00006": "11.00",
+  "BLDG-00007": "5.50",
+  "BLDG-00008": "4.75",
 };
 
 const inventoryItems: SeedItem[] = [
@@ -118,7 +214,6 @@ const inventoryItems: SeedItem[] = [
     reorderPoint: 15,
     reorderQuantity: 50,
     supplier: "Grainger Industrial Supply",
-    unitCost: "12.50",
   },
   {
     category: "PLUMBING",
@@ -136,7 +231,6 @@ const inventoryItems: SeedItem[] = [
     reorderPoint: 20,
     reorderQuantity: 60,
     supplier: "HVAC Depot",
-    unitCost: "8.50",
   },
   {
     category: "TOOLS",
@@ -224,7 +318,6 @@ const inventoryItems: SeedItem[] = [
     minStockLevel: 3,
     reorderQuantity: 10,
     supplier: "SafetyFirst Co.",
-    unitCost: "34.99",
   }, // low stock — will auto-reorder on the next daily run
   {
     category: "BUILDING_MATERIALS",
@@ -242,7 +335,6 @@ const inventoryItems: SeedItem[] = [
     minStockLevel: 5,
     reorderQuantity: 12,
     supplier: "Grainger Industrial Supply",
-    unitCost: "18.75",
   }, // low stock — will auto-reorder on the next daily run
   {
     category: "PLUMBING",
@@ -1309,7 +1401,12 @@ const seed = async (): Promise<void> => {
   }
 
   const { count } = await prisma.inventoryItem.createMany({
-    data: inventoryItems,
+    // Merge each item's standard cost from UNIT_COSTS; items absent from the map
+    // are seeded unpriced (unitCost null).
+    data: inventoryItems.map((item) => ({
+      ...item,
+      ...(UNIT_COSTS[item.serialNumber] && { unitCost: UNIT_COSTS[item.serialNumber] }),
+    })),
     skipDuplicates: true, // re-runs won't overwrite live quantity changes
   });
 
