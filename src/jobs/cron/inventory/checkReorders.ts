@@ -19,7 +19,13 @@ type Recipient = { id: string };
 // P2002). Any other error is a real failure and propagates.
 const raiseReorder = async (item: ItemNeedingReorder, quantity: number) => {
   try {
-    return await reordersRepository.raise({ inventoryItemId: item.id, quantity, raisedBy: null });
+    return await reordersRepository.raise({
+      inventoryItemId: item.id,
+      quantity,
+      raisedBy: null,
+      // Snapshot the item's cost at raise time (null when the item is unpriced).
+      unitCostAtRaise: item.unitCost,
+    });
   } catch (err) {
     if (isUniqueConstraintError(err)) return null;
 

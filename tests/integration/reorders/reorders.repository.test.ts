@@ -35,6 +35,17 @@ describe("reordersRepository.findItemsNeedingReorder", () => {
     expect(ids).toEqual([belowFallback.id, atReorderPoint.id, withCancelled.id].sort());
   });
 
+  it("returns the item's unit cost as a 2-decimal string (or null when unpriced)", async () => {
+    const priced = await createTestInventoryItem({ quantity: 1, minStockLevel: 5, unitCost: "8.5" });
+    const unpriced = await createTestInventoryItem({ quantity: 1, minStockLevel: 5 });
+
+    const items = await reordersRepository.findItemsNeedingReorder();
+    const byId = new Map(items.map((i) => [i.id, i.unitCost]));
+
+    expect(byId.get(priced.id)).toBe("8.50");
+    expect(byId.get(unpriced.id)).toBeNull();
+  });
+
   it("does not raise for an item one unit above its reorder point", async () => {
     // reorderPoint 5, quantity 6 → 6 <= 5 is false, so it must be excluded even
     // though it sits below minStockLevel (guards against a flipped comparison).

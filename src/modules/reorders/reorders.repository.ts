@@ -15,9 +15,17 @@ export type ItemNeedingReorder = {
   minStockLevel: number;
   reorderPoint: number | null;
   reorderQuantity: number | null;
+  // Cast to text in the raw SELECT, so it arrives as a 2-decimal string ("8.50").
+  unitCost: string | null;
 };
 
-type RaiseInput = { inventoryItemId: string; quantity: number; raisedBy: string | null };
+type RaiseInput = {
+  inventoryItemId: string;
+  quantity: number;
+  raisedBy: string | null;
+  // Snapshot of the item's unitCost at raise time; null when the item is unpriced.
+  unitCostAtRaise: string | null;
+};
 
 const buildWhere = (
   status: ReordersQuery["status"],
@@ -61,9 +69,9 @@ export const reordersRepository = {
   // Inserts a PENDING reorder. The partial unique index
   // (reorders_one_open_per_item) enforces at most one open reorder per item —
   // a concurrent raise loses the race here with a P2002 the caller translates.
-  raise: ({ inventoryItemId, quantity, raisedBy }: RaiseInput) =>
+  raise: ({ inventoryItemId, quantity, raisedBy, unitCostAtRaise }: RaiseInput) =>
     prisma.reorder.create({
-      data: { inventoryItemId, quantity, raisedBy },
+      data: { inventoryItemId, quantity, raisedBy, unitCostAtRaise },
       select: REORDER_SELECT,
     }),
   // Guarded PENDING → ORDERED. The conditional updateMany is the real race
@@ -130,7 +138,8 @@ export const reordersRepository = {
         i.quantity,
         i."minStockLevel",
         i."reorderPoint",
-        i."reorderQuantity"
+        i."reorderQuantity",
+        i."unitCost"::text AS "unitCost"
       FROM inventory_items i
       WHERE i.quantity <= COALESCE(i."reorderPoint", i."minStockLevel")
         AND NOT EXISTS (
@@ -139,4 +148,23 @@ export const reordersRepository = {
             AND r.status IN ('PENDING', 'ORDERED')
         )
     `,
+
+  // Committed spend across OPEN reorders (PENDING + ORDERED only — RECEIVED and
+  // CANCELLED are excluded, so the figure drops as orders are received/cancelled).
+  // The SUM stays NUMERIC and casts to text; orders with no captured cost are
+  // excluded from the total and counted separately, never treated as $0.
+  getStats: async () => {
+    const [row] = await prisma.$queryRaw<
+      [{ committedSpend: string; openOrders: number; unpricedOrders: number }]
+    >`
+      SELECT
+        (COALESCE(SUM(quantity * "unitCostAtRaise") FILTER (WHERE "unitCostAtRaise" IS NOT NULL), 0))::numeric(14, 2)::text AS "committedSpend",
+        (COUNT(*))::int                                              AS "openOrders",
+        (COUNT(*) FILTER (WHERE "unitCostAtRaise" IS NULL))::int     AS "unpricedOrders"
+      FROM reorders
+      WHERE status IN ('PENDING', 'ORDERED')
+    `;
+
+    return row;
+  },
 };

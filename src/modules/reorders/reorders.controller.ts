@@ -12,6 +12,11 @@ export const reordersController = {
 
     res.json({ success: true, ...result });
   },
+  getStats: async (_req: Request, res: Response): Promise<void> => {
+    const data = await reordersService.getStats();
+
+    res.json({ success: true, data });
+  },
   create: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) throw new UnauthorizedError("Not authenticated");
 

@@ -7,6 +7,7 @@ export const REORDER_SELECT = {
   inventoryItemId: true,
   status: true,
   quantity: true,
+  unitCostAtRaise: true,
   raisedBy: true,
   reviewedBy: true,
   createdAt: true,

@@ -24,6 +24,12 @@ router.use(authenticate, authorize([Role.ADMIN, Role.MANAGER]));
 router.get("/", validateQuery(ReordersQuerySchema), asyncHandler(reordersController.findAll));
 
 /**
+ * GET /api/v1/reorders/stats
+ * Committed spend across open (PENDING + ORDERED) reorders.
+ */
+router.get("/stats", asyncHandler(reordersController.getStats));
+
+/**
  * POST /api/v1/reorders
  * Manually raise a reorder for an item (status PENDING). Rejected if the item
  * already has an open reorder.
