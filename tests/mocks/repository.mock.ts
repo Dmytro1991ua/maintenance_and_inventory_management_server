@@ -26,6 +26,7 @@ export const inventoryRepositoryMock = {
 export const reordersRepositoryMock = {
   findAll: jest.fn(),
   findById: jest.fn(),
+  getStats: jest.fn(),
   raise: jest.fn(),
   markOrdered: jest.fn(),
   cancel: jest.fn(),

@@ -31,6 +31,7 @@ const buildItem = (overrides: Record<string, unknown> = {}) => ({
   minStockLevel: 5,
   reorderPoint: null,
   reorderQuantity: null,
+  unitCost: null,
   ...overrides,
 });
 
@@ -47,11 +48,13 @@ describe("checkReorders", () => {
     await checkReorders();
 
     expect(usersRepositoryMock.findByRoles).toHaveBeenCalledWith([Role.ADMIN, Role.MANAGER]);
-    // reorderQuantity null → falls back to minStockLevel (5).
+    // reorderQuantity null → falls back to minStockLevel (5); unpriced item →
+    // unitCostAtRaise null.
     expect(reordersRepositoryMock.raise).toHaveBeenCalledWith({
       inventoryItemId: "item-1",
       quantity: 5,
       raisedBy: null,
+      unitCostAtRaise: null,
     });
     expect(createManyMock).toHaveBeenCalledWith(NotificationType.REORDER_RAISED, [
       expect.objectContaining({ userId: "admin-1", relatedEntityId: "reorder-1" }),
@@ -70,6 +73,20 @@ describe("checkReorders", () => {
 
     expect(reordersRepositoryMock.raise).toHaveBeenCalledWith(
       expect.objectContaining({ quantity: 30 }),
+    );
+  });
+
+  it("should snapshot the item's unit cost onto the reorder", async () => {
+    reordersRepositoryMock.findItemsNeedingReorder.mockResolvedValue([
+      buildItem({ unitCost: "8.50" }),
+    ]);
+    usersRepositoryMock.findByRoles.mockResolvedValue([{ id: "admin-1" }]);
+    reordersRepositoryMock.raise.mockResolvedValue({ id: "reorder-1" });
+
+    await checkReorders();
+
+    expect(reordersRepositoryMock.raise).toHaveBeenCalledWith(
+      expect.objectContaining({ unitCostAtRaise: "8.50" }),
     );
   });
 

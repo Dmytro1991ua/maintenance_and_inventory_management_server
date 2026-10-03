@@ -36,6 +36,10 @@ export const ReorderSchema = z
     inventoryItemId: z.uuid(),
     status: ReorderStatusEnum,
     quantity: z.number().int(),
+    // Cost captured at raise time (frozen), and quantity × that cost. Both null
+    // when the item was unpriced when the reorder was raised.
+    unitCostAtRaise: z.string().nullable().openapi({ example: "8.50" }),
+    lineTotal: z.string().nullable().openapi({ example: "510.00" }),
     raisedBy: z.uuid().nullable(),
     reviewedBy: z.uuid().nullable(),
     inventoryItem: z.object({
@@ -58,6 +62,19 @@ export const ReorderResponseSchema = z
     data: ReorderSchema,
   })
   .openapi("ReorderResponse");
+
+export const ReorderStatsResponseSchema = z
+  .object({
+    success: z.literal(true),
+    data: z.object({
+      // Total value of OPEN orders (PENDING + ORDERED), as an exact money string.
+      committedSpend: z.string().openapi({ example: "4210.00" }),
+      openOrders: z.number().int().openapi({ example: 12 }),
+      // Open orders with no captured cost — excluded from committedSpend.
+      unpricedOrders: z.number().int().openapi({ example: 3 }),
+    }),
+  })
+  .openapi("ReorderStatsResponse");
 
 export const ReordersListResponseSchema = z
   .object({

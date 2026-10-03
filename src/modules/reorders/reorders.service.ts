@@ -11,12 +11,27 @@ import {
 } from "./reorders.constants";
 import { reordersRepository } from "./reorders.repository";
 import type { ReordersQuery } from "./reorders.schemas";
-import { isUniqueConstraintError, resolveReorderQuantity } from "./reorders.utils";
+import {
+  isUniqueConstraintError,
+  resolveReorderQuantity,
+  serializeReorder,
+} from "./reorders.utils";
 
 export const reordersService = {
-  findAll: async (query: ReordersQuery) => reordersRepository.findAll(query),
-  findById: async (id: string) =>
-    findOrThrow(() => reordersRepository.findById(id), REORDER_NOT_FOUND_MESSAGE),
+  findAll: async (query: ReordersQuery) => {
+    const result = await reordersRepository.findAll(query);
+
+    return { ...result, data: result.data.map(serializeReorder) };
+  },
+  findById: async (id: string) => {
+    const reorder = await findOrThrow(
+      () => reordersRepository.findById(id),
+      REORDER_NOT_FOUND_MESSAGE,
+    );
+
+    return serializeReorder(reorder);
+  },
+  getStats: async () => reordersRepository.getStats(),
   // Manual raise by an ADMIN/MANAGER. Uses the same guarded insert as the cron:
   // the partial unique index rejects a second open reorder for the item, which
   // we surface as a clean 409 rather than the generic constraint message.
@@ -27,11 +42,15 @@ export const reordersService = {
     );
 
     try {
-      return await reordersRepository.raise({
+      const reorder = await reordersRepository.raise({
         inventoryItemId,
         quantity: resolveReorderQuantity(item),
         raisedBy,
+        // Snapshot the item's current cost; null when the item is unpriced.
+        unitCostAtRaise: item.unitCost == null ? null : item.unitCost.toFixed(2),
       });
+
+      return serializeReorder(reorder);
     } catch (err) {
       if (isUniqueConstraintError(err)) throw new ConflictError(OPEN_REORDER_EXISTS_MESSAGE);
 
@@ -52,7 +71,7 @@ export const reordersService = {
 
     if (!updated) throw new ConflictError(NOT_PENDING_MESSAGE);
 
-    return updated;
+    return serializeReorder(updated);
   },
   receive: async (id: string, reviewedBy: string) => {
     const reorder = await findOrThrow(
@@ -66,7 +85,7 @@ export const reordersService = {
 
     if (!updated) throw new ConflictError(NOT_ORDERED_MESSAGE);
 
-    return updated;
+    return serializeReorder(updated);
   },
   cancel: async (id: string, reviewedBy: string) => {
     const reorder = await findOrThrow(
@@ -82,6 +101,6 @@ export const reordersService = {
 
     if (!updated) throw new ConflictError(NOT_OPEN_MESSAGE);
 
-    return updated;
+    return serializeReorder(updated);
   },
 };

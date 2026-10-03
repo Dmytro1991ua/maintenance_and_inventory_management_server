@@ -5,6 +5,7 @@ import {
   ReorderResponseSchema,
   ReordersListResponseSchema,
   ReordersQuerySchema,
+  ReorderStatsResponseSchema,
 } from "./reorders.schemas";
 
 const bearerAuth = [{ bearerAuth: [] }];
@@ -31,6 +32,22 @@ registry.registerPath({
     200: {
       description: "Paginated list of reorders",
       content: { "application/json": { schema: ReordersListResponseSchema } },
+    },
+    403: forbidden,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/reorders/stats",
+  description:
+    "Committed spend across open (PENDING + ORDERED) reorders. ADMIN/MANAGER only. Orders with no captured cost are excluded from the total and counted as `unpricedOrders`.",
+  tags: ["Reorders"],
+  security: bearerAuth,
+  responses: {
+    200: {
+      description: "Committed-spend summary",
+      content: { "application/json": { schema: ReorderStatsResponseSchema } },
     },
     403: forbidden,
   },

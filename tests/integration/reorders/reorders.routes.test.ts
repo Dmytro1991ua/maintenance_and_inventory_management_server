@@ -40,6 +40,46 @@ describe("Reorders routes", () => {
       expect(response.body.data.quantity).toBe(7);
     });
 
+    it("should snapshot the item's unit cost and expose a line total", async () => {
+      const admin = await createAdminUser();
+      const item = await createTestInventoryItem({
+        quantity: 2,
+        reorderQuantity: 10,
+        unitCost: "8.50",
+      });
+
+      const response = await raise(signTestAccessToken(admin), item.id);
+
+      expect(response.status).toBe(201);
+      // 10 ordered × $8.50 = $85.00, both as fixed 2-decimal strings.
+      expect(response.body.data.unitCostAtRaise).toBe("8.50");
+      expect(response.body.data.lineTotal).toBe("85.00");
+    });
+
+    it("should leave cost null on the reorder when the item is unpriced", async () => {
+      const admin = await createAdminUser();
+      const item = await createTestInventoryItem({ quantity: 1, reorderQuantity: 5 });
+
+      const response = await raise(signTestAccessToken(admin), item.id);
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.unitCostAtRaise).toBeNull();
+      expect(response.body.data.lineTotal).toBeNull();
+    });
+
+    it("should freeze the captured cost even if the item's price later changes", async () => {
+      const admin = await createAdminUser();
+      const item = await createTestInventoryItem({ quantity: 2, reorderQuantity: 4, unitCost: "10.00" });
+      const created = await raise(signTestAccessToken(admin), item.id);
+
+      // Change the item's price after the reorder was raised.
+      await prisma.inventoryItem.update({ where: { id: item.id }, data: { unitCost: "99.00" } });
+
+      const stored = await prisma.reorder.findUniqueOrThrow({ where: { id: created.body.data.id } });
+      // Snapshot is unchanged: 4 × $10.00 committed, not the new $99.00.
+      expect(stored.unitCostAtRaise?.toString()).toBe("10");
+    });
+
     it("should expose the item's reorder point and supplier on the reorder row", async () => {
       const admin = await createAdminUser();
       const item = await createTestInventoryItem({
@@ -209,6 +249,59 @@ describe("Reorders routes", () => {
         .set(authHeader(signTestAccessToken(admin)));
 
       expect(response.status).toBe(404);
+    });
+  });
+
+  describe("GET /api/v1/reorders/stats", () => {
+    it("should sum committed spend across open orders and count unpriced ones", async () => {
+      const admin = await createAdminUser();
+      const token = signTestAccessToken(admin);
+      const priced = await createTestInventoryItem({ quantity: 2, reorderQuantity: 10, unitCost: "8.50" });
+      const unpriced = await createTestInventoryItem({ quantity: 1, reorderQuantity: 5 });
+      await raise(token, priced.id); // 10 × 8.50 = 85.00, PENDING (open)
+      await raise(token, unpriced.id); // no cost → counted as unpriced
+
+      const response = await request(app)
+        .get("/api/v1/reorders/stats")
+        .set(authHeader(token));
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual({
+        committedSpend: "85.00",
+        openOrders: 2,
+        unpricedOrders: 1,
+      });
+    });
+
+    it("should exclude received and cancelled orders from committed spend", async () => {
+      const admin = await createAdminUser();
+      const token = signTestAccessToken(admin);
+      const item = await createTestInventoryItem({ quantity: 2, reorderQuantity: 10, unitCost: "8.50" });
+      const created = await raise(token, item.id);
+      // Order then receive it — it should drop out of committed spend.
+      await request(app).patch(`/api/v1/reorders/${created.body.data.id}/order`).set(authHeader(token));
+      await request(app).patch(`/api/v1/reorders/${created.body.data.id}/receive`).set(authHeader(token));
+
+      const response = await request(app)
+        .get("/api/v1/reorders/stats")
+        .set(authHeader(token));
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toEqual({
+        committedSpend: "0.00",
+        openOrders: 0,
+        unpricedOrders: 0,
+      });
+    });
+
+    it("should forbid a TECHNICIAN", async () => {
+      const tech = await createTechnicianUser();
+
+      const response = await request(app)
+        .get("/api/v1/reorders/stats")
+        .set(authHeader(signTestAccessToken(tech)));
+
+      expect(response.status).toBe(403);
     });
   });
 });

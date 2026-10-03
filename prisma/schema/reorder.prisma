@@ -15,6 +15,11 @@ model Reorder {
   // Units to order — snapshotted from the item's reorderQuantity at raise time
   // so later config changes don't rewrite history.
   quantity        Int
+  // Unit cost captured when the reorder was raised — frozen like quantity, so a
+  // later price change doesn't rewrite what was committed. Null when the item was
+  // unpriced at raise time. "AtRaise" distinguishes it from the item's live
+  // unitCost on the joined row.
+  unitCostAtRaise Decimal?      @db.Decimal(12, 2)
   // Audit only (no FK), like task.cancelledBy. null raisedBy = system/cron.
   raisedBy        String?
   reviewedBy      String?
