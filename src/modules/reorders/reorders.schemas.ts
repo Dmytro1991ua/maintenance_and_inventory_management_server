@@ -31,7 +31,10 @@ export const ReorderIdParamSchema = z.object({
 
 export const ReceiveReorderSchema = z
   .object({
-    receivedUnitCost: MoneyInput.optional().openapi({ example: "9.00" }),
+    // Optional actual price paid. null is accepted as "not recorded" too: without
+    // .nullable(), z.coerce.string() would turn a form's null into the string
+    // "null" and fail the money regex with a misleading message.
+    receivedUnitCost: MoneyInput.nullable().optional().openapi({ example: "9.00" }),
   })
   .strict()
   .openapi("ReceiveReorderInput");

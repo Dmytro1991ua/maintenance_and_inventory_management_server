@@ -311,6 +311,24 @@ describe("Reorders routes", () => {
       expect(response.body.data.variance).toBeNull();
     });
 
+    it("should accept an explicit null receivedUnitCost as 'not recorded'", async () => {
+      const admin = await createAdminUser();
+      const token = signTestAccessToken(admin);
+      const item = await createTestInventoryItem({ quantity: 2, reorderQuantity: 10, unitCost: "8.50" });
+      const created = await raise(token, item.id);
+
+      // Form clients often send null for an empty field.
+      const response = await orderAndReceive(token, created.body.data.id, {
+        receivedUnitCost: null,
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.status).toBe("RECEIVED");
+      expect(response.body.data.receivedUnitCost).toBeNull();
+      expect(response.body.data.receivedTotal).toBeNull();
+      expect(response.body.data.variance).toBeNull();
+    });
+
     it("should record an actual even with no estimate, leaving variance null", async () => {
       const admin = await createAdminUser();
       const token = signTestAccessToken(admin);
