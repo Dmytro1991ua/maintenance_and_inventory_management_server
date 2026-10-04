@@ -8,7 +8,7 @@ import { z } from "zod";
 export const validateBody =
   <T>(schema: z.ZodType<T>) =>
   (req: Request, _res: Response, next: NextFunction): void => {
-    req.body = schema.parse(req.body);
+    req.body = schema.parse(req.body ?? {});
 
     next();
   };

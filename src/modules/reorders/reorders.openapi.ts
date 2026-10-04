@@ -1,6 +1,7 @@
 import { ErrorResponseSchema, registry } from "../../config/openapi";
 import {
   CreateReorderSchema,
+  ReceiveReorderSchema,
   ReorderIdParamSchema,
   ReorderResponseSchema,
   ReordersListResponseSchema,
@@ -105,10 +106,13 @@ registry.registerPath({
   method: "patch",
   path: "/reorders/{id}/receive",
   description:
-    "Mark an ORDERED reorder as RECEIVED and increment the item's stock by the reorder quantity. ADMIN/MANAGER only.",
+    "Mark an ORDERED reorder as RECEIVED and increment the item's stock by the reorder quantity. ADMIN/MANAGER only. Optionally record the actual price paid via `receivedUnitCost`.",
   tags: ["Reorders"],
   security: bearerAuth,
-  request: { params: ReorderIdParamSchema },
+  request: {
+    params: ReorderIdParamSchema,
+    body: { content: { "application/json": { schema: ReceiveReorderSchema } } },
+  },
   responses: {
     200: {
       description: "Reorder received; stock incremented",

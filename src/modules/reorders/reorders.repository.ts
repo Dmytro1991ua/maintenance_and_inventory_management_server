@@ -104,11 +104,16 @@ export const reordersRepository = {
   // Guarded ORDERED → RECEIVED plus the stock increment, in one transaction.
   // The conditional updateMany guarantees exactly one caller transitions the
   // row, so the increment can't be applied twice by concurrent receives.
-  receive: (id: string, reviewedBy: string) =>
+  receive: (id: string, reviewedBy: string, receivedUnitCost: string | null) =>
     prisma.$transaction(async (tx) => {
       const { count } = await tx.reorder.updateMany({
         where: { id, status: ReorderStatus.ORDERED },
-        data: { status: ReorderStatus.RECEIVED, reviewedBy },
+        data: {
+          status: ReorderStatus.RECEIVED,
+          reviewedBy,
+          receivedAt: new Date(),
+          receivedUnitCost,
+        },
       });
 
       if (count === 0) return null;
@@ -149,20 +154,41 @@ export const reordersRepository = {
         )
     `,
 
-  // Committed spend across OPEN reorders (PENDING + ORDERED only — RECEIVED and
-  // CANCELLED are excluded, so the figure drops as orders are received/cancelled).
-  // The SUM stays NUMERIC and casts to text; orders with no captured cost are
-  // excluded from the total and counted separately, never treated as $0.
+  // Purchasing money summary in one pass over all reorders. Every column carries
+  // its own status FILTER (no table-wide WHERE), so the open-set and received-set
+  // metrics can't bleed into each other:
+  //   committed (OPEN = PENDING + ORDERED): committedSpend, openOrders, unpricedOrders
+  //   spent     (RECEIVED):                 spent, receivedOrders, unrecordedReceived
+  //   variance  (RECEIVED w/ both costs):   variance, comparableOrders
+  // Sums stay NUMERIC; costless orders are excluded from totals and counted
+  // separately, never treated as $0. Variance = actual − estimate (may be < 0),
+  // only over orders that have both numbers (a cross-set subtraction would be
+  // meaningless, since committed and spent cover disjoint statuses).
   getStats: async () => {
     const [row] = await prisma.$queryRaw<
-      [{ committedSpend: string; openOrders: number; unpricedOrders: number }]
+      [
+        {
+          committedSpend: string;
+          openOrders: number;
+          unpricedOrders: number;
+          spent: string;
+          receivedOrders: number;
+          unrecordedReceived: number;
+          variance: string;
+          comparableOrders: number;
+        },
+      ]
     >`
       SELECT
-        (COALESCE(SUM(quantity * "unitCostAtRaise") FILTER (WHERE "unitCostAtRaise" IS NOT NULL), 0))::numeric(14, 2)::text AS "committedSpend",
-        (COUNT(*))::int                                              AS "openOrders",
-        (COUNT(*) FILTER (WHERE "unitCostAtRaise" IS NULL))::int     AS "unpricedOrders"
+        (COALESCE(SUM(quantity * "unitCostAtRaise") FILTER (WHERE status IN ('PENDING', 'ORDERED') AND "unitCostAtRaise" IS NOT NULL), 0))::numeric(14, 2)::text AS "committedSpend",
+        (COUNT(*) FILTER (WHERE status IN ('PENDING', 'ORDERED')))::int                                   AS "openOrders",
+        (COUNT(*) FILTER (WHERE status IN ('PENDING', 'ORDERED') AND "unitCostAtRaise" IS NULL))::int      AS "unpricedOrders",
+        (COALESCE(SUM(quantity * "receivedUnitCost") FILTER (WHERE status = 'RECEIVED' AND "receivedUnitCost" IS NOT NULL), 0))::numeric(14, 2)::text AS "spent",
+        (COUNT(*) FILTER (WHERE status = 'RECEIVED'))::int                                                 AS "receivedOrders",
+        (COUNT(*) FILTER (WHERE status = 'RECEIVED' AND "receivedUnitCost" IS NULL))::int                  AS "unrecordedReceived",
+        (COALESCE(SUM(quantity * ("receivedUnitCost" - "unitCostAtRaise")) FILTER (WHERE status = 'RECEIVED' AND "receivedUnitCost" IS NOT NULL AND "unitCostAtRaise" IS NOT NULL), 0))::numeric(14, 2)::text AS "variance",
+        (COUNT(*) FILTER (WHERE status = 'RECEIVED' AND "receivedUnitCost" IS NOT NULL AND "unitCostAtRaise" IS NOT NULL))::int AS "comparableOrders"
       FROM reorders
-      WHERE status IN ('PENDING', 'ORDERED')
     `;
 
     return row;

@@ -73,7 +73,7 @@ export const reordersService = {
 
     return serializeReorder(updated);
   },
-  receive: async (id: string, reviewedBy: string) => {
+  receive: async (id: string, reviewedBy: string, receivedUnitCost: string | null) => {
     const reorder = await findOrThrow(
       () => reordersRepository.findById(id),
       REORDER_NOT_FOUND_MESSAGE,
@@ -81,7 +81,7 @@ export const reordersService = {
 
     if (reorder.status !== "ORDERED") throw new ConflictError(NOT_ORDERED_MESSAGE);
 
-    const updated = await reordersRepository.receive(id, reviewedBy);
+    const updated = await reordersRepository.receive(id, reviewedBy, receivedUnitCost);
 
     if (!updated) throw new ConflictError(NOT_ORDERED_MESSAGE);
 

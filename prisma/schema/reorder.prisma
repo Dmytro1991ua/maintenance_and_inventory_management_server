@@ -20,6 +20,14 @@ model Reorder {
   // unpriced at raise time. "AtRaise" distinguishes it from the item's live
   // unitCost on the joined row.
   unitCostAtRaise Decimal?      @db.Decimal(12, 2)
+  // Actual price paid per unit, captured (optionally) at receive time. Kept
+  // separate from unitCostAtRaise so "spent" and variance stay honest — the
+  // estimate and the actual never overwrite each other. Null when not recorded.
+  receivedUnitCost Decimal?     @db.Decimal(12, 2)
+  // When the reorder was received. Set in the receive transaction; null until
+  // then. Distinct from updatedAt (which changes on every write) so spend can be
+  // reported by period later — can't be reconstructed, so captured now.
+  receivedAt      DateTime?
   // Audit only (no FK), like task.cancelledBy. null raisedBy = system/cron.
   raisedBy        String?
   reviewedBy      String?

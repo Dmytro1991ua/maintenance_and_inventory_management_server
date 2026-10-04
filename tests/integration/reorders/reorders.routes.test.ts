@@ -252,6 +252,96 @@ describe("Reorders routes", () => {
     });
   });
 
+  describe("receiving with an actual cost", () => {
+    const orderAndReceive = async (token: string, reorderId: string, body?: object) => {
+      await request(app).patch(`/api/v1/reorders/${reorderId}/order`).set(authHeader(token));
+      return request(app)
+        .patch(`/api/v1/reorders/${reorderId}/receive`)
+        .set(authHeader(token))
+        .send(body ?? {});
+    };
+
+    it("should capture actual cost and expose received total + a positive variance", async () => {
+      const admin = await createAdminUser();
+      const token = signTestAccessToken(admin);
+      const item = await createTestInventoryItem({ quantity: 2, reorderQuantity: 10, unitCost: "8.50" });
+      const created = await raise(token, item.id);
+
+      const response = await orderAndReceive(token, created.body.data.id, {
+        receivedUnitCost: "9.00",
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data).toMatchObject({
+        status: "RECEIVED",
+        unitCostAtRaise: "8.50",
+        lineTotal: "85.00",
+        receivedUnitCost: "9.00",
+        receivedTotal: "90.00",
+        variance: "5.00", // paid 90 vs committed 85 → +5 over
+      });
+      expect(response.body.data.receivedAt).not.toBeNull();
+    });
+
+    it("should expose a negative variance when the actual is below the estimate", async () => {
+      const admin = await createAdminUser();
+      const token = signTestAccessToken(admin);
+      const item = await createTestInventoryItem({ quantity: 2, reorderQuantity: 4, unitCost: "10.00" });
+      const created = await raise(token, item.id);
+
+      const response = await orderAndReceive(token, created.body.data.id, {
+        receivedUnitCost: "8.00",
+      });
+
+      // 4 × 8 = 32 paid vs 4 × 10 = 40 committed → −8 under.
+      expect(response.body.data.receivedTotal).toBe("32.00");
+      expect(response.body.data.variance).toBe("-8.00");
+    });
+
+    it("should leave actuals null when received without a cost", async () => {
+      const admin = await createAdminUser();
+      const token = signTestAccessToken(admin);
+      const item = await createTestInventoryItem({ quantity: 2, reorderQuantity: 10, unitCost: "8.50" });
+      const created = await raise(token, item.id);
+
+      const response = await orderAndReceive(token, created.body.data.id);
+
+      expect(response.body.data.receivedUnitCost).toBeNull();
+      expect(response.body.data.receivedTotal).toBeNull();
+      expect(response.body.data.variance).toBeNull();
+    });
+
+    it("should record an actual even with no estimate, leaving variance null", async () => {
+      const admin = await createAdminUser();
+      const token = signTestAccessToken(admin);
+      // Item unpriced at raise → unitCostAtRaise null, so no estimate to compare.
+      const item = await createTestInventoryItem({ quantity: 1, reorderQuantity: 5 });
+      const created = await raise(token, item.id);
+
+      const response = await orderAndReceive(token, created.body.data.id, {
+        receivedUnitCost: "7.00",
+      });
+
+      expect(response.body.data.unitCostAtRaise).toBeNull();
+      expect(response.body.data.receivedUnitCost).toBe("7.00");
+      expect(response.body.data.receivedTotal).toBe("35.00");
+      expect(response.body.data.variance).toBeNull();
+    });
+
+    it("should reject an invalid receivedUnitCost", async () => {
+      const admin = await createAdminUser();
+      const token = signTestAccessToken(admin);
+      const item = await createTestInventoryItem({ quantity: 2, reorderQuantity: 10, unitCost: "8.50" });
+      const created = await raise(token, item.id);
+
+      const response = await orderAndReceive(token, created.body.data.id, {
+        receivedUnitCost: "9.999",
+      });
+
+      expect(response.status).toBe(400);
+    });
+  });
+
   describe("GET /api/v1/reorders/stats", () => {
     it("should sum committed spend across open orders and count unpriced ones", async () => {
       const admin = await createAdminUser();
@@ -266,31 +356,63 @@ describe("Reorders routes", () => {
         .set(authHeader(token));
 
       expect(response.status).toBe(200);
-      expect(response.body.data).toEqual({
+      expect(response.body.data).toMatchObject({
         committedSpend: "85.00",
         openOrders: 2,
         unpricedOrders: 1,
       });
     });
 
-    it("should exclude received and cancelled orders from committed spend", async () => {
+    it("should move an order from committed to spent when received with a cost", async () => {
       const admin = await createAdminUser();
       const token = signTestAccessToken(admin);
       const item = await createTestInventoryItem({ quantity: 2, reorderQuantity: 10, unitCost: "8.50" });
       const created = await raise(token, item.id);
-      // Order then receive it — it should drop out of committed spend.
       await request(app).patch(`/api/v1/reorders/${created.body.data.id}/order`).set(authHeader(token));
-      await request(app).patch(`/api/v1/reorders/${created.body.data.id}/receive`).set(authHeader(token));
+      await request(app)
+        .patch(`/api/v1/reorders/${created.body.data.id}/receive`)
+        .set(authHeader(token))
+        .send({ receivedUnitCost: "9.00" });
 
       const response = await request(app)
         .get("/api/v1/reorders/stats")
         .set(authHeader(token));
 
       expect(response.status).toBe(200);
+      // No longer open → committed 0; received at 9.00 × 10 = 90 spent; variance
+      // 90 − 85 = +5 over, across 1 comparable order.
       expect(response.body.data).toEqual({
         committedSpend: "0.00",
         openOrders: 0,
         unpricedOrders: 0,
+        spent: "90.00",
+        receivedOrders: 1,
+        unrecordedReceived: 0,
+        variance: "5.00",
+        comparableOrders: 1,
+      });
+    });
+
+    it("should count a received order with no recorded cost as unrecorded", async () => {
+      const admin = await createAdminUser();
+      const token = signTestAccessToken(admin);
+      const item = await createTestInventoryItem({ quantity: 2, reorderQuantity: 10, unitCost: "8.50" });
+      const created = await raise(token, item.id);
+      await request(app).patch(`/api/v1/reorders/${created.body.data.id}/order`).set(authHeader(token));
+      // Receive without a cost — drops from committed, counts as unrecorded.
+      await request(app).patch(`/api/v1/reorders/${created.body.data.id}/receive`).set(authHeader(token));
+
+      const response = await request(app)
+        .get("/api/v1/reorders/stats")
+        .set(authHeader(token));
+
+      expect(response.body.data).toMatchObject({
+        committedSpend: "0.00",
+        openOrders: 0,
+        spent: "0.00",
+        receivedOrders: 1,
+        unrecordedReceived: 1,
+        comparableOrders: 0,
       });
     });
 

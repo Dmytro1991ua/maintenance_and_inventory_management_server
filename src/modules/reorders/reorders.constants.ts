@@ -8,6 +8,8 @@ export const REORDER_SELECT = {
   status: true,
   quantity: true,
   unitCostAtRaise: true,
+  receivedUnitCost: true,
+  receivedAt: true,
   raisedBy: true,
   reviewedBy: true,
   createdAt: true,
