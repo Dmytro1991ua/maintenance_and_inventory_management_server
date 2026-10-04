@@ -10,7 +10,12 @@ import {
   validateQuery,
 } from "../../middleware";
 import { reordersController } from "./reorders.controller";
-import { CreateReorderSchema, ReorderIdParamSchema, ReordersQuerySchema } from "./reorders.schemas";
+import {
+  CreateReorderSchema,
+  ReceiveReorderSchema,
+  ReorderIdParamSchema,
+  ReordersQuerySchema,
+} from "./reorders.schemas";
 
 const router = Router();
 
@@ -49,10 +54,12 @@ router.patch(
 /**
  * PATCH /api/v1/reorders/:id/receive
  * Mark an ORDERED reorder as RECEIVED and increment the item's stock.
+ * Optional body { receivedUnitCost } records the actual price paid.
  */
 router.patch(
   "/:id/receive",
   validateParams(ReorderIdParamSchema),
+  validateBody(ReceiveReorderSchema),
   asyncHandler(reordersController.receive),
 );
 

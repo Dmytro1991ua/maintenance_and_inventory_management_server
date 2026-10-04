@@ -1,21 +1,12 @@
 import { z } from "zod";
 
+import { MoneyInput } from "../../shared/money.schema";
 import { INVENTORY_CATEGORIES, INVENTORY_STATUSES } from "./inventory.constants";
 
 export { INVENTORY_CATEGORIES };
 
 export const InventoryCategoryEnum = z.enum(INVENTORY_CATEGORIES);
 export const InventoryStatusEnum = z.enum(INVENTORY_STATUSES);
-
-// Money is handled as a string end to end (stored as NUMERIC, returned as a
-// string) to stay exact. The regex enforces non-negative with at most 2 decimal
-// places; z.coerce.string() also accepts a JSON number (e.g. 8.5) from clients.
-const UnitCostInput = z.coerce
-  .string()
-  .regex(/^\d{1,10}(\.\d{1,2})?$/, {
-    error: "Unit cost must be a non-negative amount with up to 2 decimal places",
-  })
-  .openapi({ example: "8.50" });
 
 export const InventoryQuerySchema = z
   .object({
@@ -65,7 +56,7 @@ export const CreateInventoryItemSchema = z
       .optional()
       .openapi({ example: 20 }),
     supplier: z.string().max(200).optional().openapi({ example: "Acme Supplies" }),
-    unitCost: UnitCostInput.optional(),
+    unitCost: MoneyInput.optional().openapi({ example: "8.50" }),
   })
   .openapi("CreateInventoryItemInput");
 
@@ -106,7 +97,7 @@ export const UpdateInventoryItemSchema = z
       .openapi({ example: 20 }),
     supplier: z.string().max(200).nullable().optional().openapi({ example: "Acme Supplies" }),
     // Nullable so a manager can clear a price back to "unpriced".
-    unitCost: UnitCostInput.nullable().optional(),
+    unitCost: MoneyInput.nullable().optional().openapi({ example: "8.50" }),
   })
   .strict()
   .openapi("UpdateInventoryItemInput");

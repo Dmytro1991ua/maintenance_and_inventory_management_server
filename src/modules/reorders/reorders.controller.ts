@@ -1,7 +1,12 @@
 import { Request, Response } from "express";
 
 import { UnauthorizedError } from "../../errors";
-import type { CreateReorder, ReorderIdParam, ReordersQuery } from "./reorders.schemas";
+import type {
+  CreateReorder,
+  ReceiveReorder,
+  ReorderIdParam,
+  ReordersQuery,
+} from "./reorders.schemas";
 import { reordersService } from "./reorders.service";
 
 export const reordersController = {
@@ -39,8 +44,9 @@ export const reordersController = {
     if (!req.user) throw new UnauthorizedError("Not authenticated");
 
     const { id } = req.params as ReorderIdParam;
+    const { receivedUnitCost } = req.body as ReceiveReorder;
 
-    const reorder = await reordersService.receive(id, req.user.id);
+    const reorder = await reordersService.receive(id, req.user.id, receivedUnitCost ?? null);
 
     res.json({ success: true, data: reorder });
   },
