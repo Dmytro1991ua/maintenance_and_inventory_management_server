@@ -56,6 +56,26 @@ describe("asset warranty", () => {
       expect(response.body.data.warrantyExpiresAt).toBe("2027-06-15T00:00:00.000Z");
     });
 
+    it("should store null, not 1970, when a form sends null dates on create", async () => {
+      const manager = await createManagerUser();
+
+      const response = await request(app)
+        .post("/api/v1/assets")
+        .set(authHeader(signTestAccessToken(manager)))
+        .send({
+          name: "Pump",
+          serialNumber: "WARR-003",
+          category: "PLUMBING",
+          location: "Basement",
+          installDate: null,
+          warrantyExpiresAt: null,
+        });
+
+      expect(response.status).toBe(201);
+      expect(response.body.data.warrantyExpiresAt).toBeNull();
+      expect(response.body.data.installDate).toBeNull();
+    });
+
     it("should return null warrantyExpiresAt for an asset with no warranty", async () => {
       const technician = await createTechnicianUser();
       const asset = await createTestAsset();
