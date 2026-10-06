@@ -1,10 +1,13 @@
 import { ConflictError } from "../../errors";
-import { findOrThrow } from "../../utils";
+import { findOrThrow, toUtcDateString } from "../../utils";
 import { tasksRepository } from "../tasks/tasks.repository";
 import type { TasksQuery } from "../tasks/tasks.schemas";
 import { ASSET_CATEGORIES, ASSET_NOT_FOUND_MESSAGE } from "./assets.constants";
 import { assetsRepository } from "./assets.repository";
 import type { AssetsQuery, CreateAsset, UpdateAsset } from "./assets.schemas";
+
+const toNullableDateString = (date: Date | null | undefined): string | null =>
+  date ? toUtcDateString(date) : null;
 
 export const assetsService = {
   getCategories: () => [...ASSET_CATEGORIES],
@@ -37,9 +40,19 @@ export const assetsService = {
   // serialNumber is intentionally not updatable —
   // it's a physical identifier that should never change after creation.
   update: async (id: string, data: UpdateAsset) => {
-    await findOrThrow(() => assetsRepository.findById(id), ASSET_NOT_FOUND_MESSAGE);
+    const asset = await findOrThrow(() => assetsRepository.findById(id), ASSET_NOT_FOUND_MESSAGE);
 
-    return assetsRepository.update(id, data);
+    // Re-arm the reminder only when the calendar day actually changes, so a form
+    // resending the same date (or an unrelated edit) doesn't trigger a duplicate.
+    const warrantyDateChanged =
+      data.warrantyExpiresAt !== undefined &&
+      toNullableDateString(data.warrantyExpiresAt) !==
+        toNullableDateString(asset.warrantyExpiresAt);
+
+    return assetsRepository.update(id, {
+      ...data,
+      ...(warrantyDateChanged && { warrantyReminderSentAt: null }),
+    });
   },
   // Deleting an asset nulls assetId on its terminal tasks (onDelete: SetNull) —
   // that history is preserved, only the asset link is severed. But an asset with

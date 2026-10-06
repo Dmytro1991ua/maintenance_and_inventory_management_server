@@ -12,6 +12,8 @@ type CreateTestAssetOptions = {
   manufacturer?: string | null;
   model?: string | null;
   installDate?: Date | null;
+  warrantyExpiresAt?: Date | null;
+  warrantyReminderSentAt?: Date | null;
 };
 
 export const createTestAsset = (options: CreateTestAssetOptions = {}): Promise<Asset> => {
@@ -27,6 +29,8 @@ export const createTestAsset = (options: CreateTestAssetOptions = {}): Promise<A
       manufacturer: options.manufacturer ?? null,
       model: options.model ?? null,
       installDate: options.installDate ?? null,
+      warrantyExpiresAt: options.warrantyExpiresAt ?? null,
+      warrantyReminderSentAt: options.warrantyReminderSentAt ?? null,
     },
   });
 };

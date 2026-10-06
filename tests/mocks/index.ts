@@ -5,6 +5,7 @@ export { buildNotification } from "./notification.mock";
 export { createRedisMock } from "./redis.mock";
 export {
   usersRepositoryMock,
+  assetsRepositoryMock,
   inventoryRepositoryMock,
   reordersRepositoryMock,
   tasksRepositoryMock,

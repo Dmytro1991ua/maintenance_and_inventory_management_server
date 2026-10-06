@@ -1,6 +1,6 @@
 import { prisma } from "../../config";
-import { TaskStatus } from "../../generated/prisma/client";
-import { getSkipValue, getTotalPages, resolveSortField } from "../../utils";
+import { AssetStatus, TaskStatus } from "../../generated/prisma/client";
+import { addDays, getSkipValue, getTotalPages, resolveSortField, startOfUtcDay } from "../../utils";
 import {
   ASSET_ENTITY_ALLOWED_SORT_FIELDS,
   ASSET_ENTITY_DEFAULT_SORT_FIELD,
@@ -79,12 +79,40 @@ export const assetsRepository = {
       byCategory,
     };
   },
+  // Warranties ending from today to today + leadDays that haven't been reminded yet.
+  // Bounds are whole UTC days. RETIRED assets are skipped; DOWN ones are kept.
+  findWarrantyExpiring: async (leadDays: number) => {
+    const windowStart = startOfUtcDay(new Date());
+    const windowEnd = addDays(windowStart, leadDays);
+
+    const assets = await prisma.asset.findMany({
+      where: {
+        warrantyExpiresAt: { gte: windowStart, lte: windowEnd },
+        status: { not: AssetStatus.RETIRED },
+        warrantyReminderSentAt: null,
+      },
+      select: { id: true, name: true, serialNumber: true, warrantyExpiresAt: true },
+      orderBy: { warrantyExpiresAt: "asc" },
+    });
+
+    // Narrow the type: the WHERE guarantees a date.
+    return assets.flatMap((asset) =>
+      asset.warrantyExpiresAt ? [{ ...asset, warrantyExpiresAt: asset.warrantyExpiresAt }] : [],
+    );
+  },
+  markWarrantyReminded: async (ids: string[]): Promise<void> => {
+    await prisma.asset.updateMany({
+      where: { id: { in: ids } },
+      data: { warrantyReminderSentAt: new Date() },
+    });
+  },
   create: async (data: CreateAsset) =>
     prisma.asset.create({
       data,
       select: ASSET_SELECT,
     }),
-  update: async (id: string, data: UpdateAsset) =>
+  // warrantyReminderSentAt is internal; the service clears it when the date changes.
+  update: async (id: string, data: UpdateAsset & { warrantyReminderSentAt?: Date | null }) =>
     prisma.asset.update({
       where: { id },
       data,

@@ -23,6 +23,19 @@ export const inventoryRepositoryMock = {
   delete: jest.fn(),
 };
 
+export const assetsRepositoryMock = {
+  findAll: jest.fn(),
+  findById: jest.fn(),
+  findBySerialNumber: jest.fn(),
+  getStats: jest.fn(),
+  findWarrantyExpiring: jest.fn(),
+  markWarrantyReminded: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  hasActiveTasks: jest.fn(),
+  delete: jest.fn(),
+};
+
 export const reordersRepositoryMock = {
   findAll: jest.fn(),
   findById: jest.fn(),

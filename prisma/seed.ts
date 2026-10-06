@@ -3,7 +3,7 @@ import "dotenv/config";
 import bcrypt from "bcrypt";
 
 import { prisma } from "../src/config/prisma";
-import { MS_PER_DAY } from "../src/utils";
+import { addDays, MS_PER_DAY, startOfUtcDay } from "../src/utils";
 import { Role } from "../src/generated/prisma/client";
 import type {
   AssetCategory,
@@ -881,6 +881,17 @@ type SeedAsset = {
   installDate?: Date;
 };
 
+// Warranty expiry in days from seed day, by serial number. Relative so a fresh seed
+// always has some expiring soon. Unlisted assets have no warranty.
+const WARRANTY_DAYS_FROM_SEED: Record<string, number> = {
+  "HVAC-RTU-001": 21, // inside the 30-day window → reminded
+  "HVAC-RTU-002": 9, // DOWN and expiring soon → reminded (most likely to need it)
+  "ELEC-GEN-001": 25, // inside the window
+  "HVAC-BLR-001": 400, // well beyond the window → not yet
+  "PUMP-DWB-001": -60, // already expired → no reminder
+  "MECH-DCK-001": 10, // RETIRED → skipped despite being inside the window
+};
+
 // A small fleet of real-world equipment spread across buildings, categories,
 // and statuses — enough to exercise the list filters, the stats breakdown,
 // and the per-asset maintenance history.
@@ -1414,8 +1425,17 @@ const seed = async (): Promise<void> => {
     `✅ Seeded inventory: ${count} new items added (${inventoryItems.length - count} already existed)`,
   );
 
+  const seedDay = startOfUtcDay(new Date());
+
   const { count: assetCount } = await prisma.asset.createMany({
-    data: assets,
+    data: assets.map((asset) => {
+      const warrantyDays = WARRANTY_DAYS_FROM_SEED[asset.serialNumber];
+
+      return {
+        ...asset,
+        ...(warrantyDays !== undefined && { warrantyExpiresAt: addDays(seedDay, warrantyDays) }),
+      };
+    }),
     skipDuplicates: true, // re-runs won't overwrite live status changes
   });
 

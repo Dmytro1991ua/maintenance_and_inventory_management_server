@@ -38,6 +38,7 @@ const normalizePreferences = (raw: unknown) => {
     TASK_OVERDUE: stored.TASK_OVERDUE !== false,
     TASK_DUE_SOON: stored.TASK_DUE_SOON !== false,
     REORDER_RAISED: stored.REORDER_RAISED !== false,
+    WARRANTY_EXPIRING: stored.WARRANTY_EXPIRING !== false,
   };
 };
 
@@ -61,6 +62,7 @@ export const usersService = {
   },
   findById: async (id: string) => {
     const user = await findOrThrow(() => usersRepository.findById(id), USER_NOT_FOUND_MESSAGE);
+
     return mapUserToResponse(user);
   },
   // A user can update their own profile.
@@ -157,16 +159,23 @@ export const usersService = {
 
   getNotificationPreferences: async (userId: string) => {
     const result = await usersRepository.findNotificationPreferences(userId);
+
     if (!result) throw new NotFoundError(USER_NOT_FOUND_MESSAGE);
+
     return normalizePreferences(result.notificationPreferences);
   },
 
   updateNotificationPreferences: async (userId: string, data: NotificationPreferencesInput) => {
     const existing = await usersRepository.findNotificationPreferences(userId);
+
     if (!existing) throw new NotFoundError(USER_NOT_FOUND_MESSAGE);
+
     const stored = toPrefsRecord(existing.notificationPreferences);
+
     const merged = { ...stored, ...data };
+
     const updated = await usersRepository.updateNotificationPreferences(userId, merged);
+
     return normalizePreferences(updated.notificationPreferences);
   },
 
