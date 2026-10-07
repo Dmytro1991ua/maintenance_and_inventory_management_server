@@ -76,6 +76,7 @@ export const NotificationPreferencesSchema = z
     TASK_OVERDUE: z.boolean().optional().openapi({ example: false }),
     TASK_DUE_SOON: z.boolean().optional().openapi({ example: true }),
     REORDER_RAISED: z.boolean().optional().openapi({ example: true }),
+    WARRANTY_EXPIRING: z.boolean().optional().openapi({ example: true }),
   })
   .strict()
   .openapi("NotificationPreferencesInput");
@@ -127,6 +128,7 @@ export const NotificationPreferencesResponseSchema = z
       TASK_OVERDUE: z.boolean(),
       TASK_DUE_SOON: z.boolean(),
       REORDER_RAISED: z.boolean(),
+      WARRANTY_EXPIRING: z.boolean(),
     }),
   })
   .openapi("NotificationPreferencesResponse");

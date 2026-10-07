@@ -24,6 +24,7 @@ describe("GET /api/v1/users/me/notification-preferences", () => {
         TASK_OVERDUE: true,
         TASK_DUE_SOON: true,
         REORDER_RAISED: true,
+        WARRANTY_EXPIRING: true,
       },
     });
   });
@@ -53,6 +54,7 @@ describe("PATCH /api/v1/users/me/notification-preferences", () => {
         TASK_OVERDUE: false,
         TASK_DUE_SOON: true,
         REORDER_RAISED: true,
+        WARRANTY_EXPIRING: true,
       },
     });
   });
@@ -83,6 +85,7 @@ describe("PATCH /api/v1/users/me/notification-preferences", () => {
       TASK_OVERDUE: true,
       TASK_DUE_SOON: true,
       REORDER_RAISED: true,
+      WARRANTY_EXPIRING: true,
     });
   });
 
@@ -178,6 +181,27 @@ describe("Notification preference guard in createMany", () => {
         message: "Reorder raised",
         userId: user.id,
         relatedEntityId: "reorder-1",
+      },
+    ]);
+
+    expect(result.created).toBe(0);
+    expect(result.skipped).toBe(1);
+  });
+
+  it("should not create WARRANTY_EXPIRING notifications for users who opted out", async () => {
+    const user = await createTestUser();
+
+    await request(app)
+      .patch("/api/v1/users/me/notification-preferences")
+      .set(authHeader(signTestAccessToken(user)))
+      .send({ WARRANTY_EXPIRING: false });
+
+    const result = await notificationsService.createMany(NotificationType.WARRANTY_EXPIRING, [
+      {
+        type: NotificationType.WARRANTY_EXPIRING,
+        message: "Warranty expiring",
+        userId: user.id,
+        relatedEntityId: "asset-1",
       },
     ]);
 

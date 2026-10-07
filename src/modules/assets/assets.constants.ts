@@ -23,6 +23,7 @@ export const ASSET_SELECT = {
   manufacturer: true,
   model: true,
   installDate: true,
+  warrantyExpiresAt: true,
   createdAt: true,
   updatedAt: true,
 } satisfies Prisma.AssetSelect;

@@ -40,7 +40,14 @@ export const CreateAssetSchema = z
     status: AssetStatusEnum.default("OPERATIONAL"),
     manufacturer: z.string().max(100).optional().openapi({ example: "Carrier" }),
     model: z.string().max(100).optional().openapi({ example: "48TCED12" }),
-    installDate: z.coerce.date().optional().openapi({ example: "2021-06-15T00:00:00.000Z" }),
+    // .nullable(): z.coerce.date() turns a form's null into new Date(null), i.e. 1970.
+    installDate: z.coerce
+      .date()
+      .nullable()
+      .optional()
+      .openapi({ example: "2021-06-15T00:00:00.000Z" }),
+    // Stored as a calendar date; any time-of-day is dropped.
+    warrantyExpiresAt: z.coerce.date().nullable().optional().openapi({ example: "2027-06-15" }),
   })
   .openapi("CreateAssetInput");
 
@@ -53,6 +60,8 @@ export const UpdateAssetSchema = z
     manufacturer: z.string().max(100).nullable().optional(),
     model: z.string().max(100).nullable().optional(),
     installDate: z.coerce.date().nullable().optional(),
+    // Nullable to clear the warranty.
+    warrantyExpiresAt: z.coerce.date().nullable().optional(),
   })
   .strict()
   .openapi("UpdateAssetInput");
@@ -74,6 +83,8 @@ export const AssetSchema = z
     manufacturer: z.string().nullable(),
     model: z.string().nullable(),
     installDate: z.iso.datetime().nullable(),
+    // Calendar date, returned as midnight UTC.
+    warrantyExpiresAt: z.iso.datetime().nullable().openapi({ example: "2027-06-15T00:00:00.000Z" }),
     createdAt: z.iso.datetime(),
     updatedAt: z.iso.datetime(),
   })

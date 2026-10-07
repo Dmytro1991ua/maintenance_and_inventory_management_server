@@ -25,6 +25,10 @@ model Asset {
   manufacturer String?
   model        String?
   installDate  DateTime?
+  // Last day the warranty covers. A date, not a timestamp, so it can't shift across timezones.
+  warrantyExpiresAt DateTime? @db.Date
+  // Set by the reminder job once someone is notified; cleared when the date changes. Internal.
+  warrantyReminderSentAt DateTime?
   tasks        Task[]
   workOrderRequests WorkOrderRequest[]
   createdAt    DateTime      @default(now())

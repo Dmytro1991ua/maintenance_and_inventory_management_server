@@ -7,6 +7,18 @@ const normalizeSearch = (search?: string): string | undefined => {
   return normalizedSearch || undefined;
 };
 
+/** Formats in UTC, not the server locale, so the stored calendar day never shifts. */
+export const buildWarrantyExpiringMessage = (name: string, expiresAt: Date): string => {
+  const formatted = expiresAt.toLocaleDateString("en-US", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+
+  return `Warranty expiring: "${name}" is covered until ${formatted}.`;
+};
+
 /**
  * Builds the Prisma WHERE input for asset list queries.
  * Returns undefined when no filters are active so Prisma applies no WHERE filter.

@@ -1,6 +1,7 @@
 import cron, { type ScheduledTask } from "node-cron";
 
 import { logger } from "../../config";
+import { checkWarrantyExpiry } from "./assets";
 import { DAILY_AT_MIDNIGHT, JOB_LOCK_TTL_MS } from "./constants";
 import { checkLowStock, checkReorders } from "./inventory";
 import { runJob } from "./runJob";
@@ -10,6 +11,7 @@ import { withLock } from "./withLock";
 const JOBS = [
   { name: "checkLowStock", task: checkLowStock },
   { name: "checkReorders", task: checkReorders },
+  { name: "checkWarrantyExpiry", task: checkWarrantyExpiry },
   { name: "checkOverdueTasks", task: checkOverdueTasks },
   { name: "checkDueSoonTasks", task: checkDueSoonTasks },
   { name: "generateRecurringTasks", task: generateRecurringTasks },
