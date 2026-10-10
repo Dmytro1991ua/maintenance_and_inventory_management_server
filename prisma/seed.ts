@@ -892,6 +892,49 @@ const WARRANTY_DAYS_FROM_SEED: Record<string, number> = {
   "MECH-DCK-001": 10, // RETIRED → skipped despite being inside the window
 };
 
+type SeedMeter = {
+  assetSerial: string;
+  name: string;
+  unit: string;
+  // Oldest first; values only ever go up, like real readings.
+  readings: { daysAgo: number; value: number }[];
+};
+
+const meters: SeedMeter[] = [
+  {
+    assetSerial: "VEH-FRK-001",
+    name: "Engine hours",
+    unit: "hours",
+    readings: [
+      { daysAgo: 28, value: 1090 },
+      { daysAgo: 21, value: 1142 },
+      { daysAgo: 14, value: 1188 },
+      { daysAgo: 7, value: 1215 },
+      { daysAgo: 1, value: 1240 },
+    ],
+  },
+  {
+    assetSerial: "VEH-TRK-002",
+    name: "Odometer",
+    unit: "km",
+    readings: [
+      { daysAgo: 30, value: 47120 },
+      { daysAgo: 20, value: 47980 },
+      { daysAgo: 3, value: 48310 },
+    ],
+  },
+  {
+    assetSerial: "ELEC-GEN-001",
+    name: "Run hours",
+    unit: "hours",
+    readings: [
+      { daysAgo: 30, value: 820 },
+      { daysAgo: 14, value: 842 },
+      { daysAgo: 2, value: 860 },
+    ],
+  },
+];
+
 // A small fleet of real-world equipment spread across buildings, categories,
 // and statuses — enough to exercise the list filters, the stats breakdown,
 // and the per-asset maintenance history.
@@ -1442,6 +1485,47 @@ const seed = async (): Promise<void> => {
   console.log(
     `✅ Seeded assets: ${assetCount} new assets added (${assets.length - assetCount} already existed)`,
   );
+
+  const meterAssets = await prisma.asset.findMany({
+    where: { serialNumber: { in: meters.map((meter) => meter.assetSerial) } },
+    select: { id: true, serialNumber: true },
+  });
+  const meterAssetIdBySerial = new Map(meterAssets.map((asset) => [asset.serialNumber, asset.id]));
+  let metersAdded = 0;
+
+  for (const meter of meters) {
+    const assetId = meterAssetIdBySerial.get(meter.assetSerial);
+    const latest = meter.readings.at(-1);
+
+    if (!assetId || !latest) continue;
+
+    // Skip meters that already exist so re-seeding never duplicates their history.
+    const existing = await prisma.meter.findUnique({
+      where: { assetId_name: { assetId, name: meter.name } },
+      select: { id: true },
+    });
+
+    if (existing) continue;
+
+    await prisma.meter.create({
+      data: {
+        assetId,
+        name: meter.name,
+        unit: meter.unit,
+        currentReading: latest.value,
+        lastReadingAt: addDays(new Date(), -latest.daysAgo),
+        readings: {
+          create: meter.readings.map(({ daysAgo, value }) => ({
+            value,
+            recordedAt: addDays(new Date(), -daysAgo),
+          })),
+        },
+      },
+    });
+    metersAdded++;
+  }
+
+  console.log(`✅ Seeded meters: ${metersAdded} new meters added with reading history`);
 
   for (const template of checklistTemplates) {
     await prisma.checklistTemplate.upsert({
