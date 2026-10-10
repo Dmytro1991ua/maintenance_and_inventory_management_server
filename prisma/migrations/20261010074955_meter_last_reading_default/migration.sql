@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "meters" ALTER COLUMN "lastReadingAt" SET DEFAULT CURRENT_TIMESTAMP;

@@ -1,0 +1,35 @@
+// A usage counter on an asset (engine hours, odometer km, cycles). Readings only
+// ever go up, so currentReading always equals the latest entry in its log.
+model Meter {
+  id             String         @id @default(uuid())
+  assetId        String
+  // Usage history has no meaning without its machine, so meters go with the asset.
+  asset          Asset          @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  name           String
+  // Fixed at creation — changing hours to km under existing readings would corrupt them.
+  unit           String
+  currentReading Int
+  // Stamped by the database clock, like MeterReading.recordedAt (see recordReading).
+  lastReadingAt  DateTime       @default(now())
+  readings       MeterReading[]
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([assetId, name])
+  @@map("meters")
+}
+
+model MeterReading {
+  id         String   @id @default(uuid())
+  meterId    String
+  meter      Meter    @relation(fields: [meterId], references: [id], onDelete: Cascade)
+  value      Int
+  // Always server-set; clients can't back-date a reading.
+  recordedAt DateTime @default(now())
+  // SetNull keeps the reading if the user is later deleted.
+  recordedBy String?
+  recorder   User?    @relation("MeterReadingRecorder", fields: [recordedBy], references: [id], onDelete: SetNull)
+
+  @@index([meterId, recordedAt])
+  @@map("meter_readings")
+}

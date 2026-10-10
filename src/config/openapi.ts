@@ -45,6 +45,10 @@ export const generateOpenApiDocument = () => {
       { name: "Users", description: "User profiles and role management" },
       { name: "Assets", description: "Physical equipment registry and maintenance history" },
       { name: "Inventory", description: "Equipment and stock management" },
+      {
+        name: "Meters",
+        description: "Usage counters on assets (hours, km, cycles) and their readings",
+      },
       { name: "Tasks", description: "Maintenance task assignment and tracking" },
       { name: "Notifications", description: "User notifications" },
       { name: "Reports", description: "Operational analytics across assets, tasks, and inventory" },

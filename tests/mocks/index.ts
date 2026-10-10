@@ -6,6 +6,7 @@ export { createRedisMock } from "./redis.mock";
 export {
   usersRepositoryMock,
   assetsRepositoryMock,
+  metersRepositoryMock,
   inventoryRepositoryMock,
   reordersRepositoryMock,
   tasksRepositoryMock,

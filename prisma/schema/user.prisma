@@ -27,6 +27,7 @@ model User {
   taskComments           TaskComment[]   @relation("TaskCommentAuthor")
   workOrderRequests      WorkOrderRequest[] @relation("WorkOrderRequester")
   workOrderReviews       WorkOrderRequest[] @relation("WorkOrderReviewer")
+  meterReadings          MeterReading[]  @relation("MeterReadingRecorder")
 
   @@map("users")
 }

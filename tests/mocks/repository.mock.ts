@@ -23,6 +23,17 @@ export const inventoryRepositoryMock = {
   delete: jest.fn(),
 };
 
+export const metersRepositoryMock = {
+  findAll: jest.fn(),
+  findById: jest.fn(),
+  findByAssetAndName: jest.fn(),
+  create: jest.fn(),
+  update: jest.fn(),
+  delete: jest.fn(),
+  recordReading: jest.fn(),
+  findReadings: jest.fn(),
+};
+
 export const assetsRepositoryMock = {
   findAll: jest.fn(),
   findById: jest.fn(),
