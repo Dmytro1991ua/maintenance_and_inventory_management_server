@@ -13,6 +13,7 @@ beforeEach(async () => {
   await prisma.taskComment.deleteMany();
   await prisma.workOrderRequest.deleteMany();
   await prisma.task.deleteMany();
+  await prisma.recurringTask.deleteMany();
   await prisma.meterReading.deleteMany();
   await prisma.meter.deleteMany();
   await prisma.asset.deleteMany();
