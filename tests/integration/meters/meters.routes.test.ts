@@ -379,6 +379,62 @@ describe("POST /api/v1/meters/:id/readings", () => {
       expect(logged).toHaveLength(accepted + 1);
     });
 
+    // Deterministic: hold the meter's row lock in an outside transaction, fire a
+    // reading that must wait on it, and require its timestamp to fall AFTER the lock
+    // was released. A timestamp taken before waiting can't satisfy that, which is how
+    // a waiter used to be stamped earlier than the reading it waited behind.
+    it("should stamp a reading that waited on the row lock after the lock was released", async () => {
+      const technician = await createTechnicianUser();
+      const token = signTestAccessToken(technician);
+      const meter = await createTestMeter({ currentReading: 100 });
+      let lockHeld!: () => void;
+      const lockAcquired = new Promise<void>((resolve) => (lockHeld = resolve));
+
+      const holder = prisma.$transaction(async (tx) => {
+        await tx.$queryRaw`SELECT id FROM meters WHERE id = ${meter.id} FOR UPDATE`;
+        lockHeld();
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        const [{ released }] = await tx.$queryRaw<{ released: Date }[]>`
+          SELECT (clock_timestamp() AT TIME ZONE 'UTC') AS released`;
+
+        return released;
+      });
+
+      await lockAcquired;
+      // supertest only sends on .then(), so chain now to dispatch while the lock is held.
+      const waiting = record(token, meter.id, { value: 150 }).then((response) => response);
+      await new Promise((resolve) => setTimeout(resolve, 150)); // let it block on the lock
+      const released = await holder;
+      const response = await waiting;
+
+      expect(response.status).toBe(201);
+      const recordedAt = new Date(response.body.data.reading.recordedAt).getTime();
+      expect(recordedAt).toBeGreaterThanOrEqual(released.getTime());
+      expect(new Date(response.body.data.meter.lastReadingAt).getTime()).toBe(recordedAt);
+    });
+
+    // Property check under real contention: history in time order never rises, and
+    // its newest entry is the meter's current reading.
+    it("should keep history in time order, ending at the current reading, when readings race", async () => {
+      const technician = await createTechnicianUser();
+      const token = signTestAccessToken(technician);
+      const values = [112, 103, 109, 101, 111, 106, 110, 102, 108, 104, 107, 105];
+
+      for (let trial = 0; trial < 3; trial++) {
+        const meter = await createTestMeter({ name: `Trial ${trial}`, currentReading: 100 });
+
+        await Promise.all(values.map((value) => record(token, meter.id, { value })));
+
+        const history = await request(app)
+          .get(`/api/v1/meters/${meter.id}/readings?limit=100`)
+          .set(authHeader(token));
+        const newestFirst: number[] = history.body.data.map((r: { value: number }) => r.value);
+
+        expect(newestFirst[0]).toBe((await storedMeter(meter.id)).currentReading);
+        expect(newestFirst).toEqual([...newestFirst].sort((a, b) => b - a));
+      }
+    });
+
     it("should accept two simultaneous equal readings", async () => {
       const technician = await createTechnicianUser();
       const token = signTestAccessToken(technician);

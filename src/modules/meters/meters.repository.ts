@@ -36,7 +36,8 @@ export const metersRepository = {
   findByAssetAndName: (assetId: string, name: string) =>
     prisma.meter.findUnique({ where: { assetId_name: { assetId, name } }, select: { id: true } }),
   // The initial reading is logged as reading #1 in the same write, so a meter's
-  // currentReading always has a matching entry in its log.
+  // currentReading always has a matching entry in its log. Both timestamps come
+  // from the database clock (column defaults), so they match.
   create: ({ assetId, name, unit, initialReading }: CreateMeter, recordedBy: string) =>
     prisma.meter.create({
       data: {
@@ -44,7 +45,6 @@ export const metersRepository = {
         name,
         unit,
         currentReading: initialReading,
-        lastReadingAt: new Date(),
         readings: { create: { value: initialReading, recordedBy } },
       },
       select: METER_SELECT,
@@ -55,23 +55,25 @@ export const metersRepository = {
   delete: async (id: string): Promise<void> => {
     await prisma.meter.delete({ where: { id } });
   },
-  // Matches only while the stored reading is <= the new value, so readings never go
-  // down even when two race: the second waits on the row lock, then re-checks.
-  // Returns null if the guard missed (the caller tells 404 from 409). The log row
-  // shares the transaction, so currentReading and the log can't disagree.
+  // Matches only while the stored reading is <= the new value, so racing readings
+  // can't lower it. Returns null if the guard missed (the caller tells 404 from 409).
+  // The time is stamped in a separate statement after the lock is won (DB clock), so
+  // a reading that waited is stamped after the one it waited behind.
   recordReading: (id: string, value: number, recordedBy: string) =>
     prisma.$transaction(async (tx) => {
-      const now = new Date();
-
       const { count } = await tx.meter.updateMany({
         where: { id, currentReading: { lte: value } },
-        data: { currentReading: value, lastReadingAt: now },
+        data: { currentReading: value },
       });
 
       if (count === 0) return null;
 
+      const [{ lastReadingAt }] = await tx.$queryRaw<{ lastReadingAt: Date }[]>`
+        UPDATE meters SET "lastReadingAt" = clock_timestamp() AT TIME ZONE 'UTC'
+        WHERE id = ${id} RETURNING "lastReadingAt"`;
+
       const reading = await tx.meterReading.create({
-        data: { meterId: id, value, recordedAt: now, recordedBy },
+        data: { meterId: id, value, recordedAt: lastReadingAt, recordedBy },
         select: METER_READING_SELECT,
       });
       const meter = await tx.meter.findUniqueOrThrow({ where: { id }, select: METER_SELECT });
@@ -87,7 +89,8 @@ export const metersRepository = {
       prisma.meterReading.findMany({
         where,
         select: METER_READING_SELECT,
-        orderBy: [{ recordedAt: "desc" }, { id: "desc" }],
+        // Within one millisecond the higher value is the later one (readings only go up).
+        orderBy: [{ recordedAt: "desc" }, { value: "desc" }, { id: "desc" }],
         skip: getSkipValue(page, limit),
         take: limit,
       }),

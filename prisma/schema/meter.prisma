@@ -9,7 +9,8 @@ model Meter {
   // Fixed at creation — changing hours to km under existing readings would corrupt them.
   unit           String
   currentReading Int
-  lastReadingAt  DateTime
+  // Stamped by the database clock, like MeterReading.recordedAt (see recordReading).
+  lastReadingAt  DateTime       @default(now())
   readings       MeterReading[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
