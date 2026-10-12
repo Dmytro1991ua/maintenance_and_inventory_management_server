@@ -116,7 +116,12 @@ export const MetersListResponseSchema = z
 export const RecordReadingResponseSchema = z
   .object({
     success: z.literal(true),
-    data: z.object({ reading: MeterReadingSchema, meter: MeterSchema }),
+    data: z.object({
+      reading: MeterReadingSchema,
+      meter: MeterSchema,
+      // PM tasks this reading caused to be created (usually empty).
+      triggeredTasks: z.array(z.object({ id: z.uuid(), title: z.string() })),
+    }),
   })
   .openapi("RecordReadingResponse");
 

@@ -48,7 +48,7 @@ registry.registerPath({
   method: "post",
   path: "/recurring-tasks",
   description:
-    "Create a recurring maintenance schedule. The first task will be generated on firstDueAt; subsequent tasks are generated every intervalDays thereafter. ADMIN/MANAGER only.",
+    "Create a recurring maintenance schedule. ADMIN/MANAGER only. Time-based (no `meterId`): the first task is generated on `firstDueAt`, then every `intervalDays`. Meter-based (with `meterId`): a task is created whenever a reading reaches a threshold, every `intervalReading` units from `firstDueReading` (default: the meter's current reading plus the interval); only one task per schedule is open at a time. The asset of a meter schedule is taken from its meter.",
   tags: ["Recurring Tasks"],
   security: bearerAuth,
   request: {
@@ -60,7 +60,7 @@ registry.registerPath({
       content: { "application/json": { schema: RecurringTaskResponseSchema } },
     },
     404: {
-      description: "Assignee not found",
+      description: "Assignee, asset or meter not found",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },
@@ -70,7 +70,7 @@ registry.registerPath({
   method: "patch",
   path: "/recurring-tasks/{id}",
   description:
-    "Update a recurring schedule's title, interval, assignee, or other fields. ADMIN/MANAGER only.",
+    "Update a recurring schedule's title, assignee, or other fields. ADMIN/MANAGER only. `intervalDays` and `assetId` apply to time-based schedules only; a meter schedule's meter, interval and asset are fixed (400 if sent).",
   tags: ["Recurring Tasks"],
   security: bearerAuth,
   request: {

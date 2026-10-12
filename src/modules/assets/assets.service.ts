@@ -54,16 +54,20 @@ export const assetsService = {
       ...(warrantyDateChanged && { warrantyReminderSentAt: null }),
     });
   },
-  // Deleting an asset nulls assetId on its terminal tasks (onDelete: SetNull) —
-  // that history is preserved, only the asset link is severed. But an asset with
-  // OPEN/IN_PROGRESS tasks is mid-maintenance; deleting it is almost certainly a
-  // mistake, so refuse (409) and steer the caller toward RETIRED instead.
+  // Terminal tasks keep their history (assetId is nulled). Refuse (409) while the asset
+  // has active tasks or its meters drive schedules; RETIRED is the alternative.
   delete: async (id: string): Promise<void> => {
     await findOrThrow(() => assetsRepository.findById(id), ASSET_NOT_FOUND_MESSAGE);
 
     if (await assetsRepository.hasActiveTasks(id)) {
       throw new ConflictError(
         "Cannot delete an asset with active (open or in-progress) tasks. Close those tasks or set the asset to RETIRED instead.",
+      );
+    }
+
+    if (await assetsRepository.hasMeterSchedules(id)) {
+      throw new ConflictError(
+        "Cannot delete an asset whose meters trigger maintenance schedules. Delete those schedules first, or set the asset to RETIRED instead.",
       );
     }
 

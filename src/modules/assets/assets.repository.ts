@@ -127,6 +127,13 @@ export const assetsRepository = {
 
     return count > 0;
   },
+  // Deleting an asset cascades to its meters, which a meter-triggered schedule
+  // restricts. Used to refuse the delete with a clear 409 instead of a DB error.
+  hasMeterSchedules: async (id: string): Promise<boolean> => {
+    const count = await prisma.recurringTask.count({ where: { meter: { assetId: id } } });
+
+    return count > 0;
+  },
   delete: async (id: string): Promise<void> => {
     await prisma.asset.delete({ where: { id } });
   },

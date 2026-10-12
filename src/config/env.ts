@@ -15,6 +15,8 @@ const envSchema = z.object({
   APP_URL: z.url().default("http://localhost:5173"),
   RESEND_API_KEY: z.string().optional(),
   TASK_REMINDER_LEAD_DAYS: z.coerce.number().int().min(1).max(30).default(3),
+  // Days a meter-triggered PM task is given before it counts as overdue.
+  METER_TASK_DUE_DAYS: z.coerce.number().int().min(1).max(90).default(7),
   // Days before expiry that warranty reminders start.
   ASSET_WARRANTY_LEAD_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   SEED_DEMO_PASSWORD: z.string().default("Demo@Mainstay1"),

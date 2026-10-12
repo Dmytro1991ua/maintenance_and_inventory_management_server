@@ -91,6 +91,8 @@ export const dashboardRepository = {
         orderBy: { userName: "asc" },
       }),
       prisma.recurringTask.count({ where: { isActive: true } }),
+      // "Due this week" counts time-based schedules only: a meter schedule has no
+      // calendar date (nextDueAt is null), so it never matches. Intentional.
       prisma.recurringTask.count({
         where: { isActive: true, nextDueAt: { lte: weekEnd } },
       }),

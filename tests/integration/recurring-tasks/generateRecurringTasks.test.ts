@@ -16,7 +16,7 @@ const tasksFor = (recurringTaskId: string) =>
   prisma.task.findMany({ where: { recurringTaskId }, orderBy: { createdAt: "asc" } });
 
 const nextDueAt = async (id: string) =>
-  (await prisma.recurringTask.findUniqueOrThrow({ where: { id } })).nextDueAt.toISOString();
+  (await prisma.recurringTask.findUniqueOrThrow({ where: { id } })).nextDueAt?.toISOString();
 
 describe("generateRecurringTasks", () => {
   it("should create an OPEN task copying the schedule, due on the schedule's date", async () => {

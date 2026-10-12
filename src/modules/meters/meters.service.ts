@@ -1,8 +1,12 @@
+import { logger } from "../../config";
 import { ConflictError } from "../../errors";
 import { findOrThrow } from "../../utils";
 import { ASSET_NOT_FOUND_MESSAGE } from "../assets/assets.constants";
 import { assetsRepository } from "../assets/assets.repository";
+import { evaluateMeterSchedules } from "../recurring-tasks/recurring-tasks.meter";
+import { recurringTasksRepository } from "../recurring-tasks/recurring-tasks.repository";
 import {
+  buildMeterInUseMessage,
   buildReadingBelowCurrentMessage,
   METER_NAME_EXISTS_MESSAGE,
   METER_NOT_FOUND_MESSAGE,
@@ -41,12 +45,27 @@ export const metersService = {
   },
   delete: async (id: string): Promise<void> => {
     await findMeterOrThrow(id);
+
+    const schedules = await recurringTasksRepository.countByMeter(id);
+
+    if (schedules > 0) throw new ConflictError(buildMeterInUseMessage(schedules));
+
     await metersRepository.delete(id);
   },
   recordReading: async (id: string, value: number, recordedBy: string) => {
     const result = await metersRepository.recordReading(id, value, recordedBy);
 
-    if (result) return result;
+    if (result) {
+      // Best-effort: the reading is already committed, so a failure to create a PM
+      // task must never fail (or lose) the reading. The nightly sweep retries it.
+      const triggeredTasks = await evaluateMeterSchedules(id, value).catch((err) => {
+        logger.error({ err, meterId: id }, "Failed to evaluate meter schedules");
+
+        return [];
+      });
+
+      return { ...result, triggeredTasks };
+    }
 
     // The guard didn't match: either the meter doesn't exist (404) or the reading
     // is lower than the current one (409).

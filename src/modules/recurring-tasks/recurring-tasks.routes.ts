@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { NextFunction, Request, Response, Router } from "express";
 
 import { Role } from "../../generated/prisma/client";
 import {
@@ -11,7 +11,8 @@ import {
 } from "../../middleware";
 import { recurringTasksController } from "./recurring-tasks.controller";
 import {
-  CreateRecurringTaskSchema,
+  CreateMeterRecurringTaskSchema,
+  CreateTimeRecurringTaskSchema,
   RecurringTaskIdParamSchema,
   RecurringTasksQuerySchema,
   UpdateRecurringTaskSchema,
@@ -35,11 +36,21 @@ router.get(
   asyncHandler(recurringTasksController.findById),
 );
 
+// A meterId selects the meter schema, else time-based; not a union, to keep errors field-level.
+const validateTimeBody = validateBody(CreateTimeRecurringTaskSchema);
+const validateMeterBody = validateBody(CreateMeterRecurringTaskSchema);
+
+const validateCreateBody = (req: Request, res: Response, next: NextFunction): void => {
+  const isMeter = typeof req.body === "object" && req.body !== null && "meterId" in req.body;
+
+  (isMeter ? validateMeterBody : validateTimeBody)(req, res, next);
+};
+
 router.post(
   "/",
   authenticate,
   authorize([Role.ADMIN, Role.MANAGER]),
-  validateBody(CreateRecurringTaskSchema),
+  validateCreateBody,
   asyncHandler(recurringTasksController.create),
 );
 

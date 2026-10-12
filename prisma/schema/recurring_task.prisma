@@ -1,3 +1,7 @@
+enum ScheduleTrigger {
+  TIME
+  METER
+}
 
 model RecurringTask {
   id           String             @id @default(uuid())
@@ -7,8 +11,18 @@ model RecurringTask {
   category     InventoryCategory?
   assignedTo   String?
   assignee     User?              @relation("RecurringTaskAssignee", fields: [assignedTo], references: [id], onDelete: SetNull)
-  intervalDays Int
-  nextDueAt    DateTime
+  triggerType  ScheduleTrigger    @default(TIME)
+  intervalDays Int?
+  nextDueAt    DateTime?
+  meterId         String?
+  // Restrict: a meter that drives a schedule can't be deleted out from under it.
+  meter           Meter?          @relation(fields: [meterId], references: [id], onDelete: Restrict)
+  intervalReading Int?
+  firstDueReading Int?
+  nextDueReading  Int?
+  assetId      String?
+  asset        Asset?             @relation(fields: [assetId], references: [id], onDelete: SetNull)
+
   isActive     Boolean            @default(true)
   createdBy    String
   creator      User               @relation("RecurringTaskCreator", fields: [createdBy], references: [id])
@@ -16,5 +30,6 @@ model RecurringTask {
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
+  @@index([meterId])
   @@map("recurring_tasks")
 }
