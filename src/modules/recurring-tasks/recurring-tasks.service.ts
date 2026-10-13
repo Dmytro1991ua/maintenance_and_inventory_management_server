@@ -20,6 +20,10 @@ import {
 const assertAssetExists = (assetId: string) =>
   findOrThrow(() => assetsRepository.findById(assetId), ASSET_NOT_FOUND_MESSAGE);
 
+// Sent and different from the stored value (forms resend unchanged fields).
+const isChanged = <T>(sent: T | undefined, stored: T): boolean =>
+  sent !== undefined && sent !== stored;
+
 export const recurringTasksService = {
   findAll: async (query: RecurringTasksQuery) => recurringTasksRepository.findAll(query),
   findById: async (id: string) =>
@@ -62,7 +66,8 @@ export const recurringTasksService = {
 
     const changesFixedFields =
       schedule.triggerType === "METER" &&
-      (data.intervalDays !== undefined || data.assetId !== undefined);
+      (isChanged(data.intervalDays, schedule.intervalDays) ||
+        isChanged(data.assetId, schedule.assetId));
 
     if (changesFixedFields) {
       throw new BadRequestError(METER_SCHEDULE_FIXED_MESSAGE);

@@ -228,6 +228,19 @@ describe("updating schedules", () => {
     });
   });
 
+  it("should accept a meter schedule's unchanged assetId, as an edit form resends it", async () => {
+    const manager = await createManagerUser();
+    const schedule = await createTestMeterSchedule({ createdBy: manager.id });
+
+    const response = await patch(signTestAccessToken(manager), schedule.id, {
+      title: "Renamed",
+      assetId: schedule.assetId,
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body.data).toMatchObject({ title: "Renamed", assetId: schedule.assetId });
+  });
+
   it.each([
     ["intervalDays (time-based only)", { intervalDays: 30 }],
     ["assetId (taken from the meter)", { assetId: NONEXISTENT_ID }],
