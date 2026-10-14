@@ -12,6 +12,7 @@ model Meter {
   // Stamped by the database clock, like MeterReading.recordedAt (see recordReading).
   lastReadingAt  DateTime       @default(now())
   readings       MeterReading[]
+  schedules      RecurringTask[]
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 

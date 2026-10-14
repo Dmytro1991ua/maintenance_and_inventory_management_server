@@ -5,7 +5,12 @@ import { checkWarrantyExpiry } from "./assets";
 import { DAILY_AT_MIDNIGHT, JOB_LOCK_TTL_MS } from "./constants";
 import { checkLowStock, checkReorders } from "./inventory";
 import { runJob } from "./runJob";
-import { checkDueSoonTasks, checkOverdueTasks, generateRecurringTasks } from "./tasks";
+import {
+  checkDueSoonTasks,
+  checkMeterSchedules,
+  checkOverdueTasks,
+  generateRecurringTasks,
+} from "./tasks";
 import { withLock } from "./withLock";
 
 const JOBS = [
@@ -15,6 +20,7 @@ const JOBS = [
   { name: "checkOverdueTasks", task: checkOverdueTasks },
   { name: "checkDueSoonTasks", task: checkDueSoonTasks },
   { name: "generateRecurringTasks", task: generateRecurringTasks },
+  { name: "checkMeterSchedules", task: checkMeterSchedules },
 ];
 
 /**

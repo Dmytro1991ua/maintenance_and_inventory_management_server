@@ -31,5 +31,8 @@ export const METER_NOT_FOUND_MESSAGE = "Meter not found";
 
 export const METER_NAME_EXISTS_MESSAGE = "This asset already has a meter with that name";
 
+export const buildMeterInUseMessage = (schedules: number): string =>
+  `Cannot delete: ${schedules} maintenance schedule(s) are triggered by this meter. Delete those schedules first.`;
+
 export const buildReadingBelowCurrentMessage = (currentReading: number): string =>
   `Reading cannot be lower than the current reading (${currentReading})`;

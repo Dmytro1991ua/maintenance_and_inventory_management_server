@@ -1,6 +1,21 @@
-import { logger } from "../../../config";
+import { logger, prisma } from "../../../config";
+import { createScheduledTask } from "../../../modules/recurring-tasks/recurring-tasks.generation";
 import { recurringTasksRepository } from "../../../modules/recurring-tasks/recurring-tasks.repository";
-import { tasksRepository } from "../../../modules/tasks/tasks.repository";
+
+type DueSchedule = Awaited<ReturnType<typeof recurringTasksRepository.findDue>>[number];
+
+const generateTaskAndAdvance = async (schedule: DueSchedule): Promise<boolean> => {
+  const { intervalDays, nextDueAt } = schedule;
+
+  if (!intervalDays || !nextDueAt) return false;
+
+  await prisma.$transaction(async (tx) => {
+    await createScheduledTask(tx, schedule, { dueDate: nextDueAt });
+    await recurringTasksRepository.advanceNextDueAt(schedule.id, intervalDays, nextDueAt, tx);
+  });
+
+  return true;
+};
 
 export const generateRecurringTasks = async (): Promise<void> => {
   const due = await recurringTasksRepository.findDue();
@@ -11,39 +26,17 @@ export const generateRecurringTasks = async (): Promise<void> => {
   }
 
   let generated = 0;
+  let failed = 0;
 
-  await Promise.all(
-    due.map(async (schedule) => {
-      // Respect the single-active-task rule: if the default assignee already
-      // has an active task when the cron fires, create the task unassigned so
-      // a manager can pick it up — never silently drop a PM task.
-      let assignedTo: string | undefined;
+  // Sequential: each schedule sees the previous one's task; a failure doesn't stop the rest.
+  for (const schedule of due) {
+    try {
+      if (await generateTaskAndAdvance(schedule)) generated++;
+    } catch (err) {
+      failed++;
+      logger.error({ err, scheduleId: schedule.id }, "Failed to generate recurring task");
+    }
+  }
 
-      if (schedule.assignedTo) {
-        const activeTask = await tasksRepository.findActiveForUser(schedule.assignedTo);
-
-        assignedTo = activeTask ? undefined : schedule.assignedTo;
-      }
-
-      await tasksRepository.createFromSchedule({
-        title: schedule.title,
-        description: schedule.description ?? undefined,
-        priority: schedule.priority,
-        category: schedule.category ?? undefined,
-        assignedTo,
-        dueDate: schedule.nextDueAt,
-        recurringTaskId: schedule.id,
-      });
-
-      await recurringTasksRepository.advanceNextDueAt(
-        schedule.id,
-        schedule.intervalDays,
-        schedule.nextDueAt,
-      );
-
-      generated++;
-    }),
-  );
-
-  logger.info({ job: "generateRecurringTasks", generated }, "completed");
+  logger.info({ job: "generateRecurringTasks", generated, failed }, "completed");
 };

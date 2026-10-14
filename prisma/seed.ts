@@ -1495,7 +1495,8 @@ const seed = async (): Promise<void> => {
 
   for (const meter of meters) {
     const assetId = meterAssetIdBySerial.get(meter.assetSerial);
-    const latest = meter.readings.at(-1);
+    // Not .at(-1): the seed's ts-node targets a library without it (npm run prisma:seed).
+    const latest = meter.readings[meter.readings.length - 1];
 
     if (!assetId || !latest) continue;
 
@@ -1526,6 +1527,40 @@ const seed = async (): Promise<void> => {
   }
 
   console.log(`✅ Seeded meters: ${metersAdded} new meters added with reading history`);
+
+  // A demo meter-triggered schedule: the forklift sits at 1,240 hours, so its next
+  // reading crosses 1,250 and creates the PM task. Skipped if it already exists.
+  const forkliftMeter = await prisma.meter.findFirst({
+    where: { name: "Engine hours", asset: { serialNumber: "VEH-FRK-001" } },
+    select: { id: true, assetId: true },
+  });
+
+  if (forkliftMeter) {
+    const existingSchedule = await prisma.recurringTask.findFirst({
+      where: { meterId: forkliftMeter.id, title: "Forklift engine oil and filter change" },
+      select: { id: true },
+    });
+
+    if (!existingSchedule) {
+      await prisma.recurringTask.create({
+        data: {
+          title: "Forklift engine oil and filter change",
+          description: "Drain and replace engine oil, replace the oil filter, check for leaks.",
+          priority: "MEDIUM",
+          category: "TOOLS",
+          triggerType: "METER",
+          meterId: forkliftMeter.id,
+          assetId: forkliftMeter.assetId,
+          intervalReading: 250,
+          firstDueReading: 1250,
+          nextDueReading: 1250,
+          createdBy: admin.id,
+        },
+      });
+
+      console.log("✅ Seeded meter-triggered schedule: forklift oil change every 250 hours");
+    }
+  }
 
   for (const template of checklistTemplates) {
     await prisma.checklistTemplate.upsert({

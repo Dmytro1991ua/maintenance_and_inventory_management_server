@@ -1,5 +1,5 @@
 import { prisma } from "../../config";
-import { TaskStatus } from "../../generated/prisma/client";
+import { Prisma, TaskStatus } from "../../generated/prisma/client";
 import { addDays, getSkipValue, getTotalPages, resolveSortField } from "../../utils";
 import {
   ACTIVE_TASK_STATUSES,
@@ -108,8 +108,9 @@ export const tasksRepository = {
       data,
       select: TASK_SELECT,
     }),
-  createFromSchedule: async (data: CreateTaskInput) =>
-    prisma.task.create({
+  // `db` lets a schedule generate its task inside the caller's transaction.
+  createFromSchedule: async (data: CreateTaskInput, db: Prisma.TransactionClient = prisma) =>
+    db.task.create({
       data,
       select: TASK_SELECT,
     }),
@@ -172,8 +173,12 @@ export const tasksRepository = {
       },
       select: TASK_SELECT,
     }),
-  findActiveForUser: async (userId: string, excludeTaskId?: string) =>
-    prisma.task.findFirst({
+  findActiveForUser: async (
+    userId: string,
+    excludeTaskId?: string,
+    db: Prisma.TransactionClient = prisma,
+  ) =>
+    db.task.findFirst({
       where: {
         assignedTo: userId,
         status: { in: ACTIVE_TASK_STATUSES },

@@ -80,11 +80,17 @@ registry.registerPath({
 registry.registerPath({
   method: "delete",
   path: "/meters/{id}",
-  description: "Delete a meter and its reading history. ADMIN/MANAGER only.",
+  description:
+    "Delete a meter and its reading history. ADMIN/MANAGER only. Refused (409) while a maintenance schedule is triggered by the meter.",
   tags: ["Meters"],
   security: bearerAuth,
   request: { params: MeterIdParamSchema },
-  responses: { 204: { description: "Meter deleted" }, 403: forbidden, 404: notFound },
+  responses: {
+    204: { description: "Meter deleted" },
+    403: forbidden,
+    404: notFound,
+    409: err("Maintenance schedules depend on this meter"),
+  },
 });
 
 registry.registerPath({
@@ -107,7 +113,7 @@ registry.registerPath({
   method: "post",
   path: "/meters/{id}/readings",
   description:
-    "Record a reading. Any authenticated role. The time is set by the server. A reading lower than the current one is rejected; an equal one is accepted.",
+    "Record a reading. Any authenticated role. The time is set by the server. A reading lower than the current one is rejected; an equal one is accepted. If it reaches a threshold of a meter-based maintenance schedule, the PM task is created and returned in `triggeredTasks`.",
   tags: ["Meters"],
   security: bearerAuth,
   request: {

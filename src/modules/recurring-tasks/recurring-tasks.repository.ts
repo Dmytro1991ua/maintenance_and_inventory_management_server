@@ -1,11 +1,15 @@
 import { prisma } from "../../config";
+import { Prisma, ScheduleTrigger } from "../../generated/prisma/client";
 import { getSkipValue, getTotalPages } from "../../utils";
-import { RECURRING_TASK_SELECT } from "./recurring-tasks.constants";
+import { METER_SCHEDULE_SELECT, RECURRING_TASK_SELECT } from "./recurring-tasks.constants";
 import type {
-  CreateRecurringTask,
+  CreateMeterRecurringTask,
+  CreateTimeRecurringTask,
   RecurringTasksQuery,
   UpdateRecurringTask,
 } from "./recurring-tasks.schemas";
+
+type ScheduleOwner = { createdBy: string };
 
 export const recurringTasksRepository = {
   findAll: async ({ page, limit, isActive }: RecurringTasksQuery) => {
@@ -30,10 +34,25 @@ export const recurringTasksRepository = {
     prisma.recurringTask.findUnique({ where: { id }, select: RECURRING_TASK_SELECT }),
   findDue: async () =>
     prisma.recurringTask.findMany({
-      where: { isActive: true, nextDueAt: { lte: new Date() } },
+      where: {
+        isActive: true,
+        triggerType: ScheduleTrigger.TIME,
+        nextDueAt: { lte: new Date() },
+      },
       select: RECURRING_TASK_SELECT,
     }),
-  create: async (data: CreateRecurringTask & { createdBy: string }) =>
+  findActiveMeterSchedules: async (meterId?: string) =>
+    prisma.recurringTask.findMany({
+      where: {
+        isActive: true,
+        triggerType: ScheduleTrigger.METER,
+        ...(meterId && { meterId }),
+      },
+      select: METER_SCHEDULE_SELECT,
+    }),
+  countByMeter: async (meterId: string): Promise<number> =>
+    prisma.recurringTask.count({ where: { meterId } }),
+  create: async (data: CreateTimeRecurringTask & ScheduleOwner) =>
     prisma.recurringTask.create({
       data: {
         title: data.title,
@@ -41,8 +60,31 @@ export const recurringTasksRepository = {
         priority: data.priority,
         category: data.category,
         assignedTo: data.assignedTo,
+        assetId: data.assetId,
+        triggerType: ScheduleTrigger.TIME,
         intervalDays: data.intervalDays,
         nextDueAt: data.firstDueAt,
+        createdBy: data.createdBy,
+      },
+      select: RECURRING_TASK_SELECT,
+    }),
+  createMeterBased: async (
+    data: Omit<CreateMeterRecurringTask, "firstDueReading"> &
+      ScheduleOwner & { assetId: string; firstDueReading: number },
+  ) =>
+    prisma.recurringTask.create({
+      data: {
+        title: data.title,
+        description: data.description,
+        priority: data.priority,
+        category: data.category,
+        assignedTo: data.assignedTo,
+        assetId: data.assetId,
+        triggerType: ScheduleTrigger.METER,
+        meterId: data.meterId,
+        intervalReading: data.intervalReading,
+        firstDueReading: data.firstDueReading,
+        nextDueReading: data.firstDueReading,
         createdBy: data.createdBy,
       },
       select: RECURRING_TASK_SELECT,
@@ -59,10 +101,11 @@ export const recurringTasksRepository = {
     id: string,
     intervalDays: number,
     currentNextDueAt: Date,
+    db: Prisma.TransactionClient = prisma,
   ): Promise<void> => {
     const next = new Date(currentNextDueAt);
     next.setDate(next.getDate() + intervalDays);
-    await prisma.recurringTask.update({ where: { id }, data: { nextDueAt: next } });
+    await db.recurringTask.update({ where: { id }, data: { nextDueAt: next } });
   },
   delete: async (id: string): Promise<void> => {
     await prisma.recurringTask.delete({ where: { id } });
