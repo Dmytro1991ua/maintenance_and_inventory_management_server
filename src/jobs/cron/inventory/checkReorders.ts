@@ -11,6 +11,7 @@ import {
   resolveReorderQuantity,
 } from "../../../modules/reorders/reorders.utils";
 import { usersRepository } from "../../../modules/users/users.repository";
+import { assertNoFailures, processEach } from "../runJob";
 
 type Recipient = { id: string };
 
@@ -76,18 +77,20 @@ export const checkReorders = async (): Promise<void> => {
 
   let raised = 0;
 
-  for (const item of items) {
+  const failed = await processEach("checkReorders", items, async (item) => {
     const quantity = resolveReorderQuantity(item);
     const reorder = await raiseReorder(item, quantity);
 
-    if (!reorder) continue; // already has an open reorder
+    if (!reorder) return; // already has an open reorder
 
     raised += 1;
 
     if (recipients.length) {
       await notifyReorderRaised(item, reorder.id, quantity, recipients);
     }
-  }
+  });
+
+  assertNoFailures(failed, items.length, "items failed to reorder");
 
   logger.info({ job: "checkReorders", candidates: items.length, raised }, "completed");
 };
