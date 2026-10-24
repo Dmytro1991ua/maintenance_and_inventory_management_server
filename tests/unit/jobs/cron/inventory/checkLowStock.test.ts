@@ -1,5 +1,10 @@
 import { NotificationType, Role } from "../../../../../src/generated/prisma/client";
-import { buildInventoryItem, inventoryRepositoryMock, loggerMock, usersRepositoryMock } from "../../../../mocks";
+import {
+  buildInventoryItem,
+  inventoryRepositoryMock,
+  loggerMock,
+  usersRepositoryMock,
+} from "../../../../mocks";
 
 jest.mock("../../../../../src/modules/inventory/inventory.repository", () => ({
   inventoryRepository: inventoryRepositoryMock,
@@ -110,5 +115,18 @@ describe("checkLowStock", () => {
     await checkLowStock();
 
     expect(createManyMock).not.toHaveBeenCalled();
+  });
+
+  it("should notify the remaining items, then fail the run, when one item fails", async () => {
+    inventoryRepositoryMock.findLowStock.mockResolvedValue([
+      buildInventoryItem({ id: "item-a" }),
+      buildInventoryItem({ id: "item-b" }),
+    ]);
+    usersRepositoryMock.findByRoles.mockResolvedValue([{ id: "admin-1" }]);
+    createManyMock.mockRejectedValueOnce(new Error("boom"));
+
+    await expect(checkLowStock()).rejects.toThrow("1 of 2 low-stock items failed to notify");
+
+    expect(createManyMock).toHaveBeenCalledTimes(2);
   });
 });

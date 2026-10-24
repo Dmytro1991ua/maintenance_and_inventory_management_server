@@ -134,4 +134,20 @@ describe("checkReorders", () => {
     expect(reordersRepositoryMock.raise).toHaveBeenCalledTimes(1);
     expect(createManyMock).not.toHaveBeenCalled();
   });
+
+  it("should raise the remaining reorders, then fail the run, when one item fails", async () => {
+    reordersRepositoryMock.findItemsNeedingReorder.mockResolvedValue([
+      buildItem({ id: "item-1" }),
+      buildItem({ id: "item-2" }),
+    ]);
+    usersRepositoryMock.findByRoles.mockResolvedValue([{ id: "admin-1" }]);
+    reordersRepositoryMock.raise
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce({ id: "reorder-2" });
+
+    await expect(checkReorders()).rejects.toThrow("1 of 2 items failed to reorder");
+
+    expect(reordersRepositoryMock.raise).toHaveBeenCalledTimes(2);
+    expect(createManyMock).toHaveBeenCalledTimes(1);
+  });
 });

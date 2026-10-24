@@ -113,4 +113,19 @@ describe("checkWarrantyExpiry", () => {
     expect(createManyMock).not.toHaveBeenCalled();
     expect(assetsRepositoryMock.markWarrantyReminded).not.toHaveBeenCalled();
   });
+
+  it("should still mark the assets that succeeded, then fail the run, when one fails", async () => {
+    assetsRepositoryMock.findWarrantyExpiring.mockResolvedValue([
+      buildAsset({ id: "asset-1" }),
+      buildAsset({ id: "asset-2" }),
+    ]);
+    usersRepositoryMock.findByRoles.mockResolvedValue([{ id: "admin-1" }]);
+    createManyMock
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockResolvedValueOnce({ created: 1, skipped: 0 });
+
+    await expect(checkWarrantyExpiry()).rejects.toThrow("1 of 2 assets failed to notify");
+
+    expect(assetsRepositoryMock.markWarrantyReminded).toHaveBeenCalledWith(["asset-2"]);
+  });
 });

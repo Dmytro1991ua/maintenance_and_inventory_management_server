@@ -4,6 +4,7 @@ import { assetsRepository } from "../../../modules/assets/assets.repository";
 import { buildWarrantyExpiringMessage } from "../../../modules/assets/assets.utils";
 import { notificationsService } from "../../../modules/notifications/notifications.service";
 import { usersRepository } from "../../../modules/users/users.repository";
+import { assertNoFailures, processEach } from "../runJob";
 
 /**
  * Reminds ADMIN/MANAGER users of warranties ending within ASSET_WARRANTY_LEAD_DAYS.
@@ -31,7 +32,7 @@ export const checkWarrantyExpiry = async (): Promise<void> => {
   const type = NotificationType.WARRANTY_EXPIRING;
   const remindedIds: string[] = [];
 
-  for (const asset of assets) {
+  const failed = await processEach("checkWarrantyExpiry", assets, async (asset) => {
     const message = buildWarrantyExpiringMessage(asset.name, asset.warrantyExpiresAt);
     const { created } = await notificationsService.createMany(
       type,
@@ -39,9 +40,12 @@ export const checkWarrantyExpiry = async (): Promise<void> => {
     );
 
     if (created > 0) remindedIds.push(asset.id);
-  }
+  });
 
+  // Mark the ones that succeeded even if others failed, so they aren't re-sent.
   if (remindedIds.length) await assetsRepository.markWarrantyReminded(remindedIds);
+
+  assertNoFailures(failed, assets.length, "assets failed to notify");
 
   logger.info(
     { job: "checkWarrantyExpiry", candidates: assets.length, reminded: remindedIds.length },

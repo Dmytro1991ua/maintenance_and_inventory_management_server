@@ -4,6 +4,7 @@ import { inventoryRepository } from "../../../modules/inventory/inventory.reposi
 import { buildLowStockMessage } from "../../../modules/inventory/inventory.utils";
 import { notificationsService } from "../../../modules/notifications/notifications.service";
 import { usersRepository } from "../../../modules/users/users.repository";
+import { assertNoFailures, processEach } from "../runJob";
 
 /**
  * Checks for inventory items below their minimum stock level and creates
@@ -29,7 +30,7 @@ export const checkLowStock = async (): Promise<void> => {
     return;
   }
 
-  for (const item of lowStockItems) {
+  const failed = await processEach("checkLowStock", lowStockItems, async (item) => {
     const type = item.quantity === 0 ? NotificationType.OUT_OF_STOCK : NotificationType.LOW_STOCK;
     const notifications = recipients.map(({ id }) => ({
       type,
@@ -39,7 +40,9 @@ export const checkLowStock = async (): Promise<void> => {
     }));
 
     await notificationsService.createMany(type, notifications);
-  }
+  });
+
+  assertNoFailures(failed, lowStockItems.length, "low-stock items failed to notify");
 
   logger.info(
     { job: "checkLowStock", items: lowStockItems.length, recipients: recipients.length },
