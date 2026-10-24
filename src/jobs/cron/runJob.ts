@@ -14,3 +14,8 @@ export const runJob = async (name: string, task: () => Promise<void>): Promise<v
     logger.error({ job: name, err }, "failed");
   }
 };
+
+/** Call after a loop that survives item failures, so the run is recorded as failed. */
+export const assertNoFailures = (failed: number, total: number, what: string): void => {
+  if (failed > 0) throw new Error(`${failed} of ${total} ${what}`);
+};

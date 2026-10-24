@@ -328,7 +328,7 @@ describe("the nightly sweep", () => {
 
     const result = await sweepMeterSchedules();
 
-    expect(result).toEqual({ checked: 1, fired: 1 });
+    expect(result).toEqual({ checked: 1, fired: 1, failed: 0 });
     expect(await tasksFor(schedule.id)).toHaveLength(1);
     expect(await nextDue(schedule.id)).toBe(500);
   });
@@ -363,7 +363,7 @@ describe("the nightly sweep", () => {
 
     const result = await sweepMeterSchedules();
 
-    expect(result).toEqual({ checked: 0, fired: 0 });
+    expect(result).toEqual({ checked: 0, fired: 0, failed: 0 });
     expect(await tasksFor(paused.schedule.id)).toHaveLength(0);
     expect(await tasksFor(notDue.schedule.id)).toHaveLength(0);
   });
@@ -376,7 +376,7 @@ describe("the nightly sweep", () => {
     const result = await sweepMeterSchedules();
 
     // Whichever ran first failed and rolled back; the other fired.
-    expect(result).toEqual({ checked: 2, fired: 1 });
+    expect(result).toEqual({ checked: 2, fired: 1, failed: 1 });
     expect(await prisma.task.count()).toBe(1);
     const advanced = (await prisma.recurringTask.findMany({ where: { meterId: meter.id } })).filter(
       (s) => s.nextDueReading === 500,
@@ -391,6 +391,16 @@ describe("the nightly sweep", () => {
     await expect(checkMeterSchedules()).resolves.toBeUndefined();
 
     expect(await tasksFor(schedule.id)).toHaveLength(1);
+  });
+
+  it("should fail the nightly job when a schedule fails, after the others have run", async () => {
+    const { meter } = await pastThreshold(300);
+    await createTestMeterSchedule({ meterId: meter.id, title: "Second" });
+    jest.spyOn(tasksRepository, "createFromSchedule").mockRejectedValueOnce(new Error("boom"));
+
+    await expect(checkMeterSchedules()).rejects.toThrow("1 of 2 meter schedules failed to fire");
+
+    expect(await prisma.task.count()).toBe(1);
   });
 });
 

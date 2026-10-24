@@ -1,6 +1,7 @@
 import { logger, prisma } from "../../../config";
 import { createScheduledTask } from "../../../modules/recurring-tasks/recurring-tasks.generation";
 import { recurringTasksRepository } from "../../../modules/recurring-tasks/recurring-tasks.repository";
+import { assertNoFailures } from "../runJob";
 
 type DueSchedule = Awaited<ReturnType<typeof recurringTasksRepository.findDue>>[number];
 
@@ -38,7 +39,7 @@ export const generateRecurringTasks = async (): Promise<void> => {
     }
   }
 
-  logger.info({ job: "generateRecurringTasks", generated, failed }, "completed");
+  assertNoFailures(failed, due.length, "schedules failed to generate");
 
-  if (failed > 0) throw new Error(`${failed} of ${due.length} schedules failed to generate`);
+  logger.info({ job: "generateRecurringTasks", generated }, "completed");
 };

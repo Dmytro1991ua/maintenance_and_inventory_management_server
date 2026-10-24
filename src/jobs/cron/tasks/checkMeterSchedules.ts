@@ -1,12 +1,15 @@
 import { logger } from "../../../config";
 import { sweepMeterSchedules } from "../../../modules/recurring-tasks/recurring-tasks.meter";
+import { assertNoFailures } from "../runJob";
 
 /**
  * Nightly safety net for meter schedules that were due but didn't fire when their
  * reading was recorded (a crash, or an open task that has since closed).
  */
 export const checkMeterSchedules = async (): Promise<void> => {
-  const { checked, fired } = await sweepMeterSchedules();
+  const { checked, fired, failed } = await sweepMeterSchedules();
+
+  assertNoFailures(failed, checked, "meter schedules failed to fire");
 
   logger.info({ job: "checkMeterSchedules", checked, fired }, "completed");
 };

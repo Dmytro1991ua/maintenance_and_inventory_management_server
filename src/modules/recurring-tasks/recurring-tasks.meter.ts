@@ -78,30 +78,27 @@ export const fireMeterSchedule = async (
 const isDue = (schedule: MeterSchedule, reading: number): boolean =>
   schedule.nextDueReading !== null && schedule.nextDueReading <= reading;
 
-// One schedule failing mustn't stop the others, or lose the caller's work.
-const fireSafely = async (schedule: MeterSchedule, reading: number) => {
-  try {
-    return await fireMeterSchedule(schedule, reading);
-  } catch (err) {
-    logger.error({ err, scheduleId: schedule.id }, "Failed to fire meter schedule");
-
-    return null;
-  }
-};
-
 type FireTarget = { schedule: MeterSchedule; reading: number };
 
-// Fires each target in turn and returns the tasks created.
-const fireAll = async (targets: FireTarget[]): Promise<TriggeredTask[]> => {
+// Fires each target in turn. One failing mustn't stop the others or lose the caller's work.
+const fireAll = async (
+  targets: FireTarget[],
+): Promise<{ tasks: TriggeredTask[]; failed: number }> => {
   const tasks: TriggeredTask[] = [];
+  let failed = 0;
 
   for (const { schedule, reading } of targets) {
-    const task = await fireSafely(schedule, reading);
+    try {
+      const task = await fireMeterSchedule(schedule, reading);
 
-    if (task) tasks.push(task);
+      if (task) tasks.push(task);
+    } catch (err) {
+      failed++;
+      logger.error({ err, scheduleId: schedule.id }, "Failed to fire meter schedule");
+    }
   }
 
-  return tasks;
+  return { tasks, failed };
 };
 
 /** After a reading is recorded: fires this meter's schedules that reached their threshold. */
@@ -111,13 +108,19 @@ export const evaluateMeterSchedules = async (
 ): Promise<TriggeredTask[]> => {
   const schedules = await recurringTasksRepository.findActiveMeterSchedules(meterId);
 
-  return fireAll(
+  const { tasks } = await fireAll(
     schedules.filter((s) => isDue(s, reading)).map((schedule) => ({ schedule, reading })),
   );
+
+  return tasks;
 };
 
 /** Nightly safety net: fires every due meter schedule against its meter's current reading. */
-export const sweepMeterSchedules = async (): Promise<{ checked: number; fired: number }> => {
+export const sweepMeterSchedules = async (): Promise<{
+  checked: number;
+  fired: number;
+  failed: number;
+}> => {
   const schedules = await recurringTasksRepository.findActiveMeterSchedules();
 
   const due = schedules.flatMap((schedule) =>
@@ -126,7 +129,7 @@ export const sweepMeterSchedules = async (): Promise<{ checked: number; fired: n
       : [],
   );
 
-  const tasks = await fireAll(due);
+  const { tasks, failed } = await fireAll(due);
 
-  return { checked: due.length, fired: tasks.length };
+  return { checked: due.length, fired: tasks.length, failed };
 };
