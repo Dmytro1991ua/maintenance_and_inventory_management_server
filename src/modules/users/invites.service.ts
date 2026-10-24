@@ -1,11 +1,12 @@
 import { env } from "../../config";
 import { BadRequestError, ConflictError, NotFoundError } from "../../errors";
 import { emailService } from "../../shared/email.service";
+import { addDays } from "../../utils";
 import { invitesRepository } from "./invites.repository";
 import type { InviteUserInput } from "./invites.schemas";
 import { usersRepository } from "./users.repository";
 
-const INVITE_TTL_HOURS = 48;
+const INVITE_TTL_DAYS = 2;
 
 export const invitesService = {
   invite: async (data: InviteUserInput) => {
@@ -27,8 +28,7 @@ export const invitesService = {
       await invitesRepository.delete(existing.id);
     }
 
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + INVITE_TTL_HOURS);
+    const expiresAt = addDays(new Date(), INVITE_TTL_DAYS);
 
     const invite = await invitesRepository.create({ ...data, expiresAt });
     const inviteUrl = `${env.APP_URL}/auth/accept-invite?token=${invite.token}`;
