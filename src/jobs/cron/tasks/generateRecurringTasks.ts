@@ -39,4 +39,6 @@ export const generateRecurringTasks = async (): Promise<void> => {
   }
 
   logger.info({ job: "generateRecurringTasks", generated, failed }, "completed");
+
+  if (failed > 0) throw new Error(`${failed} of ${due.length} schedules failed to generate`);
 };
