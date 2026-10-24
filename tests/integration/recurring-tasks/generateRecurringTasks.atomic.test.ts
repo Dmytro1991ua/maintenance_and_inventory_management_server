@@ -49,7 +49,7 @@ describe("generateRecurringTasks: atomicity", () => {
       .spyOn(recurringTasksRepository, "advanceNextDueAt")
       .mockRejectedValueOnce(new Error("boom"));
 
-    await expect(generateRecurringTasks()).resolves.toBeUndefined();
+    await expect(generateRecurringTasks()).rejects.toThrow("1 of 1 schedules failed");
 
     expect(await tasksFor(schedule.id)).toHaveLength(0);
     expect(await nextDueAt(schedule.id)).toBe(PAST.toISOString());
@@ -61,7 +61,7 @@ describe("generateRecurringTasks: atomicity", () => {
       .spyOn(recurringTasksRepository, "advanceNextDueAt")
       .mockRejectedValueOnce(new Error("boom"));
 
-    await generateRecurringTasks(); // fails, rolls back
+    await expect(generateRecurringTasks()).rejects.toThrow(); // fails, rolls back
     await generateRecurringTasks(); // succeeds
 
     expect(await tasksFor(schedule.id)).toHaveLength(1);
@@ -76,7 +76,8 @@ describe("generateRecurringTasks: atomicity", () => {
       .spyOn(recurringTasksRepository, "advanceNextDueAt")
       .mockRejectedValueOnce(new Error("boom"));
 
-    await generateRecurringTasks();
+    // The failure is still reported, but only after the other schedule ran.
+    await expect(generateRecurringTasks()).rejects.toThrow("1 of 2 schedules failed");
 
     // Exactly one of the two generated; the other rolled back cleanly.
     const generated = (await tasksFor(a.id)).length + (await tasksFor(b.id)).length;
