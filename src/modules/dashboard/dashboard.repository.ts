@@ -100,15 +100,16 @@ export const dashboardRepository = {
         where: { isActive: true, nextDueAt: { lte: weekEnd } },
       }),
       // Meter schedules within a share of their interval of the next threshold,
-      // including ones that already reached it (waiting on an open task).
+      // including ones that already reached it (waiting on an open task). bigint,
+      // because readings times 100 overflow a 32-bit int.
       prisma.$queryRaw<[{ count: number }]>`
         SELECT COUNT(*)::int AS count
         FROM recurring_tasks rt
         JOIN meters m ON m.id = rt."meterId"
         WHERE rt."isActive"
           AND rt."triggerType" = 'METER'
-          AND (rt."nextDueReading" - m."currentReading") * 100
-              <= rt."intervalReading" * ${METER_DUE_SOON_PERCENT}
+          AND (rt."nextDueReading" - m."currentReading")::bigint * 100
+              <= rt."intervalReading"::bigint * ${METER_DUE_SOON_PERCENT}
       `,
     ]);
 

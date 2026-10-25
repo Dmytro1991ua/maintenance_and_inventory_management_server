@@ -121,6 +121,20 @@ describe("GET /api/v1/dashboard/stats — schedules", () => {
     expect(schedules.meterDueSoon).toBe(expected);
   });
 
+  it("should not fail on schedules with very large readings", async () => {
+    // A truck odometer in metres: a new schedule sits 25,000,000 from its threshold.
+    const meter = await createTestMeter({ currentReading: 0 });
+    await createTestMeterSchedule({
+      meterId: meter.id,
+      intervalReading: 25_000_000,
+      firstDueReading: 25_000_000,
+    });
+
+    const schedules = await getSchedules();
+
+    expect(schedules.meterDueSoon).toBe(0);
+  });
+
   it("should leave out paused meter schedules and time-based ones", async () => {
     await meterScheduleAt(1000, false);
     await createTestRecurringTask({ nextDueAt: new Date("2020-01-01T00:00:00.000Z") });
