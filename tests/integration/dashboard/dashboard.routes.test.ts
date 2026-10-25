@@ -5,6 +5,9 @@ import {
   authHeader,
   createAdminUser,
   createTechnicianUser,
+  createTestMeter,
+  createTestMeterSchedule,
+  createTestRecurringTask,
   createTestTask,
   signTestAccessToken,
 } from "../helpers";
@@ -77,5 +80,62 @@ describe("GET /api/v1/dashboard/stats — manager cycle time", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.data.myTasks).toBeDefined();
+  });
+});
+
+describe("GET /api/v1/dashboard/stats — schedules", () => {
+  const getSchedules = async () => {
+    const admin = await createAdminUser();
+    const response = await request(app)
+      .get("/api/v1/dashboard/stats")
+      .set(authHeader(signTestAccessToken(admin)));
+
+    expect(response.status).toBe(200);
+
+    return response.body.data.schedules;
+  };
+
+  // Interval 250, next threshold 1000: "due soon" is within 25 of it (10%).
+  const meterScheduleAt = async (currentReading: number, isActive = true) => {
+    const meter = await createTestMeter({ currentReading });
+
+    return createTestMeterSchedule({
+      meterId: meter.id,
+      intervalReading: 250,
+      firstDueReading: 1000,
+      isActive,
+    });
+  };
+
+  it.each([
+    ["well before the threshold", 900, 0],
+    ["just outside the window", 974, 0],
+    ["exactly at the edge of the window", 975, 1],
+    ["at the threshold", 1000, 1],
+    ["past the threshold (waiting on an open task)", 1100, 1],
+  ])("should count a meter schedule %s", async (_label, reading, expected) => {
+    await meterScheduleAt(reading);
+
+    const schedules = await getSchedules();
+
+    expect(schedules.meterDueSoon).toBe(expected);
+  });
+
+  it("should leave out paused meter schedules and time-based ones", async () => {
+    await meterScheduleAt(1000, false);
+    await createTestRecurringTask({ nextDueAt: new Date("2020-01-01T00:00:00.000Z") });
+
+    const schedules = await getSchedules();
+
+    expect(schedules.meterDueSoon).toBe(0);
+  });
+
+  it("should keep meter schedules out of the time-based due-this-week count", async () => {
+    await meterScheduleAt(1000);
+    await createTestRecurringTask({ nextDueAt: new Date("2020-01-01T00:00:00.000Z") });
+
+    const schedules = await getSchedules();
+
+    expect(schedules).toEqual({ active: 2, dueThisWeek: 1, meterDueSoon: 1 });
   });
 });
