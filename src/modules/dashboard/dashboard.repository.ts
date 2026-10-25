@@ -1,5 +1,6 @@
 import { prisma } from "../../config";
 import { Role, TaskStatus, UserStatus } from "../../generated/prisma/client";
+import { METER_DUE_SOON_PERCENT } from "./dashboard.constants";
 
 const startOfCurrentMonth = (): Date => {
   const now = new Date();
@@ -32,6 +33,7 @@ export const dashboardRepository = {
       technicians,
       activeSchedules,
       schedulesThisWeek,
+      meterSchedulesDueSoon,
     ] = await Promise.all([
       prisma.task.groupBy({ by: ["status"], _count: { id: true } }),
       prisma.task.count({
@@ -92,10 +94,23 @@ export const dashboardRepository = {
       }),
       prisma.recurringTask.count({ where: { isActive: true } }),
       // "Due this week" counts time-based schedules only: a meter schedule has no
-      // calendar date (nextDueAt is null), so it never matches. Intentional.
+      // calendar date (nextDueAt is null), so it never matches. Meter schedules
+      // are counted separately below.
       prisma.recurringTask.count({
         where: { isActive: true, nextDueAt: { lte: weekEnd } },
       }),
+      // Meter schedules within a share of their interval of the next threshold,
+      // including ones that already reached it (waiting on an open task). bigint,
+      // because readings times 100 overflow a 32-bit int.
+      prisma.$queryRaw<[{ count: number }]>`
+        SELECT COUNT(*)::int AS count
+        FROM recurring_tasks rt
+        JOIN meters m ON m.id = rt."meterId"
+        WHERE rt."isActive"
+          AND rt."triggerType" = 'METER'
+          AND (rt."nextDueReading" - m."currentReading")::bigint * 100
+              <= rt."intervalReading"::bigint * ${METER_DUE_SOON_PERCENT}
+      `,
     ]);
 
     const byStatus = statusGroups.reduce(
@@ -131,6 +146,7 @@ export const dashboardRepository = {
       schedules: {
         active: activeSchedules,
         dueThisWeek: schedulesThisWeek,
+        meterDueSoon: meterSchedulesDueSoon[0].count,
       },
     };
   },

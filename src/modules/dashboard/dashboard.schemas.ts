@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { METER_DUE_SOON_PERCENT } from "./dashboard.constants";
+
 const TasksByStatusSchema = z.object({
   OPEN: z.number().int(),
   IN_PROGRESS: z.number().int(),
@@ -36,6 +38,12 @@ export const ManagerDashboardSchema = z
     schedules: z.object({
       active: z.number().int(),
       dueThisWeek: z.number().int(),
+      meterDueSoon: z
+        .number()
+        .int()
+        .openapi({
+          description: `Active meter schedules within ${METER_DUE_SOON_PERCENT}% of their interval of the next threshold, or already past it. Not included in dueThisWeek.`,
+        }),
     }),
   })
   .openapi("ManagerDashboard");
