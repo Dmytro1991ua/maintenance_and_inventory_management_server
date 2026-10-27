@@ -5,6 +5,7 @@ import { asyncHandler, authenticate, authorize, validateQuery } from "../../midd
 import { reportsController } from "./reports.controller";
 import {
   AssetReportQuerySchema,
+  SpendQuerySchema,
   TechnicianWorkloadQuerySchema,
   ThroughputQuerySchema,
 } from "./reports.schemas";
@@ -52,6 +53,20 @@ router.get(
   managers,
   validateQuery(ThroughputQuerySchema),
   asyncHandler(reportsController.getThroughput),
+);
+
+/**
+ * GET /api/v1/reports/spend
+ * ADMIN + MANAGER — what was actually paid for received reorders over time
+ * (bucketed by day/week/month), with a summary and breakdowns by supplier and
+ * category. Defaults to the last 12 months.
+ */
+router.get(
+  "/spend",
+  authenticate,
+  managers,
+  validateQuery(SpendQuerySchema),
+  asyncHandler(reportsController.getSpend),
 );
 
 export default router;

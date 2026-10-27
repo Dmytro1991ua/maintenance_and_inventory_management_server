@@ -9,6 +9,13 @@ import type {
   ThroughputGranularity,
 } from "./reports.schemas";
 
+// Spend is what was actually paid: quantity x receivedUnitCost over RECEIVED orders.
+// Orders with no recorded price are left out of the sum (never treated as 0).
+const SPENT = Prisma.sql`COALESCE(SUM(r.quantity * r."receivedUnitCost") FILTER (WHERE r."receivedUnitCost" IS NOT NULL), 0)`;
+
+const receivedBetween = (from: Date, to: Date): Prisma.Sql =>
+  Prisma.sql`r.status = 'RECEIVED' AND r."receivedAt" BETWEEN ${from} AND ${to}`;
+
 // Whitelisted date_trunc unit + generate_series step per granularity. Values
 // are bound as parameters (not interpolated), so this map is purely a lookup —
 // there is no injection surface.
@@ -104,6 +111,14 @@ type ThroughputSummaryRow = {
   totalCreated: number;
   totalCompleted: number;
   avgCompletionDays: number | null;
+};
+
+type SpendFigures = { spent: string; receivedOrders: number };
+
+type SpendSummaryRow = SpendFigures & {
+  unrecordedReceived: number;
+  variance: string;
+  comparableOrders: number;
 };
 
 type TechnicianWorkloadRow = {
@@ -230,6 +245,87 @@ export const reportsRepository = {
 
     return rows[0];
   },
+
+  getSpendSummary: async (from: Date, to: Date): Promise<SpendSummaryRow> => {
+    const rows = await prisma.$queryRaw<SpendSummaryRow[]>`
+      SELECT
+        ROUND(${SPENT}, 2)::text                                                AS spent,
+        COUNT(*)::int                                                                  AS "receivedOrders",
+        COUNT(*) FILTER (WHERE r."receivedUnitCost" IS NULL)::int                      AS "unrecordedReceived",
+        ROUND(COALESCE(SUM(r.quantity * (r."receivedUnitCost" - r."unitCostAtRaise")) FILTER (
+          WHERE r."receivedUnitCost" IS NOT NULL AND r."unitCostAtRaise" IS NOT NULL
+        ), 0), 2)::text                                                    AS variance,
+        COUNT(*) FILTER (
+          WHERE r."receivedUnitCost" IS NOT NULL AND r."unitCostAtRaise" IS NOT NULL
+        )::int                                                                         AS "comparableOrders"
+      FROM reorders r
+      WHERE ${receivedBetween(from, to)}
+    `;
+
+    return rows[0];
+  },
+
+  // Zero-filled across the range, like the throughput series.
+  getSpendSeries: (
+    from: Date,
+    to: Date,
+    groupBy: ThroughputGranularity,
+  ): Promise<(SpendFigures & { bucket: Date })[]> => {
+    const { unit, step } = GRANULARITY[groupBy];
+
+    return prisma.$queryRaw<(SpendFigures & { bucket: Date })[]>`
+      WITH buckets AS (
+        SELECT generate_series(
+          date_trunc(${unit}, ${from}::timestamptz),
+          date_trunc(${unit}, ${to}::timestamptz),
+          ${step}::interval
+        ) AS bucket
+      ),
+      received AS (
+        SELECT date_trunc(${unit}, r."receivedAt") AS bucket, ${SPENT} AS spent, COUNT(*)::int AS c
+        FROM reorders r
+        WHERE ${receivedBetween(from, to)}
+        GROUP BY 1
+      )
+      SELECT
+        b.bucket                                        AS bucket,
+        ROUND(COALESCE(rc.spent, 0), 2)::text     AS spent,
+        COALESCE(rc.c, 0)::int                          AS "receivedOrders"
+      FROM buckets b
+      LEFT JOIN received rc ON rc.bucket = b.bucket
+      ORDER BY b.bucket
+    `;
+  },
+
+  // Biggest spend first; a null supplier is its own group.
+  getSpendBySupplier: (
+    from: Date,
+    to: Date,
+  ): Promise<(SpendFigures & { supplier: string | null })[]> =>
+    prisma.$queryRaw<(SpendFigures & { supplier: string | null })[]>`
+      SELECT
+        i.supplier                              AS supplier,
+        ROUND(${SPENT}, 2)::text          AS spent,
+        COUNT(*)::int                           AS "receivedOrders"
+      FROM reorders r
+      JOIN inventory_items i ON i.id = r."inventoryItemId"
+      WHERE ${receivedBetween(from, to)}
+      GROUP BY i.supplier
+      ORDER BY ${SPENT} DESC, i.supplier ASC NULLS LAST
+    `,
+
+  getSpendByCategory: (from: Date, to: Date): Promise<(SpendFigures & { category: string })[]> =>
+    prisma.$queryRaw<(SpendFigures & { category: string })[]>`
+      SELECT
+        i.category::text                        AS category,
+        ROUND(${SPENT}, 2)::text          AS spent,
+        COUNT(*)::int                           AS "receivedOrders"
+      FROM reorders r
+      JOIN inventory_items i ON i.id = r."inventoryItemId"
+      WHERE ${receivedBetween(from, to)}
+      GROUP BY i.category
+      ORDER BY ${SPENT} DESC, i.category ASC
+    `,
 
   // Number of technicians matching the report filter — for pagination meta.
   countTechnicianWorkload: async (query: TechnicianWorkloadQuery): Promise<number> => {
