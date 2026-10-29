@@ -24,12 +24,21 @@ type ReceivedOrder = {
   itemId: string;
   quantity: number;
   receivedAt: Date;
-  raised?: string | null; // unit cost when raised (the estimate)
-  paid?: string | null; // actual unit cost recorded at receive
+  raised?: string | null; // unit cost at raise
+  paid?: string | null; // unit cost at receive
 };
 
-const received = ({ itemId, quantity, receivedAt, raised = null, paid = null }: ReceivedOrder) =>
-  prisma.reorder.create({
+// Freezes the item's supplier and category, as receiving does.
+const received = async ({
+  itemId,
+  quantity,
+  receivedAt,
+  raised = null,
+  paid = null,
+}: ReceivedOrder) => {
+  const part = await prisma.inventoryItem.findUniqueOrThrow({ where: { id: itemId } });
+
+  return prisma.reorder.create({
     data: {
       inventoryItemId: itemId,
       quantity,
@@ -37,15 +46,17 @@ const received = ({ itemId, quantity, receivedAt, raised = null, paid = null }: 
       unitCostAtRaise: raised,
       receivedUnitCost: paid,
       receivedAt,
+      receivedSupplier: part.supplier,
+      receivedCategory: part.category,
     },
   });
+};
 
 const item = (supplier: string | null, category: InventoryCategory) =>
   createTestInventoryItem({ category, ...(supplier && { supplier }) });
 
 describe("GET /api/v1/reports/spend", () => {
-  // Two items: Acme/HVAC and no-supplier/TOOLS. June has three received orders,
-  // July one; the rest must be left out.
+  // Acme/HVAC and no-supplier/TOOLS items: 3 orders received in June, 1 in July.
   const seed = async () => {
     const acme = await item("Acme", "HVAC");
     const noSupplier = await item(null, "TOOLS");
@@ -77,7 +88,7 @@ describe("GET /api/v1/reports/spend", () => {
       raised: "6.00",
     }); // received but no price recorded
 
-    // Left out: received before the range, and orders that were never received.
+    // Left out: before the range, or never received.
     await received({
       itemId: acme.id,
       quantity: 1,
@@ -107,7 +118,7 @@ describe("GET /api/v1/reports/spend", () => {
       spent: "148.00",
       receivedOrders: 4,
       unrecordedReceived: 1,
-      variance: "8.00", // +10.00 and -2.00; the other orders lack one of the two prices
+      variance: "8.00", // +10.00 and -2.00; the others lack a price
       comparableOrders: 2,
     });
   });
@@ -162,8 +173,7 @@ describe("GET /api/v1/reports/spend", () => {
 
     const response = await getSpend("from=2026-06-08&to=2026-06-28&groupBy=week");
 
-    // Weeks start on Monday: 8th, 15th, 22nd. The 10th falls in the first, the
-    // 20th and 21st (a Saturday and Sunday) in the second.
+    // Weeks start Monday: 8th, 15th, 22nd.
     expect(response.body.data.series).toEqual([
       { bucket: "2026-06-08T00:00:00.000Z", spent: "90.00", receivedOrders: 1 },
       { bucket: "2026-06-15T00:00:00.000Z", spent: "8.00", receivedOrders: 2 },
@@ -238,6 +248,37 @@ describe("GET /api/v1/reports/spend", () => {
     expect(response.body.data.summary.spent).toBe("199999980000000.00");
   });
 
+  it("should include the whole last day when to is a plain date", async () => {
+    const part = await item("Acme", "HVAC");
+    await received({
+      itemId: part.id,
+      quantity: 10,
+      receivedAt: new Date("2026-07-31T12:00:00.000Z"),
+      paid: "9.00",
+    });
+
+    const response = await getSpend("from=2026-07-01&to=2026-07-31");
+
+    expect(response.body.data.summary.spent).toBe("90.00");
+    expect(response.body.data.series).toEqual([
+      { bucket: "2026-07-01T00:00:00.000Z", spent: "90.00", receivedOrders: 1 },
+    ]);
+  });
+
+  it("should still treat a full timestamp in to as an exact instant", async () => {
+    const part = await item("Acme", "HVAC");
+    await received({
+      itemId: part.id,
+      quantity: 10,
+      receivedAt: new Date("2026-07-31T12:00:00.000Z"),
+      paid: "9.00",
+    });
+
+    const response = await getSpend("from=2026-07-01&to=2026-07-31T00:00:00.000Z");
+
+    expect(response.body.data.summary.spent).toBe("0.00");
+  });
+
   it("should return 400 when from is after to", async () => {
     const response = await getSpend("from=2026-08-01&to=2026-06-01");
 
@@ -248,6 +289,63 @@ describe("GET /api/v1/reports/spend", () => {
     const response = await getSpend("groupBy=year");
 
     expect(response.status).toBe(400);
+  });
+});
+
+describe("GET /api/v1/reports/spend — past spend stays put when an item changes", () => {
+  it("should keep an order under the supplier and category it was received with", async () => {
+    const manager = await createManagerUser();
+    const part = await item("Acme", "HVAC");
+    const order = await prisma.reorder.create({
+      data: {
+        inventoryItemId: part.id,
+        quantity: 10,
+        status: "ORDERED",
+        unitCostAtRaise: "8.00",
+      },
+    });
+
+    const receive = await request(app)
+      .patch(`/api/v1/reorders/${order.id}/receive`)
+      .set(authHeader(signTestAccessToken(manager)))
+      .send({ receivedUnitCost: "9.00" });
+    expect(receive.status).toBe(200);
+
+    // The item changes supplier and category after the purchase.
+    await prisma.inventoryItem.update({
+      where: { id: part.id },
+      data: { supplier: "Grainger", category: "TOOLS" },
+    });
+
+    const day = (offset: number) =>
+      new Date(Date.now() + offset * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const response = await getSpend(`from=${day(-1)}&to=${day(1)}`);
+
+    expect(response.body.data.bySupplier).toEqual([
+      { supplier: "Acme", spent: "90.00", receivedOrders: 1 },
+    ]);
+    expect(response.body.data.byCategory).toEqual([
+      { category: "HVAC", spent: "90.00", receivedOrders: 1 },
+    ]);
+  });
+
+  it("should freeze a missing supplier as no supplier, not the item's later one", async () => {
+    const manager = await createManagerUser();
+    const part = await item(null, "TOOLS");
+    const order = await prisma.reorder.create({
+      data: { inventoryItemId: part.id, quantity: 1, status: "ORDERED" },
+    });
+
+    await request(app)
+      .patch(`/api/v1/reorders/${order.id}/receive`)
+      .set(authHeader(signTestAccessToken(manager)))
+      .send({ receivedUnitCost: "5.00" });
+    await prisma.inventoryItem.update({ where: { id: part.id }, data: { supplier: "Acme" } });
+
+    const stored = await prisma.reorder.findUniqueOrThrow({ where: { id: order.id } });
+
+    expect(stored.receivedSupplier).toBeNull();
+    expect(stored.receivedCategory).toBe("TOOLS");
   });
 });
 

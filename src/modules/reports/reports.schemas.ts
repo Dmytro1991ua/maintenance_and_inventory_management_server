@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { endOfDayIfDateOnly } from "../../utils";
 import { AssetCategoryEnum, AssetStatusEnum } from "../assets/assets.schemas";
 
 export const ASSET_REPORT_SORT_FIELDS = [
@@ -45,10 +46,14 @@ export const TechnicianWorkloadQuerySchema = z
 
 export const THROUGHPUT_GRANULARITIES = ["day", "week", "month"] as const;
 
+// A plain date includes that whole day.
+const RangeEnd = (example: string) =>
+  z.preprocess(endOfDayIfDateOnly, z.coerce.date().optional().openapi({ example }));
+
 export const ThroughputQuerySchema = z
   .object({
     from: z.coerce.date().optional().openapi({ example: "2026-06-01T00:00:00.000Z" }),
-    to: z.coerce.date().optional().openapi({ example: "2026-08-29T00:00:00.000Z" }),
+    to: RangeEnd("2026-08-29"),
     groupBy: z.enum(THROUGHPUT_GRANULARITIES).default("week"),
   })
   .openapi("ThroughputQuery");
@@ -56,7 +61,7 @@ export const ThroughputQuerySchema = z
 export const SpendQuerySchema = z
   .object({
     from: z.coerce.date().optional().openapi({ example: "2026-01-01T00:00:00.000Z" }),
-    to: z.coerce.date().optional().openapi({ example: "2026-06-30T23:59:59.000Z" }),
+    to: RangeEnd("2026-06-30"),
     groupBy: z.enum(THROUGHPUT_GRANULARITIES).default("month"),
   })
   .openapi("SpendQuery");
@@ -146,7 +151,7 @@ export const ThroughputResponseSchema = z
 
 const SpendFiguresSchema = z.object({
   spent: z.string().openapi({ example: "9800.00" }),
-  // Received orders in the group, including ones with no recorded price.
+  // Includes unpriced orders.
   receivedOrders: z.number().int().openapi({ example: 40 }),
 });
 
@@ -158,9 +163,9 @@ export const SpendResponseSchema = z
       to: z.iso.datetime(),
       groupBy: z.enum(THROUGHPUT_GRANULARITIES),
       summary: SpendFiguresSchema.extend({
-        // Received orders with no actual price recorded: counted, but not in spent.
+        // Unpriced: counted, not in spent.
         unrecordedReceived: z.number().int().openapi({ example: 5 }),
-        // Actual - estimate over orders that have both (may be negative).
+        // Actual - estimate, where both exist.
         variance: z.string().openapi({ example: "120.00" }),
         comparableOrders: z.number().int().openapi({ example: 31 }),
       }),

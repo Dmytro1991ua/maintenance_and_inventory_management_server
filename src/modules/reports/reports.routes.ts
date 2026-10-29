@@ -57,9 +57,7 @@ router.get(
 
 /**
  * GET /api/v1/reports/spend
- * ADMIN + MANAGER — what was actually paid for received reorders over time
- * (bucketed by day/week/month), with a summary and breakdowns by supplier and
- * category. Defaults to the last 12 months.
+ * ADMIN + MANAGER — actual spend on received reorders, by period, supplier and category.
  */
 router.get(
   "/spend",

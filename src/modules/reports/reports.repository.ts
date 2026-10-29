@@ -9,8 +9,7 @@ import type {
   ThroughputGranularity,
 } from "./reports.schemas";
 
-// Spend is what was actually paid: quantity x receivedUnitCost over RECEIVED orders.
-// Orders with no recorded price are left out of the sum (never treated as 0).
+// Spend = quantity x receivedUnitCost; unpriced orders are skipped, not counted as 0.
 const SPENT = Prisma.sql`COALESCE(SUM(r.quantity * r."receivedUnitCost") FILTER (WHERE r."receivedUnitCost" IS NOT NULL), 0)`;
 
 const receivedBetween = (from: Date, to: Date): Prisma.Sql =>
@@ -265,7 +264,7 @@ export const reportsRepository = {
     return rows[0];
   },
 
-  // Zero-filled across the range, like the throughput series.
+  // Zero-filled, like throughput.
   getSpendSeries: (
     from: Date,
     to: Date,
@@ -297,34 +296,34 @@ export const reportsRepository = {
     `;
   },
 
-  // Biggest spend first; a null supplier is its own group.
+  // By supplier frozen at receive; a null supplier is its own group.
   getSpendBySupplier: (
     from: Date,
     to: Date,
   ): Promise<(SpendFigures & { supplier: string | null })[]> =>
     prisma.$queryRaw<(SpendFigures & { supplier: string | null })[]>`
       SELECT
-        i.supplier                              AS supplier,
-        ROUND(${SPENT}, 2)::text          AS spent,
-        COUNT(*)::int                           AS "receivedOrders"
+        r."receivedSupplier"      AS supplier,
+        ROUND(${SPENT}, 2)::text  AS spent,
+        COUNT(*)::int             AS "receivedOrders"
       FROM reorders r
-      JOIN inventory_items i ON i.id = r."inventoryItemId"
       WHERE ${receivedBetween(from, to)}
-      GROUP BY i.supplier
-      ORDER BY ${SPENT} DESC, i.supplier ASC NULLS LAST
+      GROUP BY r."receivedSupplier"
+      ORDER BY ${SPENT} DESC, r."receivedSupplier" ASC NULLS LAST
     `,
 
+  // By frozen category; the join is only a fallback.
   getSpendByCategory: (from: Date, to: Date): Promise<(SpendFigures & { category: string })[]> =>
     prisma.$queryRaw<(SpendFigures & { category: string })[]>`
       SELECT
-        i.category::text                        AS category,
-        ROUND(${SPENT}, 2)::text          AS spent,
-        COUNT(*)::int                           AS "receivedOrders"
+        COALESCE(r."receivedCategory", i.category)::text  AS category,
+        ROUND(${SPENT}, 2)::text                          AS spent,
+        COUNT(*)::int                                     AS "receivedOrders"
       FROM reorders r
       JOIN inventory_items i ON i.id = r."inventoryItemId"
       WHERE ${receivedBetween(from, to)}
-      GROUP BY i.category
-      ORDER BY ${SPENT} DESC, i.category ASC
+      GROUP BY COALESCE(r."receivedCategory", i.category)
+      ORDER BY ${SPENT} DESC, COALESCE(r."receivedCategory", i.category) ASC
     `,
 
   // Number of technicians matching the report filter — for pagination meta.
