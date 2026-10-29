@@ -118,9 +118,22 @@ export const reordersRepository = {
 
       if (count === 0) return null;
 
-      const { inventoryItemId, quantity } = await tx.reorder.findUniqueOrThrow({
+      const { inventoryItemId, quantity, inventoryItem } = await tx.reorder.findUniqueOrThrow({
         where: { id },
-        select: { inventoryItemId: true, quantity: true },
+        select: {
+          inventoryItemId: true,
+          quantity: true,
+          inventoryItem: { select: { supplier: true, category: true } },
+        },
+      });
+
+      // Freeze supplier and category for spend reports.
+      await tx.reorder.update({
+        where: { id },
+        data: {
+          receivedSupplier: inventoryItem.supplier,
+          receivedCategory: inventoryItem.category,
+        },
       });
 
       await tx.inventoryItem.update({

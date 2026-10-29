@@ -1,4 +1,9 @@
-import { addDays, startOfUtcDay, toUtcDateString } from "../../../src/utils/date";
+import {
+  addDays,
+  endOfDayIfDateOnly,
+  startOfUtcDay,
+  toUtcDateString,
+} from "../../../src/utils/date";
 
 describe("startOfUtcDay", () => {
   it("should return midnight UTC of the same calendar day", () => {
@@ -44,5 +49,22 @@ describe("toUtcDateString", () => {
     expect(toUtcDateString(new Date("2026-11-14T00:00:00.000Z"))).toBe(
       toUtcDateString(new Date("2026-11-14T10:00:00.000Z")),
     );
+  });
+});
+
+describe("endOfDayIfDateOnly", () => {
+  it("should turn a plain date into the last instant of that day", () => {
+    expect(endOfDayIfDateOnly("2026-07-31")).toBe("2026-07-31T23:59:59.999Z");
+  });
+
+  it.each([
+    ["a full timestamp", "2026-07-31T00:00:00.000Z"],
+    ["a date with a time", "2026-07-31T12:00"],
+    ["text that is not a date", "tomorrow"],
+    ["an empty string", ""],
+    ["undefined", undefined],
+    ["a number", 1785000000000],
+  ])("should pass %s through unchanged", (_label, value) => {
+    expect(endOfDayIfDateOnly(value)).toBe(value);
   });
 });

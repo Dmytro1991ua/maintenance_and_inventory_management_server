@@ -14,3 +14,7 @@ export const startOfUtcDay = (date: Date): Date =>
 
 /** The UTC calendar day as YYYY-MM-DD, ignoring time of day. */
 export const toUtcDateString = (date: Date): string => date.toISOString().slice(0, 10);
+
+/** As a range end, a date-only string ("2026-07-31") becomes that day's last instant. */
+export const endOfDayIfDateOnly = (value: unknown): unknown =>
+  typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T23:59:59.999Z` : value;

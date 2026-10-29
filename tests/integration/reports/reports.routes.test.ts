@@ -245,6 +245,21 @@ describe("GET /api/v1/reports/throughput", () => {
     expect(response.body.data.series[0]).toMatchObject({ created: 2, completed: 2 });
   });
 
+  it("should count work done on the last day when to is a plain date", async () => {
+    const admin = await createAdminUser();
+    await createTestTask({
+      status: "DONE",
+      createdAt: new Date("2026-06-30T09:00:00.000Z"),
+      completedAt: new Date("2026-06-30T15:00:00.000Z"),
+    });
+
+    const response = await request(app)
+      .get("/api/v1/reports/throughput?from=2026-06-01&to=2026-06-30&groupBy=month")
+      .set(authHeader(signTestAccessToken(admin)));
+
+    expect(response.body.data.summary).toMatchObject({ totalCreated: 1, totalCompleted: 1 });
+  });
+
   it("should zero-fill buckets with no activity", async () => {
     const admin = await createAdminUser();
     // Activity only in the first week of a three-week window.

@@ -3,12 +3,14 @@ import { getTotalPages, MS_PER_DAY } from "../../utils";
 import { reportsRepository } from "./reports.repository";
 import type {
   AssetReportQuery,
+  SpendQuery,
   TechnicianWorkloadQuery,
   ThroughputGranularity,
   ThroughputQuery,
 } from "./reports.schemas";
 
 const DEFAULT_RANGE_DAYS = 84; // 12 weeks
+const DEFAULT_SPEND_RANGE_DAYS = 365;
 
 const round1 = (n: number | null): number | null => (n == null ? null : Math.round(n * 10) / 10);
 
@@ -45,6 +47,24 @@ export const reportsService = {
         pages: getTotalPages(total, query.limit),
       },
     };
+  },
+
+  getSpend: async (query: SpendQuery) => {
+    const to = query.to ?? new Date();
+    const from = query.from ?? new Date(to.getTime() - DEFAULT_SPEND_RANGE_DAYS * MS_PER_DAY);
+
+    if (from > to) {
+      throw new BadRequestError("`from` must be on or before `to`");
+    }
+
+    const [summary, series, bySupplier, byCategory] = await Promise.all([
+      reportsRepository.getSpendSummary(from, to),
+      reportsRepository.getSpendSeries(from, to, query.groupBy),
+      reportsRepository.getSpendBySupplier(from, to),
+      reportsRepository.getSpendByCategory(from, to),
+    ]);
+
+    return { from, to, groupBy: query.groupBy, summary, series, bySupplier, byCategory };
   },
 
   getThroughput: async (query: ThroughputQuery) => {
