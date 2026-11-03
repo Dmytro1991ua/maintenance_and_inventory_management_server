@@ -66,9 +66,8 @@ export const reordersRepository = {
   },
 
   findById: (id: string) => prisma.reorder.findUnique({ where: { id }, select: REORDER_SELECT }),
-  // Inserts a PENDING reorder. The partial unique index
-  // (reorders_one_open_per_item) enforces at most one open reorder per item —
-  // a concurrent raise loses the race here with a P2002 the caller translates.
+  // Inserts a PENDING reorder. The one-open-per-item unique index makes a
+  // concurrent raise lose with a P2002, which the caller translates.
   raise: ({ inventoryItemId, quantity, raisedBy, unitCostAtRaise }: RaiseInput) =>
     prisma.reorder.create({
       data: { inventoryItemId, quantity, raisedBy, unitCostAtRaise },
@@ -101,9 +100,8 @@ export const reordersRepository = {
 
     return prisma.reorder.findUnique({ where: { id }, select: REORDER_SELECT });
   },
-  // Guarded ORDERED → RECEIVED plus the stock increment, in one transaction.
-  // The conditional updateMany guarantees exactly one caller transitions the
-  // row, so the increment can't be applied twice by concurrent receives.
+  // Guarded ORDERED → RECEIVED plus the stock increment, in one transaction. The
+  // guard lets exactly one caller win, so concurrent receives can't double-increment.
   receive: (id: string, reviewedBy: string, receivedUnitCost: string | null) =>
     prisma.$transaction(async (tx) => {
       const { count } = await tx.reorder.updateMany({
@@ -145,9 +143,8 @@ export const reordersRepository = {
       // reflects the restocked total.
       return tx.reorder.findUniqueOrThrow({ where: { id }, select: REORDER_SELECT });
     }),
-  // Items at or below their reorder threshold (reorderPoint, falling back to
-  // minStockLevel) that have no open reorder yet. Column-to-column comparison
-  // and the NOT EXISTS anti-join can't be expressed in the Prisma query API.
+  // Items at or below their reorder threshold (reorderPoint, else minStockLevel) with
+  // no open reorder. Raw SQL: the column comparison and NOT EXISTS don't fit Prisma.
   findItemsNeedingReorder: (): Promise<ItemNeedingReorder[]> =>
     prisma.$queryRaw<ItemNeedingReorder[]>`
       SELECT
@@ -167,16 +164,11 @@ export const reordersRepository = {
         )
     `,
 
-  // Purchasing money summary in one pass over all reorders. Every column carries
-  // its own status FILTER (no table-wide WHERE), so the open-set and received-set
-  // metrics can't bleed into each other:
-  //   committed (OPEN = PENDING + ORDERED): committedSpend, openOrders, unpricedOrders
-  //   spent     (RECEIVED):                 spent, receivedOrders, unrecordedReceived
-  //   variance  (RECEIVED w/ both costs):   variance, comparableOrders
-  // Sums stay NUMERIC; costless orders are excluded from totals and counted
-  // separately, never treated as $0. Variance = actual − estimate (may be < 0),
-  // only over orders that have both numbers (a cross-set subtraction would be
-  // meaningless, since committed and spent cover disjoint statuses).
+  // Money summary in one pass; each column has its own status FILTER so the sets can't mix.
+  //   committed (PENDING + ORDERED):   committedSpend, openOrders, unpricedOrders
+  //   spent (RECEIVED):                spent, receivedOrders, unrecordedReceived
+  //   variance (RECEIVED, both costs): variance, comparableOrders
+  // Unpriced orders are counted separately, never as $0. Variance = actual − estimate.
   getStats: async () => {
     const [row] = await prisma.$queryRaw<
       [

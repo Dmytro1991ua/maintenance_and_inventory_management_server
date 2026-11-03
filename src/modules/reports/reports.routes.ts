@@ -17,9 +17,8 @@ const managers = authorize([Role.ADMIN, Role.MANAGER]);
 
 /**
  * GET /api/v1/reports/assets
- * ADMIN + MANAGER — lifetime reliability per asset (task counts, overdue,
- * parts consumed, average completion time). Paginated, searchable, filterable
- * by category/status, and sortable by any computed metric.
+ * ADMIN + MANAGER — lifetime reliability per asset. Paginated, searchable,
+ * filterable by category/status, sortable by any metric.
  */
 router.get(
   "/assets",
@@ -31,8 +30,7 @@ router.get(
 
 /**
  * GET /api/v1/reports/technicians
- * ADMIN + MANAGER — current workload per technician (open/in-progress/overdue/
- * completed counts and next upcoming due date). Paginated, searchable, sortable.
+ * ADMIN + MANAGER — current workload per technician. Paginated, searchable, sortable.
  */
 router.get(
   "/technicians",
@@ -44,8 +42,7 @@ router.get(
 
 /**
  * GET /api/v1/reports/throughput
- * ADMIN + MANAGER — tasks created vs completed over time, bucketed by
- * day/week/month, with a summary (completion rate, average cycle time).
+ * ADMIN + MANAGER — tasks created vs completed over time (day/week/month), with a summary.
  */
 router.get(
   "/throughput",

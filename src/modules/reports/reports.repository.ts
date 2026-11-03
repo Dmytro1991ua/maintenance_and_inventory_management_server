@@ -15,18 +15,16 @@ const SPENT = Prisma.sql`COALESCE(SUM(r.quantity * r."receivedUnitCost") FILTER 
 const receivedBetween = (from: Date, to: Date): Prisma.Sql =>
   Prisma.sql`r.status = 'RECEIVED' AND r."receivedAt" BETWEEN ${from} AND ${to}`;
 
-// Whitelisted date_trunc unit + generate_series step per granularity. Values
-// are bound as parameters (not interpolated), so this map is purely a lookup —
-// there is no injection surface.
+// Whitelisted date_trunc unit and generate_series step per granularity; a pure
+// lookup, bound as parameters.
 const GRANULARITY: Record<ThroughputGranularity, { unit: string; step: string }> = {
   day: { unit: "day", step: "1 day" },
   week: { unit: "week", step: "1 week" },
   month: { unit: "month", step: "1 month" },
 };
 
-// Whitelist mapping a validated sortBy value to the exact SQL sort expression.
-// The map is the only source of ORDER BY identifiers — the request value is a
-// key lookup, never interpolated — so Prisma.raw here carries no injection risk.
+// Maps a validated sortBy to its SQL sort expression. Only this map supplies ORDER BY
+// identifiers (the request value is just a key), so Prisma.raw is safe here.
 const ASSET_SORT_EXPR: Record<AssetReportSortField, string> = {
   totalTasks: '"totalTasks"',
   openTasks: '"openTasks"',
@@ -132,9 +130,7 @@ type TechnicianWorkloadRow = {
 };
 
 export const reportsRepository = {
-  // Number of assets matching the report filters — for pagination meta. Counts
-  // assets (one report row per asset), so it's a plain count over the same
-  // WHERE, without the task join or grouping.
+  // Assets matching the filters, for pagination meta (same WHERE, no join or grouping).
   countAssetReliability: async (query: AssetReportQuery): Promise<number> => {
     const where = buildAssetReportWhere(query);
 
@@ -145,13 +141,10 @@ export const reportsRepository = {
     return rows[0].count;
   },
 
-  // Lifetime reliability per asset — one row per asset (including those with no
-  // tasks). partsConsumed uses a correlated subquery to avoid the row fan-out
-  // that a direct join to task_part_usages would cause against the task join.
-  // Filtered/sorted/paginated per the query; a unique tiebreaker (a.name, then
-  // a.id) keeps offset paging stable when the sort metric has ties, and
-  // NULLS LAST keeps assets with no completed work out of the way when sorting
-  // by avgCompletionDays.
+  // Lifetime reliability, one row per asset (including those with no tasks).
+  // partsConsumed is a correlated subquery to avoid the join's row fan-out.
+  // The a.name, a.id tiebreak keeps paging stable; NULLS LAST puts assets with no
+  // completed work at the end when sorting by avgCompletionDays.
   getAssetReliability: (query: AssetReportQuery): Promise<AssetReliabilityRow[]> => {
     const where = buildAssetReportWhere(query);
     const skip = getSkipValue(query.page, query.limit);
@@ -337,9 +330,8 @@ export const reportsRepository = {
     return rows[0].count;
   },
 
-  // Current workload per technician — one row per technician (including those
-  // with no assigned tasks). nextDueAt is the earliest *upcoming* due date among
-  // their non-terminal tasks; overdue work is surfaced separately in overdueTasks.
+  // Current workload, one row per technician. nextDueAt is the earliest upcoming due
+  // date among non-terminal tasks; overdue work is counted in overdueTasks.
   getTechnicianWorkload: (query: TechnicianWorkloadQuery): Promise<TechnicianWorkloadRow[]> => {
     const where = buildTechnicianWorkloadWhere(query);
     const skip = getSkipValue(query.page, query.limit);
