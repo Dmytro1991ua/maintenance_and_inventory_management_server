@@ -8,6 +8,7 @@ enum NotificationType {
   WORK_ORDER_REJECTED
   REORDER_RAISED
   WARRANTY_EXPIRING
+  METER_SERVICE_DUE
 }
 
 model Notification {

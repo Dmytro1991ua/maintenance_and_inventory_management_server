@@ -25,6 +25,7 @@ describe("GET /api/v1/users/me/notification-preferences", () => {
         TASK_DUE_SOON: true,
         REORDER_RAISED: true,
         WARRANTY_EXPIRING: true,
+        METER_SERVICE_DUE: true,
       },
     });
   });
@@ -55,6 +56,7 @@ describe("PATCH /api/v1/users/me/notification-preferences", () => {
         TASK_DUE_SOON: true,
         REORDER_RAISED: true,
         WARRANTY_EXPIRING: true,
+        METER_SERVICE_DUE: true,
       },
     });
   });
@@ -86,6 +88,7 @@ describe("PATCH /api/v1/users/me/notification-preferences", () => {
       TASK_DUE_SOON: true,
       REORDER_RAISED: true,
       WARRANTY_EXPIRING: true,
+      METER_SERVICE_DUE: true,
     });
   });
 
@@ -202,6 +205,27 @@ describe("Notification preference guard in createMany", () => {
         message: "Warranty expiring",
         userId: user.id,
         relatedEntityId: "asset-1",
+      },
+    ]);
+
+    expect(result.created).toBe(0);
+    expect(result.skipped).toBe(1);
+  });
+
+  it("should not create METER_SERVICE_DUE notifications for users who opted out", async () => {
+    const user = await createTestUser();
+
+    await request(app)
+      .patch("/api/v1/users/me/notification-preferences")
+      .set(authHeader(signTestAccessToken(user)))
+      .send({ METER_SERVICE_DUE: false });
+
+    const result = await notificationsService.createMany(NotificationType.METER_SERVICE_DUE, [
+      {
+        type: NotificationType.METER_SERVICE_DUE,
+        message: "Service due soon",
+        userId: user.id,
+        relatedEntityId: "schedule-1",
       },
     ]);
 

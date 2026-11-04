@@ -67,6 +67,12 @@ export const notificationsRepository = {
       ),
     );
   },
+  markRelatedAsRead: async (type: NotificationType, relatedEntityId: string): Promise<void> => {
+    await prisma.notification.updateMany({
+      where: { type, relatedEntityId, isRead: false },
+      data: { isRead: true },
+    });
+  },
   update: async (id: string, data: UpdateNotification) =>
     prisma.notification.update({
       where: { id },

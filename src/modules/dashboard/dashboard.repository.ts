@@ -1,6 +1,6 @@
 import { prisma } from "../../config";
 import { Role, TaskStatus, UserStatus } from "../../generated/prisma/client";
-import { METER_DUE_SOON_PERCENT } from "./dashboard.constants";
+import { METER_DUE_SOON_PERCENT } from "../recurring-tasks/recurring-tasks.constants";
 
 const startOfCurrentMonth = (): Date => {
   const now = new Date();

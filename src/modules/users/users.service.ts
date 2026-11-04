@@ -39,6 +39,7 @@ const normalizePreferences = (raw: unknown) => {
     TASK_DUE_SOON: stored.TASK_DUE_SOON !== false,
     REORDER_RAISED: stored.REORDER_RAISED !== false,
     WARRANTY_EXPIRING: stored.WARRANTY_EXPIRING !== false,
+    METER_SERVICE_DUE: stored.METER_SERVICE_DUE !== false,
   };
 };
 

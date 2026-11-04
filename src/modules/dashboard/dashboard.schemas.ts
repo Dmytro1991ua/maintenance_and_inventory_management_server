@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { METER_DUE_SOON_PERCENT } from "./dashboard.constants";
+import { METER_DUE_SOON_PERCENT } from "../recurring-tasks/recurring-tasks.constants";
 
 const TasksByStatusSchema = z.object({
   OPEN: z.number().int(),

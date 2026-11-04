@@ -19,6 +19,7 @@ export const NotificationsQuerySchema = z
         "WORK_ORDER_REJECTED",
         "REORDER_RAISED",
         "WARRANTY_EXPIRING",
+        "METER_SERVICE_DUE",
       ])
       .optional()
       .openapi({ example: "LOW_STOCK" }),
@@ -48,6 +49,7 @@ export const CreateNotificationSchema = z.object({
     "WORK_ORDER_REJECTED",
     "REORDER_RAISED",
     "WARRANTY_EXPIRING",
+    "METER_SERVICE_DUE",
   ]),
   message: z.string().min(1).max(500),
   userId: z.uuid(),
@@ -69,6 +71,7 @@ export const NotificationSchema = z
       "WORK_ORDER_REJECTED",
       "REORDER_RAISED",
       "WARRANTY_EXPIRING",
+      "METER_SERVICE_DUE",
     ]),
     message: z.string().openapi({ example: 'Low stock: "Cordless Drill" has 2 units (min: 5).' }),
     isRead: z.boolean(),
