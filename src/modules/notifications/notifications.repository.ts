@@ -1,5 +1,5 @@
 import { prisma } from "../../config";
-import { NotificationType } from "../../generated/prisma/client";
+import { NotificationType, Prisma } from "../../generated/prisma/client";
 import { getSkipValue, getTotalPages } from "../../utils";
 import { NOTIFICATION_SELECT } from "./notifications.constants";
 import type {
@@ -67,8 +67,12 @@ export const notificationsRepository = {
       ),
     );
   },
-  markRelatedAsRead: async (type: NotificationType, relatedEntityId: string): Promise<void> => {
-    await prisma.notification.updateMany({
+  markRelatedAsRead: async (
+    type: NotificationType,
+    relatedEntityId: string,
+    db: Prisma.TransactionClient = prisma,
+  ): Promise<void> => {
+    await db.notification.updateMany({
       where: { type, relatedEntityId, isRead: false },
       data: { isRead: true },
     });

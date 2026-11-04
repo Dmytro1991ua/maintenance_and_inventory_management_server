@@ -2,6 +2,7 @@ import { prisma } from "../../../src/config";
 import { checkMeterDueSoon } from "../../../src/jobs/cron/tasks/checkMeterDueSoon";
 import { fireMeterSchedule } from "../../../src/modules/recurring-tasks/recurring-tasks.meter";
 import { notificationsService } from "../../../src/modules/notifications/notifications.service";
+import { tasksRepository } from "../../../src/modules/tasks/tasks.repository";
 import { recurringTasksRepository } from "../../../src/modules/recurring-tasks/recurring-tasks.repository";
 import {
   createAdminUser,
@@ -10,6 +11,7 @@ import {
   createTestMeter,
   createTestMeterSchedule,
   createTestRecurringTask,
+  createTestTask,
 } from "../helpers";
 
 // Interval 250, next threshold 1000: the window is the last 25 before it (975-999).
@@ -119,6 +121,61 @@ describe("the meter due-soon reminder", () => {
     expect(reminders).toHaveLength(2);
     expect(reminders.filter((r) => !r.isRead)).toHaveLength(1);
     expect(reminders.find((r) => !r.isRead)?.message).toContain("due at 1250");
+  });
+
+  describe("when the schedule fires", () => {
+    const fire = async (meterId: string, reading: number) => {
+      await setReading(meterId, reading);
+      const [loaded] = await recurringTasksRepository.findActiveMeterSchedules(meterId);
+
+      return fireMeterSchedule(loaded, reading);
+    };
+
+    it("should mark the due-soon alert read, since the task now exists", async () => {
+      await createManagerUser();
+      const { meter, schedule } = await setup(980);
+      await checkMeterDueSoon();
+
+      const task = await fire(meter.id, 1000);
+
+      expect(task).not.toBeNull();
+      expect((await remindersFor(schedule.id)).every((r) => r.isRead)).toBe(true);
+    });
+
+    it("should leave it unread when an open task blocks the firing", async () => {
+      await createManagerUser();
+      const { meter, schedule } = await setup(980);
+      await checkMeterDueSoon();
+      const open = await createTestTask({ status: "OPEN" });
+      await prisma.task.update({ where: { id: open.id }, data: { recurringTaskId: schedule.id } });
+
+      const task = await fire(meter.id, 1000);
+
+      expect(task).toBeNull();
+      expect((await remindersFor(schedule.id)).some((r) => !r.isRead)).toBe(true);
+    });
+
+    it("should leave it unread when creating the task fails", async () => {
+      await createManagerUser();
+      const { meter, schedule } = await setup(980);
+      await checkMeterDueSoon();
+      jest.spyOn(tasksRepository, "createFromSchedule").mockRejectedValueOnce(new Error("boom"));
+
+      await expect(fire(meter.id, 1000)).rejects.toThrow("boom");
+
+      expect((await remindersFor(schedule.id)).some((r) => !r.isRead)).toBe(true);
+    });
+
+    it("should leave other schedules' alerts alone", async () => {
+      await createManagerUser();
+      const a = await setup(980);
+      const b = await setup(980);
+      await checkMeterDueSoon();
+
+      await fire(a.meter.id, 1000);
+
+      expect((await remindersFor(b.schedule.id)).some((r) => !r.isRead)).toBe(true);
+    });
   });
 
   it("should skip paused schedules and time-based ones", async () => {
