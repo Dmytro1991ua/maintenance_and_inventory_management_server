@@ -77,6 +77,7 @@ export const NotificationPreferencesSchema = z
     TASK_DUE_SOON: z.boolean().optional().openapi({ example: true }),
     REORDER_RAISED: z.boolean().optional().openapi({ example: true }),
     WARRANTY_EXPIRING: z.boolean().optional().openapi({ example: true }),
+    METER_SERVICE_DUE: z.boolean().optional().openapi({ example: true }),
   })
   .strict()
   .openapi("NotificationPreferencesInput");
@@ -129,6 +130,7 @@ export const NotificationPreferencesResponseSchema = z
       TASK_DUE_SOON: z.boolean(),
       REORDER_RAISED: z.boolean(),
       WARRANTY_EXPIRING: z.boolean(),
+      METER_SERVICE_DUE: z.boolean(),
     }),
   })
   .openapi("NotificationPreferencesResponse");

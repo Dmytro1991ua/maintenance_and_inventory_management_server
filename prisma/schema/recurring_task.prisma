@@ -20,6 +20,8 @@ model RecurringTask {
   intervalReading Int?
   firstDueReading Int?
   nextDueReading  Int?
+  // Threshold the due-soon reminder was last sent for; a new threshold re-arms it.
+  reminderSentForReading Int?
   assetId      String?
   asset        Asset?             @relation(fields: [assetId], references: [id], onDelete: SetNull)
 

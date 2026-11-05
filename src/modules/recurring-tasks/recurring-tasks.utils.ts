@@ -17,3 +17,11 @@ export const buildMeterTaskDescription = (
 
   return description ? `${description}\n\n${trigger}` : trigger;
 };
+
+export const buildMeterServiceDueMessage = (
+  title: string,
+  meter: { name: string; unit: string },
+  reading: number,
+  threshold: number,
+): string =>
+  `Service due soon: "${title}" on ${meter.name} is due at ${threshold} ${meter.unit} (now ${reading}).`;

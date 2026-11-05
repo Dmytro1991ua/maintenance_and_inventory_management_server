@@ -46,3 +46,6 @@ export const RECURRING_TASK_NOT_FOUND_MESSAGE = "Recurring task not found";
 
 export const METER_SCHEDULE_FIXED_MESSAGE =
   "A meter schedule's interval and asset come from its meter and can't be changed";
+
+// A meter schedule is "due soon" within this share of its interval of the next threshold.
+export const METER_DUE_SOON_PERCENT = 10;

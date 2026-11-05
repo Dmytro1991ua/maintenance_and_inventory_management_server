@@ -1,7 +1,11 @@
 import { prisma } from "../../config";
 import { Prisma, ScheduleTrigger } from "../../generated/prisma/client";
 import { getSkipValue, getTotalPages } from "../../utils";
-import { METER_SCHEDULE_SELECT, RECURRING_TASK_SELECT } from "./recurring-tasks.constants";
+import {
+  METER_DUE_SOON_PERCENT,
+  METER_SCHEDULE_SELECT,
+  RECURRING_TASK_SELECT,
+} from "./recurring-tasks.constants";
 import type {
   CreateMeterRecurringTask,
   CreateTimeRecurringTask,
@@ -50,6 +54,37 @@ export const recurringTasksRepository = {
       },
       select: METER_SCHEDULE_SELECT,
     }),
+  // Active meter schedules inside the due-soon window but not yet at the threshold,
+  // not yet reminded for this threshold. bigint: readings times 100 overflow a 32-bit int.
+  findMeterSchedulesDueSoon: async () =>
+    prisma.$queryRaw<
+      {
+        id: string;
+        title: string;
+        nextDueReading: number;
+        meterName: string;
+        unit: string;
+        currentReading: number;
+      }[]
+    >`
+      SELECT rt.id, rt.title, rt."nextDueReading", m.name AS "meterName", m.unit, m."currentReading"
+      FROM recurring_tasks rt
+      JOIN meters m ON m.id = rt."meterId"
+      WHERE rt."isActive"
+        AND rt."triggerType" = 'METER'
+        AND rt."nextDueReading" > m."currentReading"
+        AND (rt."nextDueReading" - m."currentReading")::bigint * 100
+            <= rt."intervalReading"::bigint * ${METER_DUE_SOON_PERCENT}
+        AND rt."reminderSentForReading" IS DISTINCT FROM rt."nextDueReading"
+      ORDER BY rt.title
+    `,
+  // Guarded on the threshold, so a firing in between doesn't mark the new one.
+  markMeterReminded: async (id: string, threshold: number): Promise<void> => {
+    await prisma.recurringTask.updateMany({
+      where: { id, nextDueReading: threshold },
+      data: { reminderSentForReading: threshold },
+    });
+  },
   countByMeter: async (meterId: string): Promise<number> =>
     prisma.recurringTask.count({ where: { meterId } }),
   create: async (data: CreateTimeRecurringTask & ScheduleOwner) =>

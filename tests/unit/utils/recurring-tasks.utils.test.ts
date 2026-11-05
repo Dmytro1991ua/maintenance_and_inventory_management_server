@@ -1,6 +1,7 @@
 import {
   buildMeterTaskDescription,
   nextGridThreshold,
+  buildMeterServiceDueMessage,
 } from "../../../src/modules/recurring-tasks/recurring-tasks.utils";
 
 describe("nextGridThreshold", () => {
@@ -56,5 +57,18 @@ describe("buildMeterTaskDescription", () => {
     expect(buildMeterTaskDescription("Use 5W-30.", meter, 1255, 1250)).toBe(
       "Use 5W-30.\n\nTriggered by meter: Engine hours reached 1255 hours (due at 1250).",
     );
+  });
+});
+
+describe("buildMeterServiceDueMessage", () => {
+  it("should name the schedule, the meter, the threshold and the current reading", () => {
+    expect(
+      buildMeterServiceDueMessage(
+        "Oil change",
+        { name: "Engine hours", unit: "hours" },
+        1480,
+        1500,
+      ),
+    ).toBe('Service due soon: "Oil change" on Engine hours is due at 1500 hours (now 1480).');
   });
 });

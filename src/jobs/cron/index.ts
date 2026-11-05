@@ -7,6 +7,7 @@ import { checkLowStock, checkReorders } from "./inventory";
 import { runJob } from "./runJob";
 import {
   checkDueSoonTasks,
+  checkMeterDueSoon,
   checkMeterSchedules,
   checkOverdueTasks,
   generateRecurringTasks,
@@ -21,6 +22,7 @@ const JOBS = [
   { name: "checkDueSoonTasks", task: checkDueSoonTasks },
   { name: "generateRecurringTasks", task: generateRecurringTasks },
   { name: "checkMeterSchedules", task: checkMeterSchedules },
+  { name: "checkMeterDueSoon", task: checkMeterDueSoon },
 ];
 
 /**

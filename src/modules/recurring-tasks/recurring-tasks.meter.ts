@@ -1,6 +1,8 @@
 import { env, logger, prisma } from "../../config";
+import { NotificationType } from "../../generated/prisma/client";
 import { addDays } from "../../utils";
 import { MAX_METER_READING } from "../meters/meters.constants";
+import { notificationsRepository } from "../notifications/notifications.repository";
 import { ACTIVE_TASK_STATUSES } from "../tasks/tasks.constants";
 import { createScheduledTask } from "./recurring-tasks.generation";
 import { recurringTasksRepository } from "./recurring-tasks.repository";
@@ -23,7 +25,7 @@ class OpenTaskError extends Error {}
  *  1. Guarded threshold update: locks the schedule row, so one concurrent firing wins.
  *  2. Open-task check, after the lock (before it, two firings could both pass). If one
  *     is open, roll back so the threshold stays put.
- *  3. Create the task.
+ *  3. Create the task, and clear the schedule's now-stale "due soon" alert.
  */
 export const fireMeterSchedule = async (
   schedule: MeterSchedule,
@@ -65,6 +67,12 @@ export const fireMeterSchedule = async (
           nextDueReading,
         ),
       });
+
+      await notificationsRepository.markRelatedAsRead(
+        NotificationType.METER_SERVICE_DUE,
+        schedule.id,
+        tx,
+      );
 
       return { id: task.id, title: task.title };
     });
