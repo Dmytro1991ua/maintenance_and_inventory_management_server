@@ -4,6 +4,7 @@ import { notificationsService } from "../../../modules/notifications/notificatio
 import { isNotificationTypeEnabled } from "../../../modules/notifications/notifications.utils";
 import { tasksRepository } from "../../../modules/tasks/tasks.repository";
 import { usersRepository } from "../../../modules/users/users.repository";
+import { getInactiveUserIds } from "../../../modules/users/users.utils";
 import { emailService } from "../../../shared/email.service";
 
 /**
@@ -14,8 +15,8 @@ import { emailService } from "../../../shared/email.service";
  *
  * reminderSentAt is set only for tasks actually reminded, so the daily run
  * doesn't re-notify the same assignee every morning until the due date; tasks
- * whose assignee opted out stay unmarked and are re-evaluated if they opt back
- * in before the task is due.
+ * whose assignee opted out, or is inactive, stay unmarked and are re-evaluated if
+ * they opt back in or return before the task is due.
  */
 export const checkDueSoonTasks = async (): Promise<void> => {
   const tasks = await tasksRepository.findDueSoon(env.TASK_REMINDER_LEAD_DAYS);
@@ -34,15 +35,19 @@ export const checkDueSoonTasks = async (): Promise<void> => {
     preferenceRows.map((row) => [row.id, row.notificationPreferences]),
   );
 
-  const eligible = assignedTasks.filter((task) =>
-    isNotificationTypeEnabled(
-      preferencesById.get(task.assignedTo as string) ?? null,
-      NotificationType.TASK_DUE_SOON,
-    ),
+  const inactiveIds = getInactiveUserIds(preferenceRows);
+
+  const eligible = assignedTasks.filter(
+    (task) =>
+      !inactiveIds.has(task.assignedTo as string) &&
+      isNotificationTypeEnabled(
+        preferencesById.get(task.assignedTo as string) ?? null,
+        NotificationType.TASK_DUE_SOON,
+      ),
   );
 
   if (!eligible.length) {
-    logger.info({ job: "checkDueSoonTasks" }, "no eligible assignees (all opted out)");
+    logger.info({ job: "checkDueSoonTasks" }, "no eligible assignees (all opted out or inactive)");
 
     return;
   }
