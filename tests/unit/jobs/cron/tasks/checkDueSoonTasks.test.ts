@@ -50,7 +50,7 @@ describe("checkDueSoonTasks", () => {
   it("should notify and email the assignee, then mark the task reminded", async () => {
     tasksRepositoryMock.findDueSoon.mockResolvedValue([buildDueSoonTask()]);
     usersRepositoryMock.findPreferencesByIds.mockResolvedValue([
-      { id: "user-tech", notificationPreferences: {} },
+      { id: "user-tech", status: "ACTIVE", notificationPreferences: {} },
     ]);
     createManyMock.mockResolvedValue({ created: 1, skipped: 0 });
     sendReminderMock.mockResolvedValue(undefined);
@@ -71,6 +71,19 @@ describe("checkDueSoonTasks", () => {
     tasksRepositoryMock.findDueSoon.mockResolvedValue([buildDueSoonTask()]);
     usersRepositoryMock.findPreferencesByIds.mockResolvedValue([
       { id: "user-tech", notificationPreferences: { TASK_DUE_SOON: false } },
+    ]);
+
+    await checkDueSoonTasks();
+
+    expect(createManyMock).not.toHaveBeenCalled();
+    expect(sendReminderMock).not.toHaveBeenCalled();
+    expect(tasksRepositoryMock.markReminded).not.toHaveBeenCalled();
+  });
+
+  it("should skip an inactive assignee on every channel, and leave the task unmarked", async () => {
+    tasksRepositoryMock.findDueSoon.mockResolvedValue([buildDueSoonTask()]);
+    usersRepositoryMock.findPreferencesByIds.mockResolvedValue([
+      { id: "user-tech", status: "INACTIVE", notificationPreferences: {} },
     ]);
 
     await checkDueSoonTasks();
