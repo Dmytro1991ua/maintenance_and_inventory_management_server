@@ -1,6 +1,6 @@
 import { logger } from "../../config";
 import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from "../../errors";
-import { NotificationType, Role } from "../../generated/prisma/client";
+import { NotificationType, Role, UserStatus } from "../../generated/prisma/client";
 import { emailService } from "../../shared/email.service";
 import { storageService } from "../../shared/storage.service";
 import { ensureOwner, findOrThrow, isAdminOrManager } from "../../utils";
@@ -9,7 +9,11 @@ import { checklistTemplatesRepository } from "../checklist-templates/checklist-t
 import { inventoryRepository } from "../inventory/inventory.repository";
 import { notificationsService } from "../notifications/notifications.service";
 import { usersRepository } from "../users/users.repository";
-import { ASSET_NOT_FOUND_MESSAGE, ASSIGNEE_NOT_FOUND_MESSAGE } from "./tasks.constants";
+import {
+  ASSET_NOT_FOUND_MESSAGE,
+  ASSIGNEE_INACTIVE_MESSAGE,
+  ASSIGNEE_NOT_FOUND_MESSAGE,
+} from "./tasks.constants";
 import { tasksRepository } from "./tasks.repository";
 import type { CancelTask, CompleteTask, CreateTask, TasksQuery, UpdateTask } from "./tasks.schemas";
 
@@ -19,6 +23,18 @@ const assertAssigneeAvailable = async (userId: string, excludeTaskId?: string): 
   if (activeTask) {
     throw new ConflictError("Technician already has an active task and is not available");
   }
+};
+
+// The assignee must exist, be active and be free.
+const assertCanAssign = async (userId: string, excludeTaskId?: string): Promise<void> => {
+  const user = await findOrThrow(
+    () => usersRepository.findById(userId),
+    ASSIGNEE_NOT_FOUND_MESSAGE,
+  );
+
+  if (user.status === UserStatus.INACTIVE) throw new ConflictError(ASSIGNEE_INACTIVE_MESSAGE);
+
+  await assertAssigneeAvailable(userId, excludeTaskId);
 };
 
 const resolveTaskForCaller = async (
@@ -66,9 +82,7 @@ export const tasksService = {
     const { assignedTo, assetId } = data;
 
     if (assignedTo) {
-      await findOrThrow(() => usersRepository.findById(assignedTo), ASSIGNEE_NOT_FOUND_MESSAGE);
-
-      await assertAssigneeAvailable(assignedTo);
+      await assertCanAssign(assignedTo);
     }
 
     // assetId is also a foreign key — verify existence so a bad id 404s cleanly
@@ -108,11 +122,12 @@ export const tasksService = {
     if (isAdminOrManager(requestingUser.roles)) {
       const { assignedTo, assetId } = data;
 
+      // Only a new assignee is checked: an inactive current owner doesn't block other edits.
       if (assignedTo) {
-        await findOrThrow(() => usersRepository.findById(assignedTo), ASSIGNEE_NOT_FOUND_MESSAGE);
-
         if (assignedTo !== task.assignedTo) {
-          await assertAssigneeAvailable(assignedTo, id);
+          await assertCanAssign(assignedTo, id);
+        } else {
+          await findOrThrow(() => usersRepository.findById(assignedTo), ASSIGNEE_NOT_FOUND_MESSAGE);
         }
       }
 

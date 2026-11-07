@@ -53,4 +53,5 @@ export const TASK_SELECT = {
 } satisfies Prisma.TaskSelect;
 
 export const ASSIGNEE_NOT_FOUND_MESSAGE = "Assignee not found";
+export const ASSIGNEE_INACTIVE_MESSAGE = "Cannot assign a task to an inactive user";
 export const ASSET_NOT_FOUND_MESSAGE = "Asset not found";

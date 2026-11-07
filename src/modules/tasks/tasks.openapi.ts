@@ -65,6 +65,10 @@ registry.registerPath({
       description: "Insufficient permissions",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
+    409: {
+      description: "Assignee is inactive, or already has an active task",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
   },
 });
 
@@ -90,6 +94,10 @@ registry.registerPath({
     },
     404: {
       description: "Task not found",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    409: {
+      description: "New assignee is inactive, or already has an active task",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },
