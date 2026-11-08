@@ -1,4 +1,4 @@
-import { Role, TaskStatus } from "../../generated/prisma/client";
+import { Role, TaskStatus, UserStatus } from "../../generated/prisma/client";
 
 type ActiveTask = { status: TaskStatus };
 
@@ -32,3 +32,6 @@ export const mapUserToResponse = (user: UserRaw) => {
 
   return { ...rest, availability: computeAvailability(rest.roles, tasks) };
 };
+
+export const getInactiveUserIds = (users: { id: string; status: UserStatus }[]): Set<string> =>
+  new Set(users.filter((u) => u.status === UserStatus.INACTIVE).map((u) => u.id));

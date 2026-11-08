@@ -56,6 +56,8 @@ export const usersRepository = {
       where: { id },
       select: USER_SELECT,
     }),
+  findStatus: (id: string, db: Prisma.TransactionClient = prisma) =>
+    db.user.findUnique({ where: { id }, select: { status: true } }),
   // Used by system jobs to find recipients for broadcast-style notifications
   // (e.g. notify every MANAGER/ADMIN about a low-stock item).
   findByRoles: (roles: Role[]) =>
@@ -139,11 +141,11 @@ export const usersRepository = {
       where: { id },
       select: { notificationPreferences: true },
     }),
-  // Batch fetch for the notification filter in notificationsService.createMany
+  // Batch fetch for the recipient filter in notificationsService.createMany
   findPreferencesByIds: (ids: string[]) =>
     prisma.user.findMany({
       where: { id: { in: ids } },
-      select: { id: true, notificationPreferences: true },
+      select: { id: true, status: true, notificationPreferences: true },
     }),
   updateNotificationPreferences: (id: string, preferences: Record<string, boolean>) =>
     prisma.user.update({

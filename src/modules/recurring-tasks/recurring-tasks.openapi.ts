@@ -63,6 +63,10 @@ registry.registerPath({
       description: "Assignee, asset or meter not found",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
+    409: {
+      description: "Default assignee is an inactive user",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
   },
 });
 
@@ -84,6 +88,10 @@ registry.registerPath({
     },
     404: {
       description: "Schedule or assignee not found",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    409: {
+      description: "New default assignee is an inactive user",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },

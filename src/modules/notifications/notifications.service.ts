@@ -1,6 +1,7 @@
 import { NotificationType } from "../../generated/prisma/client";
 import { ensureOwner, findOrThrow } from "../../utils";
 import { usersRepository } from "../users/users.repository";
+import { getInactiveUserIds } from "../users/users.utils";
 import { NOTIFICATION_NOT_FOUND_MESSAGE } from "./notifications.constants";
 import { notificationsRepository } from "./notifications.repository";
 import type {
@@ -10,7 +11,8 @@ import type {
 } from "./notifications.schemas";
 import { buildDedupeKey, isNotificationTypeEnabled } from "./notifications.utils";
 
-const filterByPreferences = async (
+// Drops inactive users (they can't log in) and anyone who muted the type.
+const filterRecipients = async (
   notifications: CreateNotification[],
   type: NotificationType,
 ): Promise<CreateNotification[]> => {
@@ -18,8 +20,12 @@ const filterByPreferences = async (
   const preferenceRows = await usersRepository.findPreferencesByIds(uniqueUserIds);
   const preferencesByUserId = new Map(preferenceRows.map((r) => [r.id, r.notificationPreferences]));
 
-  return notifications.filter((n) =>
-    isNotificationTypeEnabled(preferencesByUserId.get(n.userId) ?? null, type),
+  const inactiveIds = getInactiveUserIds(preferenceRows);
+
+  return notifications.filter(
+    (n) =>
+      !inactiveIds.has(n.userId) &&
+      isNotificationTypeEnabled(preferencesByUserId.get(n.userId) ?? null, type),
   );
 };
 
@@ -65,7 +71,7 @@ export const notificationsService = {
   createMany: async (type: NotificationType, notifications: CreateNotification[]) => {
     if (notifications.length === 0) return { created: 0, skipped: 0 };
 
-    const enabledNotifications = await filterByPreferences(notifications, type);
+    const enabledNotifications = await filterRecipients(notifications, type);
 
     if (enabledNotifications.length === 0) return { created: 0, skipped: notifications.length };
 

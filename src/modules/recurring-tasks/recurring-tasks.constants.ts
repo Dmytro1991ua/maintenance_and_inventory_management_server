@@ -44,6 +44,9 @@ export const METER_SCHEDULE_SELECT = {
 
 export const RECURRING_TASK_NOT_FOUND_MESSAGE = "Recurring task not found";
 
+export const SCHEDULE_ASSIGNEE_INACTIVE_MESSAGE =
+  "A schedule's default assignee can't be an inactive user";
+
 export const METER_SCHEDULE_FIXED_MESSAGE =
   "A meter schedule's interval and asset come from its meter and can't be changed";
 
