@@ -68,6 +68,22 @@ describe("POST /api/v1/recurring-tasks", () => {
     });
   });
 
+  it("should return 409 for an inactive default assignee, and create nothing", async () => {
+    const manager = await createManagerUser();
+    const inactive = await createTechnicianUser({ status: "INACTIVE" });
+
+    const response = await create(
+      signTestAccessToken(manager),
+      validBody({ assignedTo: inactive.id }),
+    );
+
+    expect(response.status).toBe(409);
+    expect(response.body.error.message).toBe(
+      "A schedule's default assignee can't be an inactive user",
+    );
+    expect(await prisma.recurringTask.count()).toBe(0);
+  });
+
   it("should return 404 for an unknown assignee", async () => {
     const manager = await createManagerUser();
 
@@ -190,6 +206,60 @@ describe("GET /api/v1/recurring-tasks/:id", () => {
 describe("PATCH /api/v1/recurring-tasks/:id", () => {
   const patch = (token: string, id: string, body: object) =>
     request(app).patch(`/api/v1/recurring-tasks/${id}`).set(authHeader(token)).send(body);
+
+  describe("an inactive default assignee", () => {
+    it("should be rejected as a new assignee, leaving the schedule as it was", async () => {
+      const manager = await createManagerUser();
+      const owner = await createTechnicianUser();
+      const inactive = await createTechnicianUser({ status: "INACTIVE" });
+      const schedule = await createTestRecurringTask({
+        createdBy: manager.id,
+        assignedTo: owner.id,
+      });
+
+      const response = await patch(signTestAccessToken(manager), schedule.id, {
+        assignedTo: inactive.id,
+      });
+
+      expect(response.status).toBe(409);
+      const stored = await prisma.recurringTask.findUniqueOrThrow({ where: { id: schedule.id } });
+      expect(stored.assignedTo).toBe(owner.id);
+    });
+
+    it("should not block other edits when the current assignee was deactivated", async () => {
+      const manager = await createManagerUser();
+      const owner = await createTechnicianUser({ status: "INACTIVE" });
+      const schedule = await createTestRecurringTask({
+        createdBy: manager.id,
+        assignedTo: owner.id,
+      });
+
+      const response = await patch(signTestAccessToken(manager), schedule.id, {
+        assignedTo: owner.id,
+        title: "Renamed",
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.title).toBe("Renamed");
+    });
+
+    it("should let a manager replace a deactivated assignee with an active one", async () => {
+      const manager = await createManagerUser();
+      const owner = await createTechnicianUser({ status: "INACTIVE" });
+      const next = await createTechnicianUser();
+      const schedule = await createTestRecurringTask({
+        createdBy: manager.id,
+        assignedTo: owner.id,
+      });
+
+      const response = await patch(signTestAccessToken(manager), schedule.id, {
+        assignedTo: next.id,
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.body.data.assignedTo).toBe(next.id);
+    });
+  });
 
   it("should update fields without touching the next due date", async () => {
     const manager = await createManagerUser();

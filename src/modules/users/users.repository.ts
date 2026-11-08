@@ -56,6 +56,8 @@ export const usersRepository = {
       where: { id },
       select: USER_SELECT,
     }),
+  findStatus: (id: string, db: Prisma.TransactionClient = prisma) =>
+    db.user.findUnique({ where: { id }, select: { status: true } }),
   // Used by system jobs to find recipients for broadcast-style notifications
   // (e.g. notify every MANAGER/ADMIN about a low-stock item).
   findByRoles: (roles: Role[]) =>

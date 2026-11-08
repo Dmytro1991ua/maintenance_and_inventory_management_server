@@ -133,6 +133,17 @@ describe("firing when a reading is recorded", () => {
     expect(await nextDue(schedule.id)).toBe(500);
   });
 
+  it("should leave an unassigned task when the default assignee is inactive", async () => {
+    const inactive = await createTechnicianUser({ status: "INACTIVE" });
+    const { token, meter, schedule } = await setup({ assignedTo: inactive.id });
+
+    await record(token, meter.id, 250);
+
+    const [task] = await tasksFor(schedule.id);
+    expect(task.assignedTo).toBeNull();
+    expect(await nextDue(schedule.id)).toBe(500);
+  });
+
   it("should assign the task to a free default assignee", async () => {
     const free = await createTechnicianUser();
     const { token, meter, schedule } = await setup({ assignedTo: free.id });

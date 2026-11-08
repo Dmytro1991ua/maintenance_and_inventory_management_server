@@ -93,6 +93,30 @@ describe("generateRecurringTasks", () => {
     expect((await tasksFor(schedule.id))[0].assignedTo).toBeNull();
   });
 
+  describe("inactive default assignee", () => {
+    it("should create the task unassigned, and still advance the schedule", async () => {
+      const technician = await createTechnicianUser({ status: "INACTIVE" });
+      const schedule = await createTestRecurringTask({ assignedTo: technician.id });
+
+      await generateRecurringTasks();
+
+      const tasks = await tasksFor(schedule.id);
+      expect(tasks).toHaveLength(1);
+      expect(tasks[0].assignedTo).toBeNull();
+      expect(await nextDueAt(schedule.id)).toBe("2026-01-12T00:00:00.000Z");
+    });
+
+    it("should assign it again once the assignee is reactivated", async () => {
+      const technician = await createTechnicianUser({ status: "INACTIVE" });
+      const schedule = await createTestRecurringTask({ assignedTo: technician.id });
+      await prisma.user.update({ where: { id: technician.id }, data: { status: "ACTIVE" } });
+
+      await generateRecurringTasks();
+
+      expect((await tasksFor(schedule.id))[0].assignedTo).toBe(technician.id);
+    });
+  });
+
   describe("busy default assignee", () => {
     // A technician may only hold one active task, so a schedule whose assignee is
     // busy still generates its task, just unassigned for a manager to pick up.

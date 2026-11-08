@@ -1,4 +1,5 @@
 import { BadRequestError, ConflictError } from "../../errors";
+import { UserStatus } from "../../generated/prisma/client";
 import { findOrThrow } from "../../utils";
 import { ASSET_NOT_FOUND_MESSAGE } from "../assets/assets.constants";
 import { assetsRepository } from "../assets/assets.repository";
@@ -8,6 +9,7 @@ import { usersRepository } from "../users/users.repository";
 import {
   METER_SCHEDULE_FIXED_MESSAGE,
   RECURRING_TASK_NOT_FOUND_MESSAGE,
+  SCHEDULE_ASSIGNEE_INACTIVE_MESSAGE,
 } from "./recurring-tasks.constants";
 import { recurringTasksRepository } from "./recurring-tasks.repository";
 import {
@@ -20,6 +22,15 @@ import {
 const assertAssetExists = (assetId: string) =>
   findOrThrow(() => assetsRepository.findById(assetId), ASSET_NOT_FOUND_MESSAGE);
 
+// The default assignee must exist and, when newly set, be active.
+const assertAssigneeValid = async (userId: string, mustBeActive: boolean): Promise<void> => {
+  const user = await findOrThrow(() => usersRepository.findById(userId), "Assignee not found");
+
+  if (mustBeActive && user.status === UserStatus.INACTIVE) {
+    throw new ConflictError(SCHEDULE_ASSIGNEE_INACTIVE_MESSAGE);
+  }
+};
+
 // Sent and different from the stored value (forms resend unchanged fields).
 const isChanged = <T>(sent: T | undefined, stored: T): boolean =>
   sent !== undefined && sent !== stored;
@@ -29,9 +40,7 @@ export const recurringTasksService = {
   findById: async (id: string) =>
     findOrThrow(() => recurringTasksRepository.findById(id), RECURRING_TASK_NOT_FOUND_MESSAGE),
   create: async (data: CreateRecurringTask, createdBy: string) => {
-    if (data.assignedTo) {
-      await findOrThrow(() => usersRepository.findById(data.assignedTo!), "Assignee not found");
-    }
+    if (data.assignedTo) await assertAssigneeValid(data.assignedTo, true);
 
     if (isMeterSchedule(data)) {
       const meter = await findOrThrow(
@@ -73,8 +82,9 @@ export const recurringTasksService = {
       throw new BadRequestError(METER_SCHEDULE_FIXED_MESSAGE);
     }
 
+    // Only a new assignee must be active: an inactive current one doesn't block other edits.
     if (data.assignedTo) {
-      await findOrThrow(() => usersRepository.findById(data.assignedTo!), "Assignee not found");
+      await assertAssigneeValid(data.assignedTo, data.assignedTo !== schedule.assignedTo);
     }
 
     if (data.assetId) await assertAssetExists(data.assetId);
