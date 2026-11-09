@@ -176,15 +176,41 @@ describe("usersService", () => {
   });
 
   describe("updateStatus", () => {
-    it("should update status when admin targets another user", async () => {
-      const mockUser = buildUser({ id: "user-2" });
+    it("should deactivate through the repository, releasing their work", async () => {
+      const mockUser = buildUser({ id: "user-2", status: "ACTIVE" });
       usersRepositoryMock.findById.mockResolvedValue(mockUser);
-      usersRepositoryMock.updateStatus.mockResolvedValue({ ...mockUser, status: "INACTIVE" });
+      usersRepositoryMock.deactivate.mockResolvedValue({ ...mockUser, status: "INACTIVE" });
 
-      const result = await usersService.updateStatus("user-2", { status: "INACTIVE" }, "user-admin");
+      const result = await usersService.updateStatus(
+        "user-2",
+        { status: "INACTIVE" },
+        "user-admin",
+      );
 
-      expect(usersRepositoryMock.updateStatus).toHaveBeenCalledWith("user-2", { status: "INACTIVE" });
+      expect(usersRepositoryMock.deactivate).toHaveBeenCalledWith("user-2");
+      expect(usersRepositoryMock.updateStatus).not.toHaveBeenCalled();
       expect(result.status).toBe("INACTIVE");
+    });
+
+    it("should only update the status when activating", async () => {
+      const mockUser = buildUser({ id: "user-2", status: "INACTIVE" });
+      usersRepositoryMock.findById.mockResolvedValue(mockUser);
+      usersRepositoryMock.updateStatus.mockResolvedValue({ ...mockUser, status: "ACTIVE" });
+
+      await usersService.updateStatus("user-2", { status: "ACTIVE" }, "user-admin");
+
+      expect(usersRepositoryMock.updateStatus).toHaveBeenCalledWith("user-2", { status: "ACTIVE" });
+      expect(usersRepositoryMock.deactivate).not.toHaveBeenCalled();
+    });
+
+    it("should not release anything when already inactive", async () => {
+      const mockUser = buildUser({ id: "user-2", status: "INACTIVE" });
+      usersRepositoryMock.findById.mockResolvedValue(mockUser);
+      usersRepositoryMock.updateStatus.mockResolvedValue(mockUser);
+
+      await usersService.updateStatus("user-2", { status: "INACTIVE" }, "user-admin");
+
+      expect(usersRepositoryMock.deactivate).not.toHaveBeenCalled();
     });
 
     it("should throw ForbiddenError when an admin tries to change their own status", async () => {

@@ -5,6 +5,7 @@ export const usersRepositoryMock = {
   update: jest.fn(),
   updateRoles: jest.fn(),
   updateStatus: jest.fn(),
+  deactivate: jest.fn(),
   delete: jest.fn(),
   findByRoles: jest.fn(),
   findPreferencesByIds: jest.fn(),

@@ -8,7 +8,7 @@ import {
   NotFoundError,
   UnauthorizedError,
 } from "../../errors";
-import { Role } from "../../generated/prisma/client";
+import { Role, UserStatus } from "../../generated/prisma/client";
 import { storageService } from "../../shared/storage.service";
 import { findOrThrow } from "../../utils";
 import { BCRYPT_SALT_ROUNDS } from "../auth/auth.constants";
@@ -113,7 +113,15 @@ export const usersService = {
       throw new ForbiddenError("You cannot change your own status");
     }
 
-    await findOrThrow(() => usersRepository.findById(targetId), USER_NOT_FOUND_MESSAGE);
+    const user = await findOrThrow(
+      () => usersRepository.findById(targetId),
+      USER_NOT_FOUND_MESSAGE,
+    );
+
+    // Also releases their open work.
+    if (data.status === UserStatus.INACTIVE && user.status !== UserStatus.INACTIVE) {
+      return mapUserToResponse(await usersRepository.deactivate(targetId));
+    }
 
     return mapUserToResponse(await usersRepository.updateStatus(targetId, data));
   },
