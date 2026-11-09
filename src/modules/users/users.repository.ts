@@ -1,5 +1,5 @@
 import { prisma } from "../../config";
-import { Prisma, Role } from "../../generated/prisma/client";
+import { Prisma, Role, TaskStatus, UserStatus } from "../../generated/prisma/client";
 import { getSkipValue, getTotalPages, resolveSortField } from "../../utils";
 import { ACTIVE_TASK_STATUSES } from "../tasks/tasks.constants";
 import {
@@ -118,6 +118,25 @@ export const usersRepository = {
       where: { id },
       data: { status: data.status },
       select: USER_SELECT,
+    }),
+  // Deactivates and releases their open tasks (in-progress ones reopen) and schedule assignments.
+  deactivate: (id: string) =>
+    prisma.$transaction(async (tx) => {
+      await tx.task.updateMany({
+        where: { assignedTo: id, status: TaskStatus.IN_PROGRESS },
+        data: { assignedTo: null, status: TaskStatus.OPEN },
+      });
+      await tx.task.updateMany({
+        where: { assignedTo: id, status: TaskStatus.OPEN },
+        data: { assignedTo: null },
+      });
+      await tx.recurringTask.updateMany({ where: { assignedTo: id }, data: { assignedTo: null } });
+
+      return tx.user.update({
+        where: { id },
+        data: { status: UserStatus.INACTIVE },
+        select: USER_SELECT,
+      });
     }),
   updateAvatar: (id: string, avatarUrl: string) =>
     prisma.user.update({

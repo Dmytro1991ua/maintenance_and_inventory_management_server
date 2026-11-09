@@ -8,6 +8,7 @@ import {
   createAdminUser,
   createManagerUser,
   createTechnicianUser,
+  createTestRecurringTask,
   createTestTask,
   createTestUser,
   DEFAULT_TEST_PASSWORD,
@@ -255,6 +256,95 @@ describe("PATCH /api/v1/users/:id/status", () => {
 
     expect(response.status).toBe(200);
     expect(response.body.data.status).toBe("INACTIVE");
+  });
+
+  describe("deactivating a user with open work", () => {
+    const deactivate = (adminId: string, targetId: string) =>
+      prisma.user.findUniqueOrThrow({ where: { id: adminId } }).then((admin) =>
+        request(app)
+          .patch(`/api/v1/users/${targetId}/status`)
+          .set(authHeader(signTestAccessToken(admin)))
+          .send({ status: "INACTIVE" }),
+      );
+
+    it("should return their open and in-progress tasks to the pool", async () => {
+      const admin = await createAdminUser();
+      const target = await createTechnicianUser();
+      const inProgress = await createTestTask({ assignedTo: target.id, status: "IN_PROGRESS" });
+      const open = await createTestTask({ assignedTo: target.id, status: "OPEN" });
+
+      const response = await deactivate(admin.id, target.id);
+
+      expect(response.status).toBe(200);
+      const tasks = await prisma.task.findMany({ where: { id: { in: [inProgress.id, open.id] } } });
+      expect(tasks.every((t) => t.assignedTo === null && t.status === "OPEN")).toBe(true);
+    });
+
+    it("should keep their finished tasks as history", async () => {
+      const admin = await createAdminUser();
+      const target = await createTechnicianUser();
+      const done = await createTestTask({ assignedTo: target.id, status: "DONE" });
+      const cancelled = await createTestTask({ assignedTo: target.id, status: "CANCELLED" });
+
+      await deactivate(admin.id, target.id);
+
+      const tasks = await prisma.task.findMany({ where: { id: { in: [done.id, cancelled.id] } } });
+      expect(tasks.every((t) => t.assignedTo === target.id)).toBe(true);
+    });
+
+    it("should leave other users' tasks alone", async () => {
+      const admin = await createAdminUser();
+      const target = await createTechnicianUser();
+      const other = await createTechnicianUser();
+      const task = await createTestTask({ assignedTo: other.id, status: "IN_PROGRESS" });
+
+      await deactivate(admin.id, target.id);
+
+      const stored = await prisma.task.findUniqueOrThrow({ where: { id: task.id } });
+      expect(stored).toMatchObject({ assignedTo: other.id, status: "IN_PROGRESS" });
+    });
+
+    it("should clear them as a schedule's default assignee", async () => {
+      const admin = await createAdminUser();
+      const target = await createTechnicianUser();
+      const other = await createTechnicianUser();
+      const mine = await createTestRecurringTask({ assignedTo: target.id });
+      const theirs = await createTestRecurringTask({ assignedTo: other.id });
+
+      await deactivate(admin.id, target.id);
+
+      const stored = await prisma.recurringTask.findMany({
+        where: { id: { in: [mine.id, theirs.id] } },
+      });
+      expect(stored.find((s) => s.id === mine.id)?.assignedTo).toBeNull();
+      expect(stored.find((s) => s.id === theirs.id)?.assignedTo).toBe(other.id);
+    });
+
+    it("should not touch tasks when the user is already inactive", async () => {
+      const admin = await createAdminUser();
+      const target = await createTestUser({ status: UserStatus.INACTIVE });
+      const task = await createTestTask({ assignedTo: target.id, status: "OPEN" });
+
+      const response = await deactivate(admin.id, target.id);
+
+      expect(response.status).toBe(200);
+      const stored = await prisma.task.findUniqueOrThrow({ where: { id: task.id } });
+      expect(stored.assignedTo).toBe(target.id);
+    });
+
+    it("should not release anything on reactivation", async () => {
+      const admin = await createAdminUser();
+      const target = await createTestUser({ status: UserStatus.INACTIVE });
+      const task = await createTestTask({ assignedTo: target.id, status: "OPEN" });
+
+      await request(app)
+        .patch(`/api/v1/users/${target.id}/status`)
+        .set(authHeader(signTestAccessToken(admin)))
+        .send({ status: "ACTIVE" });
+
+      const stored = await prisma.task.findUniqueOrThrow({ where: { id: task.id } });
+      expect(stored.assignedTo).toBe(target.id);
+    });
   });
 
   it("should allow ADMIN to reactivate a user", async () => {
