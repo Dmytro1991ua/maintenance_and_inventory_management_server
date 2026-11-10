@@ -136,14 +136,14 @@ export const tasksService = {
         await findOrThrow(() => assetsRepository.findById(assetId), ASSET_NOT_FOUND_MESSAGE);
       }
 
-      // Rescheduling re-arms the due-soon reminder: clear reminderSentAt so the
-      // daily job can send a fresh reminder for the new due date.
+      // A new due date or assignee re-arms the due-soon reminder.
       const dueDateChanged =
         data.dueDate !== undefined && data.dueDate?.getTime() !== task.dueDate?.getTime();
+      const assigneeChanged = data.assignedTo !== undefined && data.assignedTo !== task.assignedTo;
 
       const updatedTask = await tasksRepository.update(id, {
         ...data,
-        ...(dueDateChanged && { reminderSentAt: null }),
+        ...((dueDateChanged || assigneeChanged) && { reminderSentAt: null }),
       });
 
       if (data.assignedTo && data.assignedTo !== task.assignedTo && updatedTask.assignee) {
