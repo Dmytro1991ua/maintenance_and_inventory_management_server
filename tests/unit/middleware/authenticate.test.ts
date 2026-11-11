@@ -1,8 +1,9 @@
 import jwt from "jsonwebtoken";
 import { Request, Response, NextFunction } from "express";
 import { mock } from "jest-mock-extended";
-import { UnauthorizedError } from "../../../src/errors";
+import { ForbiddenError, UnauthorizedError } from "../../../src/errors";
 import { authenticate } from "../../../src/middleware/authenticate";
+import { usersRepository } from "../../../src/modules/users/users.repository";
 import type { JwtVerifyFn } from "../../types/mocks.types";
 
 jest.mock("../../../src/config", () => ({
@@ -10,11 +11,15 @@ jest.mock("../../../src/config", () => ({
 }));
 
 jest.mock("jsonwebtoken");
+jest.mock("../../../src/modules/users/users.repository", () => ({
+  usersRepository: { findStatus: jest.fn() },
+}));
 
 describe("authenticate", () => {
   const mockedJwt = {
     verify: jwt.verify as unknown as jest.MockedFunction<JwtVerifyFn>,
   };
+  const findStatus = usersRepository.findStatus as unknown as jest.Mock;
 
   const buildReq = (authHeader?: string): Request => {
     const req = mock<Request>();
@@ -26,75 +31,106 @@ describe("authenticate", () => {
 
   const next: jest.MockedFunction<NextFunction> = jest.fn();
 
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it("should throw UnauthorizedError when the Authorization header is missing", () => {
-    const mockReq = buildReq();
-
-    expect(() => authenticate(mockReq, mock<Response>(), next)).toThrow(UnauthorizedError);
-  });
-
-  it("should throw UnauthorizedError when the header does not start with 'Bearer '", () => {
-    const mockReq = buildReq("Basic some-credentials");
-
-    expect(() => authenticate(mockReq, mock<Response>(), next)).toThrow(UnauthorizedError);
-  });
-
-  it("should attach the decoded user to req.user on a valid token", () => {
-    const mockReq = buildReq("Bearer valid-token");
-
+  const validToken = () =>
     mockedJwt.verify.mockReturnValue({
       UserInfo: { id: "user-1", userName: "johndoe", roles: ["TECHNICIAN"] },
     });
 
-    authenticate(mockReq, mock<Response>(), next);
+  beforeEach(() => {
+    findStatus.mockResolvedValue({ status: "ACTIVE" });
+  });
+
+  afterEach(() => {
+    jest.resetAllMocks();
+  });
+
+  it("should throw UnauthorizedError when the Authorization header is missing", async () => {
+    await expect(authenticate(buildReq(), mock<Response>(), next)).rejects.toThrow(
+      UnauthorizedError,
+    );
+  });
+
+  it("should throw UnauthorizedError when the header does not start with 'Bearer '", async () => {
+    await expect(
+      authenticate(buildReq("Basic some-credentials"), mock<Response>(), next),
+    ).rejects.toThrow(UnauthorizedError);
+  });
+
+  it("should attach the decoded user to req.user on a valid token", async () => {
+    const mockReq = buildReq("Bearer valid-token");
+    validToken();
+
+    await authenticate(mockReq, mock<Response>(), next);
 
     expect(mockReq.user).toEqual({ id: "user-1", userName: "johndoe", roles: ["TECHNICIAN"] });
   });
 
-  it("should call next() with no arguments on a valid token", () => {
-    const mockReq = buildReq("Bearer valid-token");
+  it("should call next() with no arguments on a valid token", async () => {
+    validToken();
 
-    mockedJwt.verify.mockReturnValue({
-      UserInfo: { id: "user-1", userName: "johndoe", roles: ["TECHNICIAN"] },
-    });
-
-    authenticate(mockReq, mock<Response>(), next);
+    await authenticate(buildReq("Bearer valid-token"), mock<Response>(), next);
 
     expect(next).toHaveBeenCalledWith();
   });
 
-  it("should throw UnauthorizedError with 'Token expired' when the token has expired", () => {
-    const mockReq = buildReq("Bearer expired-token");
+  it("should look the user up by the id in the token", async () => {
+    validToken();
 
-    mockedJwt.verify.mockImplementation(() => {
-      throw new jwt.TokenExpiredError("jwt expired", new Date());
-    });
+    await authenticate(buildReq("Bearer valid-token"), mock<Response>(), next);
 
-    expect(() => authenticate(mockReq, mock<Response>(), next)).toThrow("Token expired");
+    expect(findStatus).toHaveBeenCalledWith("user-1");
   });
 
-  it("should throw UnauthorizedError with 'Invalid token' when the signature is invalid", () => {
-    const mockReq = buildReq("Bearer tampered-token");
+  it("should throw ForbiddenError and not call next() when the user is inactive", async () => {
+    const mockReq = buildReq("Bearer valid-token");
+    validToken();
+    findStatus.mockResolvedValue({ status: "INACTIVE" });
 
+    await expect(authenticate(mockReq, mock<Response>(), next)).rejects.toThrow(ForbiddenError);
+
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("should throw UnauthorizedError when the user no longer exists", async () => {
+    validToken();
+    findStatus.mockResolvedValue(null);
+
+    await expect(
+      authenticate(buildReq("Bearer valid-token"), mock<Response>(), next),
+    ).rejects.toThrow(UnauthorizedError);
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it("should not look the user up when the token is invalid", async () => {
     mockedJwt.verify.mockImplementation(() => {
       throw new jwt.JsonWebTokenError("invalid signature");
     });
 
-    expect(() => authenticate(mockReq, mock<Response>(), next)).toThrow("Invalid token");
+    await expect(
+      authenticate(buildReq("Bearer tampered-token"), mock<Response>(), next),
+    ).rejects.toThrow("Invalid token");
+    expect(findStatus).not.toHaveBeenCalled();
   });
 
-  it("should rethrow unexpected errors instead of converting them to UnauthorizedError", () => {
-    const mockReq = buildReq("Bearer some-token");
+  it("should throw UnauthorizedError with 'Token expired' when the token has expired", async () => {
+    mockedJwt.verify.mockImplementation(() => {
+      throw new jwt.TokenExpiredError("jwt expired", new Date());
+    });
 
+    await expect(
+      authenticate(buildReq("Bearer expired-token"), mock<Response>(), next),
+    ).rejects.toThrow("Token expired");
+  });
+
+  it("should rethrow unexpected errors instead of converting them to UnauthorizedError", async () => {
     const unexpectedError = new Error("Something else entirely");
 
     mockedJwt.verify.mockImplementation(() => {
       throw unexpectedError;
     });
 
-    expect(() => authenticate(mockReq, mock<Response>(), next)).toThrow(unexpectedError);
+    await expect(
+      authenticate(buildReq("Bearer some-token"), mock<Response>(), next),
+    ).rejects.toThrow(unexpectedError);
   });
 });
