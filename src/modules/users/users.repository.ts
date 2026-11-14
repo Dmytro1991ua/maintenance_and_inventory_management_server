@@ -58,6 +58,12 @@ export const usersRepository = {
     }),
   findStatus: (id: string, db: Prisma.TransactionClient = prisma) =>
     db.user.findUnique({ where: { id }, select: { status: true } }),
+  // What the auth middleware needs on every request.
+  findAuthState: (id: string) =>
+    prisma.user.findUnique({
+      where: { id },
+      select: { userName: true, roles: true, status: true },
+    }),
   // Used by system jobs to find recipients for broadcast-style notifications
   // (e.g. notify every MANAGER/ADMIN about a low-stock item).
   findByRoles: (roles: Role[]) =>
