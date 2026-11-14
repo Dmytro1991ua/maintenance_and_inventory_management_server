@@ -4,7 +4,7 @@ import app from "../../../src/app";
 import { authHeader, createAdminUser, signTestAccessToken } from "../../integration/helpers";
 
 describe("role escalation", () => {
-  it("should require re-login before a promoted role takes effect", async () => {
+  it("should apply a promoted role to the existing token at once", async () => {
     const admin = await createAdminUser();
     const agent = request.agent(app);
 
@@ -30,9 +30,7 @@ describe("role escalation", () => {
 
     // Admin promotes them to MANAGER
     const registeredUserId = (
-      await request(app)
-        .get("/api/v1/users/me")
-        .set("Authorization", `Bearer ${technicianToken}`)
+      await request(app).get("/api/v1/users/me").set("Authorization", `Bearer ${technicianToken}`)
     ).body.data.id;
 
     const promoteResponse = await request(app)
@@ -42,16 +40,15 @@ describe("role escalation", () => {
 
     expect(promoteResponse.status).toBe(200);
 
-    // The OLD token still carries the stale TECHNICIAN role — roles are baked
-    // into the JWT at login time, so a role change doesn't retroactively
-    // apply to tokens already issued.
-    const stillDeniedResponse = await request(app)
+    // Roles are read from the database on each request, so the old token
+    // already has the new role.
+    const promotedResponse = await request(app)
       .get("/api/v1/users")
       .set("Authorization", `Bearer ${technicianToken}`);
 
-    expect(stillDeniedResponse.status).toBe(403);
+    expect(promotedResponse.status).toBe(200);
 
-    // Logging in again issues a new token reflecting the updated role
+    // A fresh login also reflects the updated role
     const reloginResponse = await agent
       .post("/api/v1/auth/login")
       .send({ email: "futuremanager@example.com", password: "Password123" });

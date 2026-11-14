@@ -55,4 +55,28 @@ describe("an access token for a user whose account changed", () => {
 
     expect(response.status).toBe(403);
   });
+
+  describe("roles", () => {
+    const listUsers = (token: string) => request(app).get("/api/v1/users").set(authHeader(token));
+
+    it("should apply a promotion at once, without a new token", async () => {
+      const user = await createTechnicianUser();
+      const token = signTestAccessToken(user);
+      expect((await listUsers(token)).status).toBe(403);
+
+      await prisma.user.update({ where: { id: user.id }, data: { roles: ["ADMIN"] } });
+
+      expect((await listUsers(token)).status).toBe(200);
+    });
+
+    it("should apply a demotion at once, even with an admin token still unexpired", async () => {
+      const admin = await createAdminUser();
+      const token = signTestAccessToken(admin);
+      expect((await listUsers(token)).status).toBe(200);
+
+      await prisma.user.update({ where: { id: admin.id }, data: { roles: ["TECHNICIAN"] } });
+
+      expect((await listUsers(token)).status).toBe(403);
+    });
+  });
 });

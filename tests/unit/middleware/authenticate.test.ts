@@ -12,14 +12,14 @@ jest.mock("../../../src/config", () => ({
 
 jest.mock("jsonwebtoken");
 jest.mock("../../../src/modules/users/users.repository", () => ({
-  usersRepository: { findStatus: jest.fn() },
+  usersRepository: { findAuthState: jest.fn() },
 }));
 
 describe("authenticate", () => {
   const mockedJwt = {
     verify: jwt.verify as unknown as jest.MockedFunction<JwtVerifyFn>,
   };
-  const findStatus = usersRepository.findStatus as unknown as jest.Mock;
+  const findAuthState = usersRepository.findAuthState as unknown as jest.Mock;
 
   const buildReq = (authHeader?: string): Request => {
     const req = mock<Request>();
@@ -37,7 +37,11 @@ describe("authenticate", () => {
     });
 
   beforeEach(() => {
-    findStatus.mockResolvedValue({ status: "ACTIVE" });
+    findAuthState.mockResolvedValue({
+      status: "ACTIVE",
+      userName: "johndoe",
+      roles: ["TECHNICIAN"],
+    });
   });
 
   afterEach(() => {
@@ -56,13 +60,25 @@ describe("authenticate", () => {
     ).rejects.toThrow(UnauthorizedError);
   });
 
-  it("should attach the decoded user to req.user on a valid token", async () => {
+  it("should attach the user to req.user on a valid token", async () => {
     const mockReq = buildReq("Bearer valid-token");
     validToken();
 
     await authenticate(mockReq, mock<Response>(), next);
 
     expect(mockReq.user).toEqual({ id: "user-1", userName: "johndoe", roles: ["TECHNICIAN"] });
+  });
+
+  it("should take roles and username from the database, not the token", async () => {
+    const mockReq = buildReq("Bearer old-token");
+    mockedJwt.verify.mockReturnValue({
+      UserInfo: { id: "user-1", userName: "old-name", roles: ["ADMIN"] },
+    });
+    findAuthState.mockResolvedValue({ status: "ACTIVE", userName: "new-name", roles: ["MANAGER"] });
+
+    await authenticate(mockReq, mock<Response>(), next);
+
+    expect(mockReq.user).toEqual({ id: "user-1", userName: "new-name", roles: ["MANAGER"] });
   });
 
   it("should call next() with no arguments on a valid token", async () => {
@@ -78,13 +94,13 @@ describe("authenticate", () => {
 
     await authenticate(buildReq("Bearer valid-token"), mock<Response>(), next);
 
-    expect(findStatus).toHaveBeenCalledWith("user-1");
+    expect(findAuthState).toHaveBeenCalledWith("user-1");
   });
 
   it("should throw ForbiddenError and not call next() when the user is inactive", async () => {
     const mockReq = buildReq("Bearer valid-token");
     validToken();
-    findStatus.mockResolvedValue({ status: "INACTIVE" });
+    findAuthState.mockResolvedValue({ status: "INACTIVE", userName: "x", roles: [] });
 
     await expect(authenticate(mockReq, mock<Response>(), next)).rejects.toThrow(ForbiddenError);
 
@@ -93,7 +109,7 @@ describe("authenticate", () => {
 
   it("should throw UnauthorizedError when the user no longer exists", async () => {
     validToken();
-    findStatus.mockResolvedValue(null);
+    findAuthState.mockResolvedValue(null);
 
     await expect(
       authenticate(buildReq("Bearer valid-token"), mock<Response>(), next),
@@ -109,7 +125,7 @@ describe("authenticate", () => {
     await expect(
       authenticate(buildReq("Bearer tampered-token"), mock<Response>(), next),
     ).rejects.toThrow("Invalid token");
-    expect(findStatus).not.toHaveBeenCalled();
+    expect(findAuthState).not.toHaveBeenCalled();
   });
 
   it("should throw UnauthorizedError with 'Token expired' when the token has expired", async () => {
