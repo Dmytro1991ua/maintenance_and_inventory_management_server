@@ -16,6 +16,11 @@ export const usersController = {
 
     res.json({ success: true, ...result });
   },
+  updateHourlyRate: async (req: Request, res: Response): Promise<void> => {
+    const user = await usersService.updateHourlyRate(req.params.id as string, req.body);
+
+    res.json({ success: true, data: user });
+  },
   getMe: async (req: Request, res: Response): Promise<void> => {
     if (!req.user) {
       throw new UnauthorizedError("Not authenticated");

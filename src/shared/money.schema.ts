@@ -9,3 +9,8 @@ import { z } from "zod";
 export const MoneyInput = z.coerce.string().regex(/^\d{1,10}(\.\d{1,2})?$/, {
   error: "Must be a non-negative amount with at most 2 decimal places",
 });
+
+// An hourly labor rate: up to 5 integer digits and 2 decimals, to fit DECIMAL(10,2) with room to spare.
+export const HourlyRateInput = z.coerce.string().regex(/^\d{1,5}(\.\d{1,2})?$/, {
+  error: "Must be a non-negative rate with at most 2 decimal places",
+});

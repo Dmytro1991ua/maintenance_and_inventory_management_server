@@ -58,6 +58,15 @@ export const usersRepository = {
     }),
   findStatus: (id: string, db: Prisma.TransactionClient = prisma) =>
     db.user.findUnique({ where: { id }, select: { status: true } }),
+  findHourlyRate: async (id: string) =>
+    (await prisma.user.findUnique({ where: { id }, select: { hourlyRate: true } }))?.hourlyRate ??
+    null,
+  updateHourlyRate: (id: string, hourlyRate: string | null) =>
+    prisma.user.update({
+      where: { id },
+      data: { hourlyRate },
+      select: { id: true, userName: true, hourlyRate: true },
+    }),
   // What the auth middleware needs on every request.
   findAuthState: (id: string) =>
     prisma.user.findUnique({

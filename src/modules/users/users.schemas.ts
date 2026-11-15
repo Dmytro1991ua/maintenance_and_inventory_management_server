@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { HourlyRateInput } from "../../shared/money.schema";
+
 export const UsersQuerySchema = z
   .object({
     page: z.coerce.number().int().min(1).default(1).openapi({ example: 1 }),
@@ -18,6 +20,25 @@ export const UpdateUserStatusSchema = z
   })
   .strict()
   .openapi("UpdateUserStatusInput");
+
+export const UpdateHourlyRateSchema = z
+  .object({
+    // Null clears the rate; entries logged afterwards then carry no cost.
+    hourlyRate: HourlyRateInput.nullable().openapi({ example: "25.00" }),
+  })
+  .strict()
+  .openapi("UpdateHourlyRateInput");
+
+export const HourlyRateResponseSchema = z
+  .object({
+    success: z.literal(true),
+    data: z.object({
+      id: z.uuid(),
+      userName: z.string(),
+      hourlyRate: z.string().nullable().openapi({ example: "25.00" }),
+    }),
+  })
+  .openapi("HourlyRateResponse");
 
 export const UpdateUserSchema = z
   .object({
@@ -139,6 +160,7 @@ export type UsersQuery = z.infer<typeof UsersQuerySchema>;
 export type UpdateUser = z.infer<typeof UpdateUserSchema>;
 export type UpdateRoles = z.infer<typeof UpdateRolesSchema>;
 export type UpdateUserStatus = z.infer<typeof UpdateUserStatusSchema>;
+export type UpdateHourlyRate = z.infer<typeof UpdateHourlyRateSchema>;
 export type UserIdParam = z.infer<typeof UserIdParamSchema>;
 export type ChangePassword = z.infer<typeof ChangePasswordSchema>;
 export type NotificationPreferencesInput = z.infer<typeof NotificationPreferencesSchema>;

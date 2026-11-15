@@ -19,6 +19,7 @@ import { usersRepository } from "./users.repository";
 import type {
   ChangePassword,
   NotificationPreferencesInput,
+  UpdateHourlyRate,
   UpdateRoles,
   UpdateUser,
   UpdateUserStatus,
@@ -124,6 +125,15 @@ export const usersService = {
     }
 
     return mapUserToResponse(await usersRepository.updateStatus(targetId, data));
+  },
+
+  // ADMIN / MANAGER. Only future time entries use the new rate.
+  updateHourlyRate: async (targetId: string, data: UpdateHourlyRate) => {
+    await findOrThrow(() => usersRepository.findById(targetId), USER_NOT_FOUND_MESSAGE);
+
+    const user = await usersRepository.updateHourlyRate(targetId, data.hourlyRate);
+
+    return { ...user, hourlyRate: user.hourlyRate?.toFixed(2) ?? null };
   },
 
   uploadAvatar: async (userId: string, file: Express.Multer.File) => {

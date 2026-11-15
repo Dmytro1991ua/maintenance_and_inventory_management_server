@@ -7,8 +7,10 @@ import {
 } from "./invites.schemas";
 import {
   ChangePasswordSchema,
+  HourlyRateResponseSchema,
   NotificationPreferencesResponseSchema,
   NotificationPreferencesSchema,
+  UpdateHourlyRateSchema,
   UpdateRolesSchema,
   UpdateUserSchema,
   UpdateUserStatusSchema,
@@ -307,6 +309,33 @@ registry.registerPath({
     },
     403: {
       description: "ADMIN role required, or attempting to change own status",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "User not found",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/users/{id}/hourly-rate",
+  description:
+    "Set or clear a user's hourly labor rate (null clears it). ADMIN and MANAGER. Only time entries logged afterwards use the new rate. The rate is not part of the normal user response.",
+  tags: ["Users"],
+  security: bearerAuth,
+  request: {
+    params: UserIdParamSchema,
+    body: { content: { "application/json": { schema: UpdateHourlyRateSchema } } },
+  },
+  responses: {
+    200: {
+      description: "Rate updated",
+      content: { "application/json": { schema: HourlyRateResponseSchema } },
+    },
+    403: {
+      description: "ADMIN or MANAGER role required",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
     404: {
