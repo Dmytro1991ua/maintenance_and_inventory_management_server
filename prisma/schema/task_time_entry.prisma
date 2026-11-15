@@ -1,0 +1,17 @@
+model TaskTimeEntry {
+  id         String   @id @default(uuid())
+  taskId     String
+  userId     String?
+  minutes    Int
+  workedOn   DateTime @db.Date
+  note       String?
+  // The user's hourly rate when logged, so a later raise doesn't rewrite past cost.
+  hourlyRate Decimal?  @db.Decimal(10, 2)
+  task       Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user       User?    @relation("TimeEntryWorker", fields: [userId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+
+  @@index([taskId, workedOn])
+  @@index([userId])
+  @@map("task_time_entries")
+}

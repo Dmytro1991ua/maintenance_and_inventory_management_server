@@ -13,6 +13,7 @@ import "./modules/recurring-tasks/recurring-tasks.openapi";
 import "./modules/reorders/reorders.openapi";
 import "./modules/reports/reports.openapi";
 import "./modules/task-comments/task-comments.openapi";
+import "./modules/task-time-entries/task-time-entries.openapi";
 import "./modules/tasks/tasks.openapi";
 import "./modules/users/users.openapi";
 import "./modules/work-order-requests/work-order-requests.openapi";

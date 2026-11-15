@@ -18,6 +18,8 @@ model User {
   status    UserStatus @default(ACTIVE)
   avatarUrl               String?
   notificationPreferences Json       @default("{}")
+  // Labor cost per hour; managers set it. Not part of the normal user response.
+  hourlyRate              Decimal?   @db.Decimal(10, 2)
   createdAt               DateTime   @default(now())
   updatedAt               DateTime   @updatedAt
   tasks                  Task[]
@@ -28,6 +30,7 @@ model User {
   workOrderRequests      WorkOrderRequest[] @relation("WorkOrderRequester")
   workOrderReviews       WorkOrderRequest[] @relation("WorkOrderReviewer")
   meterReadings          MeterReading[]  @relation("MeterReadingRecorder")
+  timeEntries            TaskTimeEntry[] @relation("TimeEntryWorker")
 
   @@map("users")
 }

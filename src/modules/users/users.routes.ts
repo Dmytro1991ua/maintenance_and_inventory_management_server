@@ -15,6 +15,7 @@ import { usersController } from "./users.controller";
 import {
   ChangePasswordSchema,
   NotificationPreferencesSchema,
+  UpdateHourlyRateSchema,
   UpdateRolesSchema,
   UpdateUserSchema,
   UpdateUserStatusSchema,
@@ -196,6 +197,19 @@ router.patch(
   validateParams(UserIdParamSchema),
   validateBody(UpdateUserStatusSchema),
   asyncHandler(usersController.updateStatus),
+);
+
+/**
+ * PATCH /api/v1/users/:id/hourly-rate
+ * ADMIN / MANAGER — set or clear a labor rate
+ */
+router.patch(
+  "/:id/hourly-rate",
+  authenticate,
+  authorize([Role.ADMIN, Role.MANAGER]),
+  validateParams(UserIdParamSchema),
+  validateBody(UpdateHourlyRateSchema),
+  asyncHandler(usersController.updateHourlyRate),
 );
 
 export default router;

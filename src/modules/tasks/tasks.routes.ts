@@ -11,6 +11,7 @@ import {
   validateQuery,
 } from "../../middleware";
 import taskCommentsRouter from "../task-comments/task-comments.routes";
+import taskTimeEntriesRouter from "../task-time-entries/task-time-entries.routes";
 import { tasksController } from "./tasks.controller";
 import {
   CancelTaskSchema,
@@ -115,5 +116,6 @@ router.delete(
 );
 
 router.use("/:id/comments", taskCommentsRouter);
+router.use("/:id/time-entries", taskTimeEntriesRouter);
 
 export default router;
