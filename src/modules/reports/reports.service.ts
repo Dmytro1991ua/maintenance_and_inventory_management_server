@@ -22,7 +22,11 @@ export const reportsService = {
     ]);
 
     return {
-      data: rows.map((row) => ({ ...row, avgCompletionDays: round1(row.avgCompletionDays) })),
+      data: rows.map((row) => ({
+        ...row,
+        laborCost: row.laborCost.toFixed(2),
+        avgCompletionDays: round1(row.avgCompletionDays),
+      })),
       meta: {
         total,
         page: query.page,
@@ -57,14 +61,19 @@ export const reportsService = {
       throw new BadRequestError("`from` must be on or before `to`");
     }
 
-    const [summary, series, bySupplier, byCategory] = await Promise.all([
+    const [summary, series, bySupplier, byCategory, laborSummary, laborSeries] = await Promise.all([
       reportsRepository.getSpendSummary(from, to),
       reportsRepository.getSpendSeries(from, to, query.groupBy),
       reportsRepository.getSpendBySupplier(from, to),
       reportsRepository.getSpendByCategory(from, to),
+      reportsRepository.getLaborSummary(from, to),
+      reportsRepository.getLaborSeries(from, to, query.groupBy),
     ]);
 
-    return { from, to, groupBy: query.groupBy, summary, series, bySupplier, byCategory };
+    // Labor sits beside purchasing, not inside `spent`.
+    const labor = { summary: laborSummary, series: laborSeries };
+
+    return { from, to, groupBy: query.groupBy, summary, series, bySupplier, byCategory, labor };
   },
 
   getThroughput: async (query: ThroughputQuery) => {

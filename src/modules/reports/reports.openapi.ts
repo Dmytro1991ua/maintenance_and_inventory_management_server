@@ -16,7 +16,7 @@ registry.registerPath({
   method: "get",
   path: "/reports/assets",
   description:
-    "Lifetime reliability report, one row per asset: total/open/overdue/completed task counts, total parts consumed, and average completion time in days. Paginated; searchable by name/serial/location; filterable by category and status; sortable by any computed metric (defaults to most-worked first). ADMIN/MANAGER only.",
+    "Lifetime reliability report, one row per asset: total/open/overdue/completed task counts, total parts consumed, logged labor (minutes, cost at the rates logged, and the unrated minutes that are not costed), and average completion time in days. Paginated; searchable by name/serial/location; filterable by category and status; sortable by any computed metric (defaults to most-worked first). ADMIN/MANAGER only.",
   tags: ["Reports"],
   security: bearerAuth,
   request: { query: AssetReportQuerySchema },
@@ -80,7 +80,7 @@ registry.registerPath({
   method: "get",
   path: "/reports/spend",
   description:
-    "Purchasing spend: what was actually paid (quantity x received unit cost) for RECEIVED reorders whose receivedAt falls in the range. Returns a summary (spent, variance against the estimate, and how many received orders had no price recorded and are excluded from the totals), a zero-filled series per day/week/month, and breakdowns by supplier and by category (biggest first; supplier null = none set), using the supplier and category the item had when the order was received, so later edits to an item do not move past spend. A plain-date `to` (2026-07-31) includes that whole day. Defaults to the last 12 months by month. Money is a 2-decimal string. ADMIN/MANAGER only.",
+    "Purchasing spend: what was actually paid (quantity x received unit cost) for RECEIVED reorders whose receivedAt falls in the range. Returns a summary (spent, variance against the estimate, and how many received orders had no price recorded and are excluded from the totals), a zero-filled series per day/week/month, and breakdowns by supplier and by category (biggest first; supplier null = none set), using the supplier and category the item had when the order was received, so later edits to an item do not move past spend. Also returns `labor`: logged task labor over the same range by work date (summary and zero-filled series, with the minutes that have no rate and so are not costed). Labor is reported beside purchasing and is never added into `spent`. A plain-date `to` (2026-07-31) includes that whole day. Defaults to the last 12 months by month. Money is a 2-decimal string. ADMIN/MANAGER only.",
   tags: ["Reports"],
   security: bearerAuth,
   request: { query: SpendQuerySchema },
