@@ -9,6 +9,8 @@ export const ASSET_REPORT_SORT_FIELDS = [
   "overdueTasks",
   "completedTasks",
   "partsConsumed",
+  "laborMinutes",
+  "laborCost",
   "avgCompletionDays",
   "name",
 ] as const;
@@ -80,6 +82,11 @@ export const AssetReliabilityRowSchema = z
     overdueTasks: z.number().int(),
     completedTasks: z.number().int(),
     partsConsumed: z.number().int(),
+    // Lifetime logged time on the asset's tasks, and its cost at the rates logged.
+    laborMinutes: z.number().int(),
+    laborCost: z.string().openapi({ example: "112.50" }),
+    // Minutes with no rate: counted in laborMinutes, not costed.
+    laborUnratedMinutes: z.number().int(),
     avgCompletionDays: z.number().nullable(),
   })
   .openapi("AssetReliabilityRow");
@@ -155,6 +162,11 @@ const SpendFiguresSchema = z.object({
   receivedOrders: z.number().int().openapi({ example: 40 }),
 });
 
+const LaborFiguresSchema = z.object({
+  minutes: z.number().int().openapi({ example: 1260 }),
+  cost: z.string().openapi({ example: "525.00" }),
+});
+
 export const SpendResponseSchema = z
   .object({
     success: z.literal(true),
@@ -176,6 +188,14 @@ export const SpendResponseSchema = z
         }),
       ),
       byCategory: z.array(SpendFiguresSchema.extend({ category: z.string() })),
+      // Logged task labor by work date. Separate from `spent`, which is purchasing only.
+      labor: z.object({
+        summary: LaborFiguresSchema.extend({
+          // Counted in minutes, not in cost.
+          unratedMinutes: z.number().int().openapi({ example: 90 }),
+        }),
+        series: z.array(LaborFiguresSchema.extend({ bucket: z.iso.datetime() })),
+      }),
     }),
   })
   .openapi("SpendResponse");

@@ -15,6 +15,13 @@ const SPENT = Prisma.sql`COALESCE(SUM(r.quantity * r."receivedUnitCost") FILTER 
 const receivedBetween = (from: Date, to: Date): Prisma.Sql =>
   Prisma.sql`r.status = 'RECEIVED' AND r."receivedAt" BETWEEN ${from} AND ${to}`;
 
+// Labor cost: each entry rounded to the cent, as the task view does; unrated entries are skipped.
+const LABOR_COST = Prisma.sql`COALESCE(SUM(ROUND(e.minutes * e."hourlyRate" / 60, 2)) FILTER (WHERE e."hourlyRate" IS NOT NULL), 0)`;
+
+// workedOn is a date, so compare on the UTC dates of the range.
+const workedBetween = (from: Date, to: Date): Prisma.Sql =>
+  Prisma.sql`e."workedOn" BETWEEN (${from}::timestamptz AT TIME ZONE 'UTC')::date AND (${to}::timestamptz AT TIME ZONE 'UTC')::date`;
+
 // Whitelisted date_trunc unit and generate_series step per granularity; a pure
 // lookup, bound as parameters.
 const GRANULARITY: Record<ThroughputGranularity, { unit: string; step: string }> = {
@@ -31,6 +38,8 @@ const ASSET_SORT_EXPR: Record<AssetReportSortField, string> = {
   overdueTasks: '"overdueTasks"',
   completedTasks: '"completedTasks"',
   partsConsumed: '"partsConsumed"',
+  laborMinutes: '"laborMinutes"',
+  laborCost: '"laborCost"',
   avgCompletionDays: '"avgCompletionDays"',
   name: "a.name",
 };
@@ -99,8 +108,13 @@ type AssetReliabilityRow = {
   overdueTasks: number;
   completedTasks: number;
   partsConsumed: number;
+  laborMinutes: number;
+  laborCost: Prisma.Decimal;
+  laborUnratedMinutes: number;
   avgCompletionDays: number | null;
 };
+
+type LaborFigures = { minutes: number; cost: string };
 
 type ThroughputBucketRow = { bucket: Date; created: number; completed: number };
 
@@ -170,6 +184,24 @@ export const reportsRepository = {
           JOIN tasks t2 ON t2.id = tpu."taskId"
           WHERE t2."assetId" = a.id
         ), 0)::int                                                                        AS "partsConsumed",
+        COALESCE((
+          SELECT SUM(e.minutes)
+          FROM task_time_entries e
+          JOIN tasks t3 ON t3.id = e."taskId"
+          WHERE t3."assetId" = a.id
+        ), 0)::int                                                                        AS "laborMinutes",
+        COALESCE((
+          SELECT SUM(ROUND(e.minutes * e."hourlyRate" / 60, 2))
+          FROM task_time_entries e
+          JOIN tasks t3 ON t3.id = e."taskId"
+          WHERE t3."assetId" = a.id AND e."hourlyRate" IS NOT NULL
+        ), 0)                                                                             AS "laborCost",
+        COALESCE((
+          SELECT SUM(e.minutes)
+          FROM task_time_entries e
+          JOIN tasks t3 ON t3.id = e."taskId"
+          WHERE t3."assetId" = a.id AND e."hourlyRate" IS NULL
+        ), 0)::int                                                                        AS "laborUnratedMinutes",
         AVG(
           EXTRACT(EPOCH FROM (t."completedAt" - t."createdAt")) / 86400.0
         ) FILTER (WHERE t.status = 'DONE' AND t."completedAt" IS NOT NULL)::float         AS "avgCompletionDays"
@@ -285,6 +317,58 @@ export const reportsRepository = {
         COALESCE(rc.c, 0)::int                          AS "receivedOrders"
       FROM buckets b
       LEFT JOIN received rc ON rc.bucket = b.bucket
+      ORDER BY b.bucket
+    `;
+  },
+
+  // Logged labor over the range, by work date. Unrated minutes are counted, not costed.
+  getLaborSummary: async (
+    from: Date,
+    to: Date,
+  ): Promise<LaborFigures & { unratedMinutes: number }> => {
+    const rows = await prisma.$queryRaw<(LaborFigures & { unratedMinutes: number })[]>`
+      SELECT
+        COALESCE(SUM(e.minutes), 0)::int                                                 AS minutes,
+        ROUND(${LABOR_COST}, 2)::text                                                    AS cost,
+        COALESCE(SUM(e.minutes) FILTER (WHERE e."hourlyRate" IS NULL), 0)::int           AS "unratedMinutes"
+      FROM task_time_entries e
+      WHERE ${workedBetween(from, to)}
+    `;
+
+    return rows[0];
+  },
+
+  // Zero-filled, like spend.
+  getLaborSeries: (
+    from: Date,
+    to: Date,
+    groupBy: ThroughputGranularity,
+  ): Promise<(LaborFigures & { bucket: Date })[]> => {
+    const { unit, step } = GRANULARITY[groupBy];
+
+    return prisma.$queryRaw<(LaborFigures & { bucket: Date })[]>`
+      WITH buckets AS (
+        SELECT generate_series(
+          date_trunc(${unit}, ${from}::timestamptz),
+          date_trunc(${unit}, ${to}::timestamptz),
+          ${step}::interval
+        ) AS bucket
+      ),
+      logged AS (
+        SELECT
+          date_trunc(${unit}, e."workedOn"::timestamp AT TIME ZONE 'UTC') AS bucket,
+          COALESCE(SUM(e.minutes), 0)::int AS minutes,
+          ${LABOR_COST} AS cost
+        FROM task_time_entries e
+        WHERE ${workedBetween(from, to)}
+        GROUP BY 1
+      )
+      SELECT
+        b.bucket                                  AS bucket,
+        COALESCE(l.minutes, 0)::int               AS minutes,
+        ROUND(COALESCE(l.cost, 0), 2)::text       AS cost
+      FROM buckets b
+      LEFT JOIN logged l ON l.bucket = b.bucket
       ORDER BY b.bucket
     `;
   },
