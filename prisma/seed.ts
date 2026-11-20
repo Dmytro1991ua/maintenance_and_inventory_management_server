@@ -1417,7 +1417,6 @@ const maintenanceTasks: SeedTask[] = [
   },
 ];
 
-
 const seed = async (): Promise<void> => {
   const adminPassword = process.env.SEED_ADMIN_PASSWORD;
 
@@ -1485,6 +1484,20 @@ const seed = async (): Promise<void> => {
   console.log(
     `✅ Seeded assets: ${assetCount} new assets added (${assets.length - assetCount} already existed)`,
   );
+
+  // Each DOWN asset gets an open breakdown, so its availability reflects the outage.
+  const downAssets = await prisma.asset.findMany({
+    where: { status: "DOWN", downtimes: { none: { endedAt: null } } },
+    select: { id: true },
+  });
+
+  await prisma.assetDowntime.createMany({
+    data: downAssets.map((asset) => ({
+      assetId: asset.id,
+      reason: "BREAKDOWN" as const,
+      startedAt: addDays(seedDay, -2),
+    })),
+  });
 
   const meterAssets = await prisma.asset.findMany({
     where: { serialNumber: { in: meters.map((meter) => meter.assetSerial) } },

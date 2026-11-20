@@ -107,10 +107,19 @@ export const assetsRepository = {
       data: { warrantyReminderSentAt: new Date() },
     });
   },
+  // An asset created DOWN is already down, so it gets its breakdown event too.
   create: async (data: CreateAsset) =>
-    prisma.asset.create({
-      data,
-      select: ASSET_SELECT,
+    prisma.$transaction(async (tx) => {
+      const asset = await tx.asset.create({ data, select: ASSET_SELECT });
+
+      await assetDowntimesRepository.syncWithStatus(
+        tx,
+        asset.id,
+        AssetStatus.OPERATIONAL,
+        asset.status,
+      );
+
+      return asset;
     }),
   // warrantyReminderSentAt is internal; the service clears it when the date changes.
   // A status change also opens or closes the asset's downtime event, in the same transaction.

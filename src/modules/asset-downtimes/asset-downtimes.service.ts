@@ -1,5 +1,4 @@
 import { BadRequestError, ConflictError, NotFoundError } from "../../errors";
-import { AssetStatus } from "../../generated/prisma/client";
 import { addDays, findOrThrow } from "../../utils";
 import { ASSET_NOT_FOUND_MESSAGE } from "../assets/assets.constants";
 import { assetsRepository } from "../assets/assets.repository";
@@ -64,9 +63,7 @@ export const assetDowntimesService = {
   },
 
   start: async (assetId: string, userId: string, data: StartDowntime) => {
-    const asset = await findAsset(assetId);
-
-    if (asset.status === AssetStatus.RETIRED) throw new ConflictError(DOWNTIME_RETIRED_MESSAGE);
+    await findAsset(assetId);
 
     if (await assetDowntimesRepository.findOpen(assetId)) {
       throw new ConflictError(DOWNTIME_ALREADY_OPEN_MESSAGE);
@@ -96,13 +93,13 @@ export const assetDowntimesService = {
       createdBy: userId,
     });
 
+    if (!event) throw new ConflictError(DOWNTIME_RETIRED_MESSAGE);
+
     return mapDowntime(event, now);
   },
 
   end: async (assetId: string, downtimeId: string, data: EndDowntime) => {
     const event = await findEvent(assetId, downtimeId);
-
-    if (event.endedAt) throw new ConflictError(DOWNTIME_ALREADY_ENDED_MESSAGE);
 
     const now = new Date();
     const endedAt = resolveTime(data.endedAt, now);
@@ -111,12 +108,14 @@ export const assetDowntimesService = {
 
     const ended = await assetDowntimesRepository.end(downtimeId, assetId, endedAt);
 
+    if (!ended) throw new ConflictError(DOWNTIME_ALREADY_ENDED_MESSAGE);
+
     return mapDowntime(ended, now);
   },
 
   delete: async (assetId: string, downtimeId: string): Promise<void> => {
-    const event = await findEvent(assetId, downtimeId);
+    await findEvent(assetId, downtimeId);
 
-    await assetDowntimesRepository.delete(downtimeId, assetId, event.endedAt === null);
+    await assetDowntimesRepository.delete(downtimeId, assetId);
   },
 };

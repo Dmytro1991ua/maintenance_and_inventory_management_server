@@ -3,8 +3,20 @@ import type { DowntimeReason, Prisma } from "../../generated/prisma/client";
 import { AssetStatus } from "../../generated/prisma/client";
 import { DOWNTIME_SELECT } from "./asset-downtimes.constants";
 
-const setAssetStatus = (tx: Prisma.TransactionClient, assetId: string, status: AssetStatus) =>
-  tx.asset.update({ where: { id: assetId }, data: { status } });
+// Moves the asset only from the given statuses, so a retired asset is never revived.
+const moveAssetStatus = async (
+  tx: Prisma.TransactionClient,
+  assetId: string,
+  from: AssetStatus[],
+  to: AssetStatus,
+): Promise<boolean> => {
+  const { count } = await tx.asset.updateMany({
+    where: { id: assetId, status: { in: from } },
+    data: { status: to },
+  });
+
+  return count > 0;
+};
 
 export const assetDowntimesRepository = {
   findById: (id: string) =>
@@ -35,7 +47,7 @@ export const assetDowntimesRepository = {
     return _max.endedAt;
   },
 
-  // The event and the asset's DOWN status change together.
+  // The event and the asset's DOWN status change together. Null: the asset is retired.
   start: (data: {
     assetId: string;
     taskId?: string;
@@ -45,24 +57,41 @@ export const assetDowntimesRepository = {
     createdBy: string;
   }) =>
     prisma.$transaction(async (tx) => {
-      await setAssetStatus(tx, data.assetId, AssetStatus.DOWN);
+      const moved = await moveAssetStatus(
+        tx,
+        data.assetId,
+        [AssetStatus.OPERATIONAL, AssetStatus.DOWN],
+        AssetStatus.DOWN,
+      );
 
-      return tx.assetDowntime.create({ data, select: DOWNTIME_SELECT });
+      return moved ? tx.assetDowntime.create({ data, select: DOWNTIME_SELECT }) : null;
     }),
 
+  // Null: the event was already ended. Matching on `endedAt: null` keeps a stale or repeated
+  // end from rewriting a finished event or reviving an asset.
   end: (id: string, assetId: string, endedAt: Date) =>
     prisma.$transaction(async (tx) => {
-      await setAssetStatus(tx, assetId, AssetStatus.OPERATIONAL);
+      const { count } = await tx.assetDowntime.updateMany({
+        where: { id, endedAt: null },
+        data: { endedAt },
+      });
 
-      return tx.assetDowntime.update({ where: { id }, data: { endedAt }, select: DOWNTIME_SELECT });
+      if (count === 0) return null;
+
+      await moveAssetStatus(tx, assetId, [AssetStatus.DOWN], AssetStatus.OPERATIONAL);
+
+      return tx.assetDowntime.findUniqueOrThrow({ where: { id }, select: DOWNTIME_SELECT });
     }),
 
-  // Deleting an ongoing event puts the asset back in service.
-  delete: (id: string, assetId: string, wasOpen: boolean) =>
+  // Deleting an ongoing event puts the asset back in service. Whether it was ongoing comes
+  // from the deleted row itself, so it cannot go stale.
+  delete: (id: string, assetId: string) =>
     prisma.$transaction(async (tx) => {
-      await tx.assetDowntime.delete({ where: { id } });
+      const deleted = await tx.assetDowntime.delete({ where: { id } });
 
-      if (wasOpen) await setAssetStatus(tx, assetId, AssetStatus.OPERATIONAL);
+      if (deleted.endedAt === null) {
+        await moveAssetStatus(tx, assetId, [AssetStatus.DOWN], AssetStatus.OPERATIONAL);
+      }
     }),
 
   // Keeps events in step when the status is edited directly (PATCH /assets/:id).
