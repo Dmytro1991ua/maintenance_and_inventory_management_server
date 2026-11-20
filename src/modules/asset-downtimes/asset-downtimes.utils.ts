@@ -28,34 +28,45 @@ export const summarizeDowntime = (events: DowntimeRow[], from: Date, to: Date, n
     return minutesBetween(start, stop < end ? stop : end);
   };
 
-  const sumFor = (reason: DowntimeReason) =>
-    events.filter((e) => e.reason === reason).reduce((sum, e) => sum + overlap(e), 0);
+  const totals = events.reduce(
+    (acc, e) => {
+      const minutes = overlap(e);
 
-  const breakdownMinutes = sumFor(DowntimeReason.BREAKDOWN);
-  const plannedMinutes = sumFor(DowntimeReason.PLANNED);
+      if (e.reason === DowntimeReason.PLANNED) {
+        acc.plannedMinutes += minutes;
+
+        return acc;
+      }
+
+      acc.breakdownMinutes += minutes;
+
+      // Only breakdowns that started in the window count; only finished ones have a repair time.
+      if (e.startedAt >= from && e.startedAt <= end) {
+        acc.breakdowns += 1;
+
+        if (e.endedAt) {
+          acc.repaired += 1;
+          acc.repairMinutes += minutesBetween(e.startedAt, e.endedAt);
+        }
+      }
+
+      return acc;
+    },
+    { breakdownMinutes: 0, plannedMinutes: 0, breakdowns: 0, repaired: 0, repairMinutes: 0 },
+  );
+
+  const { breakdownMinutes, plannedMinutes, breakdowns, repaired, repairMinutes } = totals;
   const downtimeMinutes = breakdownMinutes + plannedMinutes;
-
-  // Breakdowns that started in the window; only finished ones have a repair time.
-  const breakdowns = events.filter(
-    (e) => e.reason === DowntimeReason.BREAKDOWN && e.startedAt >= from && e.startedAt <= end,
-  );
-  const repaired = breakdowns.filter((e) => e.endedAt);
-  const repairMinutes = repaired.reduce(
-    (sum, e) => sum + minutesBetween(e.startedAt, e.endedAt as Date),
-    0,
-  );
 
   return {
     windowMinutes: Math.round(windowMinutes),
     downtimeMinutes: Math.round(downtimeMinutes),
     breakdownMinutes: Math.round(breakdownMinutes),
     plannedMinutes: Math.round(plannedMinutes),
-    breakdowns: breakdowns.length,
+    breakdowns,
     availabilityPercent:
       windowMinutes > 0 ? Math.round((1 - downtimeMinutes / windowMinutes) * 10000) / 100 : null,
-    mttrMinutes: repaired.length ? Math.round(repairMinutes / repaired.length) : null,
-    mtbfMinutes: breakdowns.length
-      ? Math.round((windowMinutes - downtimeMinutes) / breakdowns.length)
-      : null,
+    mttrMinutes: repaired ? Math.round(repairMinutes / repaired) : null,
+    mtbfMinutes: breakdowns ? Math.round((windowMinutes - downtimeMinutes) / breakdowns) : null,
   };
 };

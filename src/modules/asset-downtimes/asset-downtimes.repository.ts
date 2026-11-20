@@ -3,6 +3,9 @@ import type { DowntimeReason, Prisma } from "../../generated/prisma/client";
 import { AssetStatus } from "../../generated/prisma/client";
 import { DOWNTIME_SELECT } from "./asset-downtimes.constants";
 
+const setAssetStatus = (tx: Prisma.TransactionClient, assetId: string, status: AssetStatus) =>
+  tx.asset.update({ where: { id: assetId }, data: { status } });
+
 export const assetDowntimesRepository = {
   findById: (id: string) =>
     prisma.assetDowntime.findUnique({ where: { id }, select: DOWNTIME_SELECT }),
@@ -42,14 +45,14 @@ export const assetDowntimesRepository = {
     createdBy: string;
   }) =>
     prisma.$transaction(async (tx) => {
-      await tx.asset.update({ where: { id: data.assetId }, data: { status: AssetStatus.DOWN } });
+      await setAssetStatus(tx, data.assetId, AssetStatus.DOWN);
 
       return tx.assetDowntime.create({ data, select: DOWNTIME_SELECT });
     }),
 
   end: (id: string, assetId: string, endedAt: Date) =>
     prisma.$transaction(async (tx) => {
-      await tx.asset.update({ where: { id: assetId }, data: { status: AssetStatus.OPERATIONAL } });
+      await setAssetStatus(tx, assetId, AssetStatus.OPERATIONAL);
 
       return tx.assetDowntime.update({ where: { id }, data: { endedAt }, select: DOWNTIME_SELECT });
     }),
@@ -59,12 +62,7 @@ export const assetDowntimesRepository = {
     prisma.$transaction(async (tx) => {
       await tx.assetDowntime.delete({ where: { id } });
 
-      if (wasOpen) {
-        await tx.asset.update({
-          where: { id: assetId },
-          data: { status: AssetStatus.OPERATIONAL },
-        });
-      }
+      if (wasOpen) await setAssetStatus(tx, assetId, AssetStatus.OPERATIONAL);
     }),
 
   // Keeps events in step when the status is edited directly (PATCH /assets/:id).
