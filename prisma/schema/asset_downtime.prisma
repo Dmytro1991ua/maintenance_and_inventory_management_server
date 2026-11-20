@@ -1,0 +1,23 @@
+enum DowntimeReason {
+  BREAKDOWN
+  PLANNED
+}
+
+model AssetDowntime {
+  id        String         @id @default(uuid())
+  assetId   String
+  taskId    String?
+  reason    DowntimeReason
+  startedAt DateTime
+  // Null while the asset is still down.
+  endedAt   DateTime?
+  note      String?
+  createdBy String?
+  asset     Asset          @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  task      Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  creator   User?          @relation("DowntimeCreator", fields: [createdBy], references: [id], onDelete: SetNull)
+  createdAt DateTime       @default(now())
+
+  @@index([assetId, startedAt])
+  @@map("asset_downtimes")
+}

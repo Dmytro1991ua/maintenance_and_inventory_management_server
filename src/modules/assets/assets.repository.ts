@@ -1,6 +1,7 @@
 import { prisma } from "../../config";
 import { AssetStatus, TaskStatus } from "../../generated/prisma/client";
 import { addDays, getSkipValue, getTotalPages, resolveSortField, startOfUtcDay } from "../../utils";
+import { assetDowntimesRepository } from "../asset-downtimes/asset-downtimes.repository";
 import {
   ASSET_ENTITY_ALLOWED_SORT_FIELDS,
   ASSET_ENTITY_DEFAULT_SORT_FIELD,
@@ -112,11 +113,20 @@ export const assetsRepository = {
       select: ASSET_SELECT,
     }),
   // warrantyReminderSentAt is internal; the service clears it when the date changes.
+  // A status change also opens or closes the asset's downtime event, in the same transaction.
   update: async (id: string, data: UpdateAsset & { warrantyReminderSentAt?: Date | null }) =>
-    prisma.asset.update({
-      where: { id },
-      data,
-      select: ASSET_SELECT,
+    prisma.$transaction(async (tx) => {
+      const before = data.status
+        ? await tx.asset.findUnique({ where: { id }, select: { status: true } })
+        : null;
+
+      const asset = await tx.asset.update({ where: { id }, data, select: ASSET_SELECT });
+
+      if (before && data.status) {
+        await assetDowntimesRepository.syncWithStatus(tx, id, before.status, data.status);
+      }
+
+      return asset;
     }),
   // Non-terminal tasks (OPEN / IN_PROGRESS) still represent live work on the
   // asset. Used to block deletion of an asset that's mid-maintenance.

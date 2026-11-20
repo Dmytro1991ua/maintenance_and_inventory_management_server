@@ -9,6 +9,7 @@ import {
   validateParams,
   validateQuery,
 } from "../../middleware";
+import assetDowntimesRouter from "../asset-downtimes/asset-downtimes.routes";
 import { TasksQuerySchema } from "../tasks/tasks.schemas";
 import { assetsController } from "./assets.controller";
 import {
@@ -59,6 +60,8 @@ router.get(
   validateQuery(TasksQuerySchema),
   asyncHandler(assetsController.findTasks),
 );
+
+router.use("/:id/downtime", assetDowntimesRouter);
 
 /**
  * GET /api/v1/assets/:id

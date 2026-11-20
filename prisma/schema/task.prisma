@@ -39,6 +39,7 @@ model Task {
   partsUsed          TaskPartUsage[]
   comments           TaskComment[]
   timeEntries        TaskTimeEntry[]
+  downtimes          AssetDowntime[]
   workOrderRequest   WorkOrderRequest?
   createdAt      DateTime           @default(now())
   updatedAt      DateTime           @updatedAt
