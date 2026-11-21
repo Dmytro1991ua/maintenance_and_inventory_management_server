@@ -31,6 +31,7 @@ model User {
   workOrderReviews       WorkOrderRequest[] @relation("WorkOrderReviewer")
   meterReadings          MeterReading[]  @relation("MeterReadingRecorder")
   timeEntries            TaskTimeEntry[] @relation("TimeEntryWorker")
+  downtimesLogged        AssetDowntime[] @relation("DowntimeCreator")
 
   @@map("users")
 }

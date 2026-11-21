@@ -33,6 +33,7 @@ model Asset {
   recurringTasks RecurringTask[]
   tasks        Task[]
   workOrderRequests WorkOrderRequest[]
+  downtimes    AssetDowntime[]
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 

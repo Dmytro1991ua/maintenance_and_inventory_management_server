@@ -2,6 +2,7 @@
 // before any schema file (which calls .openapi()) is imported below.
 // Side-effect imports — register each module's paths with the OpenAPI registry.
 // Must run after openapi config (above) and before generateOpenApiDocument().
+import "./modules/asset-downtimes/asset-downtimes.openapi";
 import "./modules/assets/assets.openapi";
 import "./modules/auth/auth.openapi";
 import "./modules/checklist-templates/checklist-templates.openapi";
