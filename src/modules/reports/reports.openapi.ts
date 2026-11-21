@@ -16,7 +16,7 @@ registry.registerPath({
   method: "get",
   path: "/reports/assets",
   description:
-    "Lifetime reliability report, one row per asset: total/open/overdue/completed task counts, total parts consumed, logged labor (minutes, cost at the rates logged, and the unrated minutes that are not costed), and average completion time in days. Paginated; searchable by name/serial/location; filterable by category and status; sortable by any computed metric (defaults to most-worked first). ADMIN/MANAGER only.",
+    "Lifetime reliability report, one row per asset: total/open/overdue/completed task counts, total parts consumed, logged labor (minutes, cost at the rates logged, and the unrated minutes that are not costed), downtime since the asset was registered (downtime minutes, breakdown count, availability %, and mean time to repair; a retired asset is measured up to now), and average completion time in days. Paginated; searchable by name/serial/location; filterable by category and status; sortable by any computed metric (defaults to most-worked first). ADMIN/MANAGER only.",
   tags: ["Reports"],
   security: bearerAuth,
   request: { query: AssetReportQuerySchema },
