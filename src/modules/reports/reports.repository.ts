@@ -22,6 +22,27 @@ const LABOR_COST = Prisma.sql`COALESCE(SUM(ROUND(e.minutes * e."hourlyRate" / 60
 const workedBetween = (from: Date, to: Date): Prisma.Sql =>
   Prisma.sql`e."workedOn" BETWEEN (${from}::timestamptz AT TIME ZONE 'UTC')::date AND (${to}::timestamptz AT TIME ZONE 'UTC')::date`;
 
+// Timestamps are stored as UTC without a zone, so "now" must be UTC too; a plain NOW() would be
+// read in the connection's timezone and shift ongoing downtime and availability.
+const UTC_NOW = Prisma.sql`(NOW() AT TIME ZONE 'UTC')`;
+
+// Downtime per asset from its registration up to now: each event is clipped to that window, and
+// breakdown figures count only breakdowns that started in it (as the per-asset summary does).
+const DOWNTIME_PER_ASSET = Prisma.sql`
+  SELECT
+    d."assetId",
+    SUM(GREATEST(0, EXTRACT(EPOCH FROM (COALESCE(d."endedAt", ${UTC_NOW}) - GREATEST(d."startedAt", x."createdAt"))) / 60)) AS minutes,
+    COUNT(*) FILTER (WHERE d.reason = 'BREAKDOWN' AND d."startedAt" >= x."createdAt") AS breakdowns,
+    COUNT(*) FILTER (
+      WHERE d.reason = 'BREAKDOWN' AND d."startedAt" >= x."createdAt" AND d."endedAt" IS NOT NULL
+    ) AS repaired,
+    SUM(EXTRACT(EPOCH FROM (d."endedAt" - d."startedAt")) / 60) FILTER (
+      WHERE d.reason = 'BREAKDOWN' AND d."startedAt" >= x."createdAt" AND d."endedAt" IS NOT NULL
+    ) AS "repairMinutes"
+  FROM asset_downtimes d
+  JOIN assets x ON x.id = d."assetId"
+  GROUP BY d."assetId"`;
+
 // Whitelisted date_trunc unit and generate_series step per granularity; a pure
 // lookup, bound as parameters.
 const GRANULARITY: Record<ThroughputGranularity, { unit: string; step: string }> = {
@@ -40,6 +61,9 @@ const ASSET_SORT_EXPR: Record<AssetReportSortField, string> = {
   partsConsumed: '"partsConsumed"',
   laborMinutes: '"laborMinutes"',
   laborCost: '"laborCost"',
+  downtimeMinutes: '"downtimeMinutes"',
+  breakdowns: "breakdowns",
+  availabilityPercent: '"availabilityPercent"',
   avgCompletionDays: '"avgCompletionDays"',
   name: "a.name",
 };
@@ -111,6 +135,10 @@ type AssetReliabilityRow = {
   laborMinutes: number;
   laborCost: Prisma.Decimal;
   laborUnratedMinutes: number;
+  downtimeMinutes: number;
+  breakdowns: number;
+  availabilityPercent: number | null;
+  mttrMinutes: number | null;
   avgCompletionDays: number | null;
 };
 
@@ -166,6 +194,7 @@ export const reportsRepository = {
     const orderDir = Prisma.raw(query.sortOrder === "asc" ? "ASC" : "DESC");
 
     return prisma.$queryRaw<AssetReliabilityRow[]>`
+      WITH downtime AS (${DOWNTIME_PER_ASSET})
       SELECT
         a.id,
         a.name,
@@ -202,11 +231,17 @@ export const reportsRepository = {
           JOIN tasks t3 ON t3.id = e."taskId"
           WHERE t3."assetId" = a.id AND e."hourlyRate" IS NULL
         ), 0)::int                                                                        AS "laborUnratedMinutes",
+        COALESCE(ROUND(MAX(dd.minutes)), 0)::int                                          AS "downtimeMinutes",
+        COALESCE(MAX(dd.breakdowns), 0)::int                                              AS breakdowns,
+        ROUND((100 * (1 - COALESCE(MAX(dd.minutes), 0)
+          / NULLIF(EXTRACT(EPOCH FROM (${UTC_NOW} - a."createdAt")) / 60, 0)))::numeric, 2)::float AS "availabilityPercent",
+        ROUND(MAX(dd."repairMinutes") / NULLIF(MAX(dd.repaired), 0))::int                 AS "mttrMinutes",
         AVG(
           EXTRACT(EPOCH FROM (t."completedAt" - t."createdAt")) / 86400.0
         ) FILTER (WHERE t.status = 'DONE' AND t."completedAt" IS NOT NULL)::float         AS "avgCompletionDays"
       FROM assets a
       LEFT JOIN tasks t ON t."assetId" = a.id
+      LEFT JOIN downtime dd ON dd."assetId" = a.id
       ${where}
       GROUP BY a.id
       ORDER BY ${orderExpr} ${orderDir} NULLS LAST, a.name ASC, a.id ASC

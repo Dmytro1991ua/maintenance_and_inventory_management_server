@@ -11,6 +11,9 @@ export const ASSET_REPORT_SORT_FIELDS = [
   "partsConsumed",
   "laborMinutes",
   "laborCost",
+  "downtimeMinutes",
+  "breakdowns",
+  "availabilityPercent",
   "avgCompletionDays",
   "name",
 ] as const;
@@ -87,6 +90,11 @@ export const AssetReliabilityRowSchema = z
     laborCost: z.string().openapi({ example: "112.50" }),
     // Minutes with no rate: counted in laborMinutes, not costed.
     laborUnratedMinutes: z.number().int(),
+    // Since the asset was registered: downtime, breakdowns, availability and mean repair time.
+    downtimeMinutes: z.number().int(),
+    breakdowns: z.number().int(),
+    availabilityPercent: z.number().nullable().openapi({ example: 98.7 }),
+    mttrMinutes: z.number().int().nullable().openapi({ description: "null = none repaired yet" }),
     avgCompletionDays: z.number().nullable(),
   })
   .openapi("AssetReliabilityRow");
