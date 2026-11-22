@@ -22,12 +22,16 @@ const LABOR_COST = Prisma.sql`COALESCE(SUM(ROUND(e.minutes * e."hourlyRate" / 60
 const workedBetween = (from: Date, to: Date): Prisma.Sql =>
   Prisma.sql`e."workedOn" BETWEEN (${from}::timestamptz AT TIME ZONE 'UTC')::date AND (${to}::timestamptz AT TIME ZONE 'UTC')::date`;
 
+// Timestamps are stored as UTC without a zone, so "now" must be UTC too; a plain NOW() would be
+// read in the connection's timezone and shift ongoing downtime and availability.
+const UTC_NOW = Prisma.sql`(NOW() AT TIME ZONE 'UTC')`;
+
 // Downtime per asset from its registration up to now: each event is clipped to that window, and
 // breakdown figures count only breakdowns that started in it (as the per-asset summary does).
 const DOWNTIME_PER_ASSET = Prisma.sql`
   SELECT
     d."assetId",
-    SUM(GREATEST(0, EXTRACT(EPOCH FROM (COALESCE(d."endedAt", NOW()) - GREATEST(d."startedAt", x."createdAt"))) / 60)) AS minutes,
+    SUM(GREATEST(0, EXTRACT(EPOCH FROM (COALESCE(d."endedAt", ${UTC_NOW}) - GREATEST(d."startedAt", x."createdAt"))) / 60)) AS minutes,
     COUNT(*) FILTER (WHERE d.reason = 'BREAKDOWN' AND d."startedAt" >= x."createdAt") AS breakdowns,
     COUNT(*) FILTER (
       WHERE d.reason = 'BREAKDOWN' AND d."startedAt" >= x."createdAt" AND d."endedAt" IS NOT NULL
@@ -230,7 +234,7 @@ export const reportsRepository = {
         COALESCE(ROUND(MAX(dd.minutes)), 0)::int                                          AS "downtimeMinutes",
         COALESCE(MAX(dd.breakdowns), 0)::int                                              AS breakdowns,
         ROUND((100 * (1 - COALESCE(MAX(dd.minutes), 0)
-          / NULLIF(EXTRACT(EPOCH FROM (NOW() - a."createdAt")) / 60, 0)))::numeric, 2)::float AS "availabilityPercent",
+          / NULLIF(EXTRACT(EPOCH FROM (${UTC_NOW} - a."createdAt")) / 60, 0)))::numeric, 2)::float AS "availabilityPercent",
         ROUND(MAX(dd."repairMinutes") / NULLIF(MAX(dd.repaired), 0))::int                 AS "mttrMinutes",
         AVG(
           EXTRACT(EPOCH FROM (t."completedAt" - t."createdAt")) / 86400.0

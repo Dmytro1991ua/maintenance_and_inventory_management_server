@@ -91,6 +91,7 @@ describe("GET /api/v1/reports/assets — downtime", () => {
     const row = await rowFor(asset.id);
 
     expect(row.downtimeMinutes).toBeGreaterThanOrEqual(179);
+    expect(row.downtimeMinutes).toBeLessThanOrEqual(181);
     expect(row).toMatchObject({ breakdowns: 1, mttrMinutes: null });
   });
 
