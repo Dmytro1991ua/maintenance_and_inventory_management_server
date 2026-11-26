@@ -1,0 +1,39 @@
+enum ChangeLogAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+enum ChangeLogEntity {
+  ASSET
+  ASSET_DOWNTIME
+  TASK
+  TASK_TIME_ENTRY
+  RECURRING_TASK
+  USER
+  INVENTORY_ITEM
+}
+
+// One row per saved change. Written in the same transaction as the change itself.
+model ChangeLog {
+  id          String           @id @default(uuid())
+  // Null for system changes (cron jobs) and after the actor's account is deleted.
+  userId      String?
+  // Actor's username when changed, so the row stays readable after their account is deleted.
+  actorLabel  String?
+  action      ChangeLogAction
+  entityType  ChangeLogEntity
+  // No foreign key: the history must outlive the entity it describes.
+  entityId    String
+  // Name of the entity when changed, so a deleted entity is still readable.
+  entityLabel String?
+  // [{ field, oldValue, newValue }]; fields are allow-listed per entity (never secrets).
+  changes     Json
+  createdAt   DateTime         @default(now())
+  user        User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([userId, createdAt])
+  @@index([createdAt])
+  @@map("change_logs")
+}

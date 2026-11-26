@@ -32,6 +32,7 @@ model User {
   meterReadings          MeterReading[]  @relation("MeterReadingRecorder")
   timeEntries            TaskTimeEntry[] @relation("TimeEntryWorker")
   downtimesLogged        AssetDowntime[] @relation("DowntimeCreator")
+  changeLogs             ChangeLog[]
 
   @@map("users")
 }
