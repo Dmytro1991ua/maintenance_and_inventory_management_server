@@ -14,20 +14,20 @@ enum ChangeLogEntity {
   INVENTORY_ITEM
 }
 
-// One row per saved change. Written in the same transaction as the change itself.
+// One row per saved change, written in the same transaction.
 model ChangeLog {
   id          String           @id @default(uuid())
-  // Null for system changes (cron jobs) and after the actor's account is deleted.
+  // Null for cron jobs, or once the user is deleted.
   userId      String?
-  // Actor's username when changed, so the row stays readable after their account is deleted.
+  // User's name when changed; outlives the account.
   actorLabel  String?
   action      ChangeLogAction
   entityType  ChangeLogEntity
-  // No foreign key: the history must outlive the entity it describes.
+  // No foreign key: history outlives the entity.
   entityId    String
-  // Name of the entity when changed, so a deleted entity is still readable.
+  // Name when changed.
   entityLabel String?
-  // [{ field, oldValue, newValue }]; fields are allow-listed per entity (never secrets).
+  // [{ field, oldValue, newValue }], allow-listed fields only.
   changes     Json
   createdAt   DateTime         @default(now())
   user        User?            @relation(fields: [userId], references: [id], onDelete: SetNull)

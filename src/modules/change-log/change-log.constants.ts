@@ -1,0 +1,57 @@
+import type { ChangeLogEntity } from "../../generated/prisma/client";
+
+export const AUDITED_FIELDS: Record<ChangeLogEntity, readonly string[]> = {
+  ASSET: [
+    "name",
+    "serialNumber",
+    "category",
+    "location",
+    "status",
+    "manufacturer",
+    "model",
+    "installDate",
+    "warrantyExpiresAt",
+  ],
+  ASSET_DOWNTIME: ["reason", "startedAt", "endedAt", "note", "taskId"],
+  TASK: [
+    "title",
+    "description",
+    "status",
+    "priority",
+    "category",
+    "assignedTo",
+    "dueDate",
+    "assetId",
+    "cancellationReason",
+  ],
+  TASK_TIME_ENTRY: ["taskId", "minutes", "workedOn", "note", "hourlyRate"],
+  RECURRING_TASK: [
+    "title",
+    "description",
+    "priority",
+    "category",
+    "assignedTo",
+    "triggerType",
+    "intervalDays",
+    "nextDueAt",
+    "meterId",
+    "intervalReading",
+    "firstDueReading",
+    "assetId",
+    "isActive",
+  ],
+  USER: ["userName", "email", "roles", "status", "hourlyRate"],
+  INVENTORY_ITEM: [
+    "name",
+    "serialNumber",
+    "category",
+    "quantity",
+    "minStockLevel",
+    "reorderPoint",
+    "reorderQuantity",
+    "supplier",
+    "unitCost",
+  ],
+};
+
+export const MONEY_FIELDS: ReadonlySet<string> = new Set(["unitCost", "hourlyRate"]);
