@@ -2,6 +2,7 @@ import { prisma } from "../../config";
 import { AssetStatus, TaskStatus } from "../../generated/prisma/client";
 import { addDays, getSkipValue, getTotalPages, resolveSortField, startOfUtcDay } from "../../utils";
 import { assetDowntimesRepository } from "../asset-downtimes/asset-downtimes.repository";
+import { changeLogRepository } from "../change-log/change-log.repository";
 import {
   ASSET_ENTITY_ALLOWED_SORT_FIELDS,
   ASSET_ENTITY_DEFAULT_SORT_FIELD,
@@ -112,9 +113,16 @@ export const assetsRepository = {
     prisma.$transaction(async (tx) => {
       const asset = await tx.asset.create({ data, select: ASSET_SELECT });
 
+      await changeLogRepository.record(tx, {
+        action: "CREATE",
+        entityType: "ASSET",
+        entityId: asset.id,
+        entityLabel: asset.name,
+        after: asset,
+      });
       await assetDowntimesRepository.syncWithStatus(
         tx,
-        asset.id,
+        asset,
         AssetStatus.OPERATIONAL,
         asset.status,
       );
@@ -125,14 +133,20 @@ export const assetsRepository = {
   // A status change also opens or closes the asset's downtime event, in the same transaction.
   update: async (id: string, data: UpdateAsset & { warrantyReminderSentAt?: Date | null }) =>
     prisma.$transaction(async (tx) => {
-      const before = data.status
-        ? await tx.asset.findUnique({ where: { id }, select: { status: true } })
-        : null;
-
+      const before = await tx.asset.findUniqueOrThrow({ where: { id } });
       const asset = await tx.asset.update({ where: { id }, data, select: ASSET_SELECT });
 
-      if (before && data.status) {
-        await assetDowntimesRepository.syncWithStatus(tx, id, before.status, data.status);
+      await changeLogRepository.record(tx, {
+        action: "UPDATE",
+        entityType: "ASSET",
+        entityId: id,
+        entityLabel: asset.name,
+        before,
+        after: data,
+      });
+
+      if (data.status) {
+        await assetDowntimesRepository.syncWithStatus(tx, asset, before.status, data.status);
       }
 
       return asset;
@@ -153,7 +167,17 @@ export const assetsRepository = {
 
     return count > 0;
   },
-  delete: async (id: string): Promise<void> => {
-    await prisma.asset.delete({ where: { id } });
-  },
+  delete: (id: string): Promise<void> =>
+    prisma.$transaction(async (tx) => {
+      const before = await tx.asset.findUniqueOrThrow({ where: { id } });
+
+      await tx.asset.delete({ where: { id } });
+      await changeLogRepository.record(tx, {
+        action: "DELETE",
+        entityType: "ASSET",
+        entityId: id,
+        entityLabel: before.name,
+        before,
+      });
+    }),
 };

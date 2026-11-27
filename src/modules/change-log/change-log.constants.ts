@@ -12,7 +12,7 @@ export const AUDITED_FIELDS: Record<ChangeLogEntity, readonly string[]> = {
     "installDate",
     "warrantyExpiresAt",
   ],
-  ASSET_DOWNTIME: ["reason", "startedAt", "endedAt", "note", "taskId"],
+  ASSET_DOWNTIME: ["assetId", "reason", "startedAt", "endedAt", "note", "taskId"],
   TASK: [
     "title",
     "description",
