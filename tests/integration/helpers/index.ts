@@ -15,3 +15,4 @@ export {
   createTestUser,
   DEFAULT_TEST_PASSWORD,
 } from "./user.helpers";
+export { asUser, onlyEntry, statusChange } from "./change-log.helpers";

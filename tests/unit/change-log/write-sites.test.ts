@@ -48,10 +48,11 @@ const WRITE_SITES: Record<string, Site> = {
   "modules/task-time-entries/task-time-entries.repository.ts::taskTimeEntry.create": site(1),
   "modules/task-time-entries/task-time-entries.repository.ts::taskTimeEntry.delete": site(1),
 
-  "modules/tasks/tasks.repository.ts::task.updateMany": site(1, "reminder flag"),
-  "modules/tasks/tasks.repository.ts::task.create": site(2),
+  "modules/tasks/tasks.repository.ts::task.updateMany": site(0, "reminder flag"),
+  "modules/tasks/tasks.repository.ts::task.updateManyAndReturn": site(1),
+  "modules/tasks/tasks.repository.ts::task.create": site(1),
   "modules/tasks/tasks.repository.ts::task.update": site(
-    3,
+    1,
     "before-photo upload, photo URLs are not audited",
     "after-photo upload, photo URLs are not audited",
   ),
@@ -69,7 +70,7 @@ const WRITE_SITES: Record<string, Site> = {
 
 const AUDITED_MODELS = "asset|assetDowntime|task|taskTimeEntry|recurringTask|user|inventoryItem";
 const WRITE_CALL = new RegExp(
-  `\\.(${AUDITED_MODELS})\\.(create|createMany|update|updateMany|upsert|delete|deleteMany)\\b`,
+  `\\.(${AUDITED_MODELS})\\.(create|createMany|createManyAndReturn|update|updateMany|updateManyAndReturn|upsert|delete|deleteMany)\\b`,
   "g",
 );
 
@@ -119,5 +120,13 @@ describe("change log write sites", () => {
     );
 
     expect(rawWrites).toEqual([]);
+  });
+
+  it("should record through the caller's transaction, never the global client", () => {
+    const outsideTransaction = sourceFiles(SRC).filter((file) =>
+      /changeLogRepository\.record\(\s*prisma\b/.test(readFileSync(file, "utf8")),
+    );
+
+    expect(outsideTransaction).toEqual([]);
   });
 });

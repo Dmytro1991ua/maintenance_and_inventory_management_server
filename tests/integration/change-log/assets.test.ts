@@ -2,44 +2,32 @@ import request from "supertest";
 
 import app from "../../../src/app";
 import { prisma } from "../../../src/config";
-import type { ChangeLogEntity } from "../../../src/generated/prisma/client";
 import { assetDowntimesRepository } from "../../../src/modules/asset-downtimes/asset-downtimes.repository";
 import {
-  authHeader,
+  asUser,
   createAdminUser,
   createManagerUser,
   createTestAsset,
-  signTestAccessToken,
+  onlyEntry,
+  statusChange,
 } from "../helpers";
 
 type TestUser = Awaited<ReturnType<typeof createAdminUser>>;
 
-const as = (user: TestUser) => authHeader(signTestAccessToken(user));
-
-// The one entry of this type, so a test also proves nothing extra was written.
-const only = async (entityType: ChangeLogEntity) => {
-  const entries = await prisma.changeLog.findMany({ where: { entityType } });
-
-  expect(entries).toHaveLength(1);
-
-  return entries[0];
-};
-
-const statusChange = (oldValue: string, newValue: string) => [
-  { field: "status", oldValue, newValue },
-];
-
 const patchAsset = (user: TestUser, id: string, body: object) =>
-  request(app).patch(`/api/v1/assets/${id}`).set(as(user)).send(body);
+  request(app).patch(`/api/v1/assets/${id}`).set(asUser(user)).send(body);
 
 const startDowntime = (user: TestUser, assetId: string, body: object = { reason: "BREAKDOWN" }) =>
-  request(app).post(`/api/v1/assets/${assetId}/downtime`).set(as(user)).send(body);
+  request(app).post(`/api/v1/assets/${assetId}/downtime`).set(asUser(user)).send(body);
 
 const endDowntime = (user: TestUser, assetId: string, downtimeId: string) =>
-  request(app).post(`/api/v1/assets/${assetId}/downtime/${downtimeId}/end`).set(as(user)).send({});
+  request(app)
+    .post(`/api/v1/assets/${assetId}/downtime/${downtimeId}/end`)
+    .set(asUser(user))
+    .send({});
 
 const deleteDowntime = (user: TestUser, assetId: string, downtimeId: string) =>
-  request(app).delete(`/api/v1/assets/${assetId}/downtime/${downtimeId}`).set(as(user));
+  request(app).delete(`/api/v1/assets/${assetId}/downtime/${downtimeId}`).set(asUser(user));
 
 // Setup goes through the API too; the log is cleared so a test sees only its own action.
 const clearLog = () => prisma.changeLog.deleteMany();
@@ -50,7 +38,7 @@ describe("change log — assets", () => {
   it("should record who created an asset and its filled-in fields", async () => {
     const manager = await createManagerUser();
 
-    const response = await request(app).post("/api/v1/assets").set(as(manager)).send({
+    const response = await request(app).post("/api/v1/assets").set(asUser(manager)).send({
       name: "Sump Pump",
       serialNumber: "PUMP-1",
       category: "PLUMBING",
@@ -59,7 +47,7 @@ describe("change log — assets", () => {
 
     expect(response.status).toBe(201);
 
-    const entry = await only("ASSET");
+    const entry = await onlyEntry("ASSET");
 
     expect(entry).toMatchObject({
       action: "CREATE",
@@ -81,7 +69,7 @@ describe("change log — assets", () => {
   it("should record the breakdown event too when an asset is created DOWN", async () => {
     const manager = await createManagerUser();
 
-    const response = await request(app).post("/api/v1/assets").set(as(manager)).send({
+    const response = await request(app).post("/api/v1/assets").set(asUser(manager)).send({
       name: "Press",
       serialNumber: "PRESS-1",
       category: "PLUMBING",
@@ -89,7 +77,7 @@ describe("change log — assets", () => {
       status: "DOWN",
     });
 
-    const event = await only("ASSET_DOWNTIME");
+    const event = await onlyEntry("ASSET_DOWNTIME");
 
     expect(event).toMatchObject({
       action: "CREATE",
@@ -112,7 +100,7 @@ describe("change log — assets", () => {
 
     expect(response.status).toBe(200);
 
-    const entry = await only("ASSET");
+    const entry = await onlyEntry("ASSET");
 
     expect(entry).toMatchObject({
       action: "UPDATE",
@@ -129,7 +117,7 @@ describe("change log — assets", () => {
 
     await patchAsset(manager, asset.id, { warrantyExpiresAt: "2027-01-31" });
 
-    expect((await only("ASSET")).changes).toEqual([
+    expect((await onlyEntry("ASSET")).changes).toEqual([
       { field: "warrantyExpiresAt", oldValue: null, newValue: "2027-01-31T00:00:00.000Z" },
     ]);
   });
@@ -160,8 +148,8 @@ describe("change log — assets", () => {
 
     await patchAsset(admin, asset.id, { status: "DOWN" });
 
-    const down = await only("ASSET");
-    const opened = await only("ASSET_DOWNTIME");
+    const down = await onlyEntry("ASSET");
+    const opened = await onlyEntry("ASSET_DOWNTIME");
 
     expect(down.changes).toEqual(statusChange("OPERATIONAL", "DOWN"));
     expect(opened).toMatchObject({ action: "CREATE", entityLabel: "Boiler", userId: admin.id });
@@ -170,8 +158,8 @@ describe("change log — assets", () => {
     await clearLog();
     await patchAsset(admin, asset.id, { status: "OPERATIONAL" });
 
-    const up = await only("ASSET");
-    const closed = await only("ASSET_DOWNTIME");
+    const up = await onlyEntry("ASSET");
+    const closed = await onlyEntry("ASSET_DOWNTIME");
 
     expect(up.changes).toEqual(statusChange("DOWN", "OPERATIONAL"));
     expect(closed).toMatchObject({ action: "UPDATE", entityId: opened.entityId, userId: admin.id });
@@ -202,11 +190,11 @@ describe("change log — assets", () => {
     const admin = await createAdminUser();
     const asset = await createTestAsset({ name: "Old Chiller", location: "Roof" });
 
-    const response = await request(app).delete(`/api/v1/assets/${asset.id}`).set(as(admin));
+    const response = await request(app).delete(`/api/v1/assets/${asset.id}`).set(asUser(admin));
 
     expect(response.status).toBe(204);
 
-    const entry = await only("ASSET");
+    const entry = await onlyEntry("ASSET");
 
     expect(entry).toMatchObject({
       action: "DELETE",
@@ -235,8 +223,8 @@ describe("change log — asset downtime", () => {
 
     expect(response.status).toBe(201);
 
-    const event = await only("ASSET_DOWNTIME");
-    const assetEntry = await only("ASSET");
+    const event = await onlyEntry("ASSET_DOWNTIME");
+    const assetEntry = await onlyEntry("ASSET");
 
     expect(event).toMatchObject({
       action: "CREATE",
@@ -265,8 +253,8 @@ describe("change log — asset downtime", () => {
 
     expect(response.status).toBe(200);
 
-    const event = await only("ASSET_DOWNTIME");
-    const assetEntry = await only("ASSET");
+    const event = await onlyEntry("ASSET_DOWNTIME");
+    const assetEntry = await onlyEntry("ASSET");
 
     expect(event).toMatchObject({
       action: "UPDATE",
@@ -314,8 +302,8 @@ describe("change log — asset downtime", () => {
 
     expect(response.status).toBe(204);
 
-    const event = await only("ASSET_DOWNTIME");
-    const assetEntry = await only("ASSET");
+    const event = await onlyEntry("ASSET_DOWNTIME");
+    const assetEntry = await onlyEntry("ASSET");
 
     expect(event).toMatchObject({
       action: "DELETE",
@@ -344,7 +332,7 @@ describe("change log — asset downtime", () => {
     const response = await deleteDowntime(admin, asset.id, event.id);
 
     expect(response.status).toBe(204);
-    expect((await only("ASSET_DOWNTIME")).action).toBe("DELETE");
+    expect((await onlyEntry("ASSET_DOWNTIME")).action).toBe("DELETE");
     expect(await prisma.changeLog.count({ where: { entityType: "ASSET" } })).toBe(0);
   });
 });

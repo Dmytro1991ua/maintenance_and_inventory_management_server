@@ -9,6 +9,7 @@ jest.setTimeout(15000);
 
 // Same order as the integration setup (children before parents), since integration files leave rows behind
 beforeEach(async () => {
+  await prisma.changeLog.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.taskComment.deleteMany();
   await prisma.workOrderRequest.deleteMany();
