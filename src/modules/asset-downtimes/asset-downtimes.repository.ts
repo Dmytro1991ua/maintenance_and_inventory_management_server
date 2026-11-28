@@ -1,21 +1,54 @@
 import { prisma } from "../../config";
-import type { DowntimeReason, Prisma } from "../../generated/prisma/client";
+import type { ChangeLogAction, DowntimeReason, Prisma } from "../../generated/prisma/client";
 import { AssetStatus } from "../../generated/prisma/client";
+import { changeLogRepository } from "../change-log/change-log.repository";
 import { DOWNTIME_SELECT } from "./asset-downtimes.constants";
+
+type AssetRef = { id: string; name: string; status: AssetStatus };
+type Row = Record<string, unknown>;
+
+const findAssetRef = (tx: Prisma.TransactionClient, id: string) =>
+  tx.asset.findUniqueOrThrow({ where: { id }, select: { id: true, name: true, status: true } });
+
+const recordDowntime = (
+  tx: Prisma.TransactionClient,
+  action: ChangeLogAction,
+  assetName: string,
+  id: string,
+  rows: { before?: Row; after?: Row },
+) =>
+  changeLogRepository.record(tx, {
+    action,
+    entityType: "ASSET_DOWNTIME",
+    entityId: id,
+    entityLabel: assetName,
+    ...rows,
+  });
 
 // Moves the asset only from the given statuses, so a retired asset is never revived.
 const moveAssetStatus = async (
   tx: Prisma.TransactionClient,
-  assetId: string,
+  asset: AssetRef,
   from: AssetStatus[],
   to: AssetStatus,
 ): Promise<boolean> => {
   const { count } = await tx.asset.updateMany({
-    where: { id: assetId, status: { in: from } },
+    where: { id: asset.id, status: { in: from } },
     data: { status: to },
   });
 
-  return count > 0;
+  if (count === 0) return false;
+
+  await changeLogRepository.record(tx, {
+    action: "UPDATE",
+    entityType: "ASSET",
+    entityId: asset.id,
+    entityLabel: asset.name,
+    before: { status: asset.status },
+    after: { status: to },
+  });
+
+  return true;
 };
 
 export const assetDowntimesRepository = {
@@ -57,20 +90,28 @@ export const assetDowntimesRepository = {
     createdBy: string;
   }) =>
     prisma.$transaction(async (tx) => {
+      const asset = await findAssetRef(tx, data.assetId);
       const moved = await moveAssetStatus(
         tx,
-        data.assetId,
+        asset,
         [AssetStatus.OPERATIONAL, AssetStatus.DOWN],
         AssetStatus.DOWN,
       );
 
-      return moved ? tx.assetDowntime.create({ data, select: DOWNTIME_SELECT }) : null;
+      if (!moved) return null;
+
+      const event = await tx.assetDowntime.create({ data, select: DOWNTIME_SELECT });
+
+      await recordDowntime(tx, "CREATE", asset.name, event.id, { after: event });
+
+      return event;
     }),
 
   // Null: the event was already ended. Matching on `endedAt: null` keeps a stale or repeated
   // end from rewriting a finished event or reviving an asset.
   end: (id: string, assetId: string, endedAt: Date) =>
     prisma.$transaction(async (tx) => {
+      const asset = await findAssetRef(tx, assetId);
       const { count } = await tx.assetDowntime.updateMany({
         where: { id, endedAt: null },
         data: { endedAt },
@@ -78,7 +119,11 @@ export const assetDowntimesRepository = {
 
       if (count === 0) return null;
 
-      await moveAssetStatus(tx, assetId, [AssetStatus.DOWN], AssetStatus.OPERATIONAL);
+      await recordDowntime(tx, "UPDATE", asset.name, id, {
+        before: { endedAt: null },
+        after: { endedAt },
+      });
+      await moveAssetStatus(tx, asset, [AssetStatus.DOWN], AssetStatus.OPERATIONAL);
 
       return tx.assetDowntime.findUniqueOrThrow({ where: { id }, select: DOWNTIME_SELECT });
     }),
@@ -87,10 +132,13 @@ export const assetDowntimesRepository = {
   // from the deleted row itself, so it cannot go stale.
   delete: (id: string, assetId: string) =>
     prisma.$transaction(async (tx) => {
+      const asset = await findAssetRef(tx, assetId);
       const deleted = await tx.assetDowntime.delete({ where: { id } });
 
+      await recordDowntime(tx, "DELETE", asset.name, id, { before: deleted });
+
       if (deleted.endedAt === null) {
-        await moveAssetStatus(tx, assetId, [AssetStatus.DOWN], AssetStatus.OPERATIONAL);
+        await moveAssetStatus(tx, asset, [AssetStatus.DOWN], AssetStatus.OPERATIONAL);
       }
     }),
 
@@ -98,25 +146,33 @@ export const assetDowntimesRepository = {
   // Going DOWN opens a breakdown unless one is open; leaving DOWN closes it.
   syncWithStatus: async (
     tx: Prisma.TransactionClient,
-    assetId: string,
+    asset: { id: string; name: string },
     from: AssetStatus,
     to: AssetStatus,
   ): Promise<void> => {
-    if (to === AssetStatus.DOWN && from !== AssetStatus.DOWN) {
-      const open = await tx.assetDowntime.findFirst({ where: { assetId, endedAt: null } });
+    const open = await tx.assetDowntime.findFirst({ where: { assetId: asset.id, endedAt: null } });
 
-      if (!open) {
-        await tx.assetDowntime.create({
-          data: { assetId, reason: "BREAKDOWN", startedAt: new Date() },
-        });
-      }
+    if (to === AssetStatus.DOWN && from !== AssetStatus.DOWN && !open) {
+      const event = await tx.assetDowntime.create({
+        data: { assetId: asset.id, reason: "BREAKDOWN", startedAt: new Date() },
+      });
+
+      await recordDowntime(tx, "CREATE", asset.name, event.id, { after: event });
     }
 
-    if (from === AssetStatus.DOWN && to !== AssetStatus.DOWN) {
-      await tx.assetDowntime.updateMany({
-        where: { assetId, endedAt: null },
-        data: { endedAt: new Date() },
+    if (from === AssetStatus.DOWN && to !== AssetStatus.DOWN && open) {
+      const endedAt = new Date();
+      const { count } = await tx.assetDowntime.updateMany({
+        where: { id: open.id, endedAt: null },
+        data: { endedAt },
       });
+
+      if (count > 0) {
+        await recordDowntime(tx, "UPDATE", asset.name, open.id, {
+          before: { endedAt: null },
+          after: { endedAt },
+        });
+      }
     }
   },
 };

@@ -1,6 +1,7 @@
 import { prisma } from "../../config";
 import { Prisma, TaskStatus } from "../../generated/prisma/client";
 import { addDays, getSkipValue, getTotalPages, resolveSortField } from "../../utils";
+import { changeLogRepository } from "../change-log/change-log.repository";
 import {
   ACTIVE_TASK_STATUSES,
   TASK_ENTITY_ALLOWED_SORT_FIELDS,
@@ -11,6 +12,40 @@ import type { CompleteTask, CreateTask, TasksQuery, UpdateTask } from "./tasks.s
 
 type CreateTaskInput = CreateTask & { recurringTaskId?: string };
 import { buildTasksWhere } from "./tasks.utils";
+
+const createAndRecord = async (tx: Prisma.TransactionClient, data: CreateTaskInput) => {
+  const task = await tx.task.create({ data, select: TASK_SELECT });
+
+  await changeLogRepository.record(tx, {
+    action: "CREATE",
+    entityType: "TASK",
+    entityId: task.id,
+    entityLabel: task.title,
+    after: task,
+  });
+
+  return task;
+};
+
+const updateAndRecord = async (
+  tx: Prisma.TransactionClient,
+  id: string,
+  data: Prisma.TaskUncheckedUpdateInput,
+) => {
+  const before = await tx.task.findUniqueOrThrow({ where: { id } });
+  const task = await tx.task.update({ where: { id }, data, select: TASK_SELECT });
+
+  await changeLogRepository.record(tx, {
+    action: "UPDATE",
+    entityType: "TASK",
+    entityId: id,
+    entityLabel: task.title,
+    before,
+    after: data,
+  });
+
+  return task;
+};
 
 export const tasksRepository = {
   findAll: async (query: TasksQuery) => {
@@ -103,25 +138,14 @@ export const tasksRepository = {
       data: { reminderSentAt: new Date() },
     });
   },
-  create: async (data: CreateTask) =>
-    prisma.task.create({
-      data,
-      select: TASK_SELECT,
-    }),
+  create: (data: CreateTask) => prisma.$transaction((tx) => createAndRecord(tx, data)),
   // `db` lets a schedule generate its task inside the caller's transaction.
-  createFromSchedule: async (data: CreateTaskInput, db: Prisma.TransactionClient = prisma) =>
-    db.task.create({
-      data,
-      select: TASK_SELECT,
-    }),
+  createFromSchedule: (data: CreateTaskInput, db: Prisma.TransactionClient = prisma) =>
+    createAndRecord(db, data),
   // `reminderSentAt` is an internal field (not part of UpdateTask): the service
   // resets it to null when a task is rescheduled, re-arming the due-soon reminder.
-  update: async (id: string, data: UpdateTask & { reminderSentAt?: Date | null }) =>
-    prisma.task.update({
-      where: { id },
-      data,
-      select: TASK_SELECT,
-    }),
+  update: (id: string, data: UpdateTask & { reminderSentAt?: Date | null }) =>
+    prisma.$transaction((tx) => updateAndRecord(tx, id, data)),
   setBeforePhoto: async (id: string, beforePhotoUrl: string) =>
     prisma.task.update({
       where: { id },
@@ -156,23 +180,17 @@ export const tasksRepository = {
         });
       }
 
-      return tx.task.update({
-        where: { id },
-        data: { status: TaskStatus.DONE, completedAt: new Date() },
-        select: TASK_SELECT,
-      });
+      return updateAndRecord(tx, id, { status: TaskStatus.DONE, completedAt: new Date() });
     }),
-  cancel: async (id: string, { reason, cancelledBy }: { reason: string; cancelledBy: string }) =>
-    prisma.task.update({
-      where: { id },
-      data: {
+  cancel: (id: string, { reason, cancelledBy }: { reason: string; cancelledBy: string }) =>
+    prisma.$transaction((tx) =>
+      updateAndRecord(tx, id, {
         status: TaskStatus.CANCELLED,
         cancellationReason: reason,
         cancelledAt: new Date(),
         cancelledBy,
-      },
-      select: TASK_SELECT,
-    }),
+      }),
+    ),
   findActiveForUser: async (
     userId: string,
     excludeTaskId?: string,
@@ -186,13 +204,38 @@ export const tasksRepository = {
       },
       select: { id: true },
     }),
-  resetInProgressForUser: async (userId: string): Promise<void> => {
-    await prisma.task.updateMany({
-      where: { assignedTo: userId, status: TaskStatus.IN_PROGRESS },
-      data: { status: TaskStatus.OPEN },
-    });
-  },
-  delete: async (id: string): Promise<void> => {
-    await prisma.task.delete({ where: { id } });
-  },
+  resetInProgressForUser: (userId: string): Promise<void> =>
+    prisma.$transaction(async (tx) => {
+      const reset = await tx.task.updateManyAndReturn({
+        where: { assignedTo: userId, status: TaskStatus.IN_PROGRESS },
+        data: { status: TaskStatus.OPEN },
+        select: { id: true, title: true },
+      });
+
+      await Promise.all(
+        reset.map((task) =>
+          changeLogRepository.record(tx, {
+            action: "UPDATE",
+            entityType: "TASK",
+            entityId: task.id,
+            entityLabel: task.title,
+            before: { status: TaskStatus.IN_PROGRESS },
+            after: { status: TaskStatus.OPEN },
+          }),
+        ),
+      );
+    }),
+  delete: (id: string): Promise<void> =>
+    prisma.$transaction(async (tx) => {
+      const before = await tx.task.findUniqueOrThrow({ where: { id } });
+
+      await tx.task.delete({ where: { id } });
+      await changeLogRepository.record(tx, {
+        action: "DELETE",
+        entityType: "TASK",
+        entityId: id,
+        entityLabel: before.title,
+        before,
+      });
+    }),
 };

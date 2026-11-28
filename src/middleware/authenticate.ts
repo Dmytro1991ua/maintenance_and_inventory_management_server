@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { env } from "../config";
 import { ForbiddenError, UnauthorizedError } from "../errors";
 import { UserStatus } from "../generated/prisma/client";
+import { runAsUser } from "../modules/change-log/change-log.context";
 import { usersRepository } from "../modules/users/users.repository";
 
 type AccessTokenPayload = {
@@ -57,5 +58,5 @@ export const authenticate = async (
   // Roles come from the database, so a role change applies at once.
   req.user = { id: decoded.UserInfo.id, userName: user.userName, roles: user.roles };
 
-  next();
+  runAsUser({ id: req.user.id, userName: req.user.userName }, next);
 };
